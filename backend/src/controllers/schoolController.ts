@@ -1,37 +1,48 @@
-import { Response } from 'express';
-import { db } from '../config/firebase';
-import { AuthRequest } from '../middleware/auth';
-import { z } from 'zod';
+import { Request, Response } from 'express';
+import { db, isMockMode } from '../config/firebase';
+import { schoolSchema } from '../models/schoolModel';
 import { asyncHandler } from '../middleware/errorHandler';
+import * as mockDb from '../config/mockDb';
 
-const schoolSchema = z.object({
-  name: z.string().min(3),
-  address: z.string(),
-  contactEmail: z.string().email(),
-  subscriptionPlan: z.enum(['starter', 'growth', 'pro', 'elite']),
-});
-
-export const createSchool = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const createSchool = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = schoolSchema.parse(req.body);
-  
+
+  if (isMockMode) {
+    const newItem = mockDb.saveToCollection('schools', {
+      ...validatedData,
+      status: 'active',
+    });
+    return res.status(201).json({
+      status: 'success',
+      data: newItem
+    });
+  }
+
   const schoolRef = await db.collection('schools').add({
     ...validatedData,
-    status: 'pending',
+    status: 'active',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
 
-  res.status(201).json({ 
+  const newSchool = await schoolRef.get();
+  res.status(201).json({
     status: 'success',
-    id: schoolRef.id, 
-    message: 'School created successfully' 
+    data: { id: schoolRef.id, ...newSchool.data() }
   });
 });
 
-export const getSchools = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getSchools = asyncHandler(async (_req: Request, res: Response) => {
+  if (isMockMode) {
+    const schools = mockDb.getCollection('schools');
+    return res.status(200).json({
+      status: 'success',
+      data: schools
+    });
+  }
+
   const snapshot = await db.collection('schools').get();
   const schools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  
   res.status(200).json({
     status: 'success',
     data: schools

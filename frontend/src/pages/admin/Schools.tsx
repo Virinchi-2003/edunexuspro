@@ -35,12 +35,14 @@ import {
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 
 const SchoolsPage: React.FC = () => {
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [newSchool, setNewSchool] = useState({
     name: '',
     address: '',
@@ -59,7 +61,7 @@ const SchoolsPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to fetch schools:', error);
-      // Mock data for fallback
+      toast.error('Connection failed. Using offline data.');
       setSchools([
         { id: '1', name: 'St. Xavier High School', address: 'Mumbai, MH', contactEmail: 'info@stxavier.edu', subscriptionPlan: 'Elite', status: 'active', students: 1200 },
         { id: '2', name: 'Greenwood Academy', address: 'Bangalore, KA', contactEmail: 'admin@greenwood.ac.in', subscriptionPlan: 'Pro', status: 'active', students: 850 },
@@ -75,35 +77,75 @@ const SchoolsPage: React.FC = () => {
   }, []);
 
   const handleExportPDF = () => {
+    if (filteredSchools.length === 0) {
+      toast.warning('No schools available to export.');
+      return;
+    }
+
     const doc = new jsPDF() as any;
-    doc.text('EduNexus Pro - Schools Report', 14, 15);
+    const timestamp = new Date().toLocaleString();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(59, 130, 246);
+    doc.text('EduNexus Pro', 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Institutional Audit Report', 14, 28);
+    doc.text(`Generated on: ${timestamp}`, 14, 34);
     
     const tableData = filteredSchools.map(s => [
       s.name, 
       s.address, 
+      s.contactEmail,
       s.subscriptionPlan, 
-      s.status
+      s.status || 'Active'
     ]);
 
     doc.autoTable({
-      head: [['School Name', 'Location', 'Subscription', 'Status']],
+      head: [['School Name', 'Location', 'Email', 'Plan', 'Status']],
       body: tableData,
-      startY: 20,
-      theme: 'grid',
-      headStyles: { fillStyle: [59, 130, 246] }
+      startY: 40,
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246], fontSize: 10 },
+      styles: { fontSize: 9 },
+      margin: { top: 40 }
     });
 
-    doc.save('edunexus-schools-report.pdf');
+    // Footer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+    }
+
+    doc.save(`schools-report-${Date.now()}.pdf`);
+    toast.success('PDF report generated successfully!');
   };
 
   const handleAddSchool = async () => {
+    // Basic Validation
+    if (!newSchool.name || !newSchool.address || !newSchool.contactEmail) {
+      toast.error('Please fill in all required fields.');
+      return;
+    }
+
     try {
-      await api.post('/schools', newSchool);
-      setIsAddDialogOpen(false);
-      fetchSchools();
-      setNewSchool({ name: '', address: '', contactEmail: '', subscriptionPlan: 'starter' });
+      setIsAdding(true);
+      const res = await api.post('/schools', newSchool);
+      if (res.status === 201) {
+        toast.success(`${newSchool.name} registered successfully!`);
+        setIsAddDialogOpen(false);
+        fetchSchools();
+        setNewSchool({ name: '', address: '', contactEmail: '', subscriptionPlan: 'starter' });
+      }
     } catch (error) {
       console.error('Failed to add school:', error);
+      toast.error('Failed to register school. Please try again.');
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -178,8 +220,17 @@ const SchoolsPage: React.FC = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddSchool}>Create Registration</Button>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isAdding}>Cancel</Button>
+                <Button onClick={handleAddSchool} disabled={isAdding}>
+                  {isAdding ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Registering...
+                    </>
+                  ) : (
+                    'Create Registration'
+                  )}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

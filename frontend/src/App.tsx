@@ -7,6 +7,8 @@ import Schools from './pages/admin/Schools';
 import PrincipalDashboard from './pages/principal/Dashboard';
 import Login from './pages/Login';
 
+import { Toaster } from 'sonner';
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: string[] }> = ({ children, roles }) => {
   const { user, loading } = useAuth();
 
@@ -30,6 +32,7 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
+        <Toaster position="top-right" richColors />
         <Routes>
           <Route path="/login" element={<Login />} />
           
