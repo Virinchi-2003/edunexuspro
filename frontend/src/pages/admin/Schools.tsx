@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { 
   Plus, 
   Search, 
-  MoreHorizontal, 
   Filter,
   Download,
   Loader2,
