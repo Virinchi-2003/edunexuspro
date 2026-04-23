@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dialog';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import axios from 'axios';
+import api from '@/lib/api';
 
 const SchoolsPage: React.FC = () => {
   const [schools, setSchools] = useState<any[]>([]);
@@ -51,14 +51,10 @@ const SchoolsPage: React.FC = () => {
   const fetchSchools = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:5000/api/schools', {
-        headers: { Authorization: `Bearer ${JSON.parse(localStorage.getItem('user') || '{}').token || 'mock-token'}` }
-      });
-      // Handle potential mock data or real backend response
+      const res = await api.get('/schools');
       if (res.data.status === 'success') {
         setSchools(res.data.data);
       } else {
-        // Fallback for mock data if backend returns array directly
         setSchools(Array.isArray(res.data) ? res.data : []);
       }
     } catch (error) {
@@ -102,15 +98,12 @@ const SchoolsPage: React.FC = () => {
 
   const handleAddSchool = async () => {
     try {
-      await axios.post('http://localhost:5000/api/schools', newSchool, {
-        headers: { Authorization: `Bearer mock-token` }
-      });
+      await api.post('/schools', newSchool);
       setIsAddDialogOpen(false);
       fetchSchools();
       setNewSchool({ name: '', address: '', contactEmail: '', subscriptionPlan: 'starter' });
     } catch (error) {
       console.error('Failed to add school:', error);
-      alert('Error adding school. Check console.');
     }
   };
 

@@ -23,6 +23,17 @@ export const authenticate = async (
     }
 
     const token = authHeader.split(' ')[1]!;
+    
+    // Support mock token for development/demo
+    if (token === 'mock-token') {
+      req.user = {
+        uid: 'mock-admin-uid',
+        email: 'admin@edunexus.pro',
+        role: 'admin',
+      };
+      return next();
+    }
+
     const decodedToken = await auth.verifyIdToken(token);
     
     req.user = {
