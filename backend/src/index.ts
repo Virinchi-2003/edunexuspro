@@ -8,7 +8,12 @@ import { db } from './config/firebase';
 import schoolRoutes from './routes/schoolRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
+import { initDb } from './config/database';
+
 dotenv.config();
+
+// Initialize Turso
+initDb();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

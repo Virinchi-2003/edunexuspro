@@ -1,50 +1,42 @@
 import { Request, Response } from 'express';
-import { db, isMockMode } from '../config/firebase';
+import { turso } from '../config/database';
 import { schoolSchema } from '../models/schoolModel';
 import { asyncHandler } from '../middleware/errorHandler';
-import * as mockDb from '../config/mockDb';
+import { v4 as uuidv4 } from 'uuid';
 
 export const createSchool = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = schoolSchema.parse(req.body);
+  const id = uuidv4();
 
-  if (isMockMode) {
-    const newItem = mockDb.saveToCollection('schools', {
-      ...validatedData,
-      status: 'active',
-    });
-    return res.status(201).json({
-      status: 'success',
-      data: newItem
-    });
-  }
-
-  const schoolRef = await db.collection('schools').add({
-    ...validatedData,
-    status: 'active',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  await turso.execute({
+    sql: `INSERT INTO schools (id, name, address, contactEmail, subscriptionPlan, status) 
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      id, 
+      validatedData.name, 
+      validatedData.address, 
+      validatedData.contactEmail, 
+      validatedData.subscriptionPlan, 
+      'active'
+    ]
   });
 
-  const newSchool = await schoolRef.get();
+  const result = await turso.execute({
+    sql: "SELECT * FROM schools WHERE id = ?",
+    args: [id]
+  });
+
   res.status(201).json({
     status: 'success',
-    data: { id: schoolRef.id, ...newSchool.data() }
+    data: result.rows[0]
   });
 });
 
 export const getSchools = asyncHandler(async (_req: Request, res: Response) => {
-  if (isMockMode) {
-    const schools = mockDb.getCollection('schools');
-    return res.status(200).json({
-      status: 'success',
-      data: schools
-    });
-  }
-
-  const snapshot = await db.collection('schools').get();
-  const schools = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const result = await turso.execute("SELECT * FROM schools ORDER BY createdAt DESC");
+  
   res.status(200).json({
     status: 'success',
-    data: schools
+    data: result.rows
   });
 });
