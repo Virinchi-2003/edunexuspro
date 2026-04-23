@@ -6,10 +6,10 @@
     "moduleResolution": "nodenext",
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["../shared/*"],
+      "@shared/*": ["./src/shared/*"],
       "@/*": ["./src/*"]
     },
-    "rootDir": "..",
+    "rootDir": "./src",
     "outDir": "./dist",
     "strict": true,
     "skipLibCheck": true,
@@ -20,6 +20,6 @@
     "ignoreDeprecations": "6.0",
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*", "../shared/**/*"],
-  "exclude": ["node_modules", "dist", "../frontend", "../mobile_app"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
