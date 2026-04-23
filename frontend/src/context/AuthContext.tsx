@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { UserRole, UserProfile } from '@shared/types';
+import type { UserProfile } from '@shared/types';
 // Assume firebase is configured in lib/firebase.ts
 // For now, mocking the auth state
 export interface AuthContextType {
@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = async (email: string, pass: string) => {
+  const login = async (email: string, _pass: string) => {
     // Mock login logic
     const mockUser: UserProfile = {
       uid: '123',
