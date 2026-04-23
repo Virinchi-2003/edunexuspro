@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.npm
+.pnp
+.pnp.js
+
+# Build Outputs
+dist/
+build/
+.next/
+out/
+*.log
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE / Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Mobile (Flutter/Dart)
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Firebase
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# OS Files
+Thumbs.db
+Desktop.ini
