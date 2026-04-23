@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { db } from './config/firebase';
 
 import schoolRoutes from './routes/schoolRoutes';
+import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
@@ -13,13 +14,16 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
 app.use(helmet());
+app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
 // Routes
 app.use('/api/schools', schoolRoutes);
+
+// Global Error Handler (must be after routes)
+app.use(errorHandler);
 
 // Base Route
 app.get('/', (req, res) => {
