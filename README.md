@@ -96,5 +96,26 @@ EduNexusPro/
 
 ---
 
+## 🌐 Deployment (Render)
+
+### **Backend (Web Service)**
+- **Build Command**: `npm install && npm run build`
+- **Start Command**: `npm start`
+- **Environment Variables**:
+  - `TURSO_DATABASE_URL`: Your Turso connection string.
+  - `TURSO_AUTH_TOKEN`: Your Turso API token.
+  - `SMTP_USER` & `SMTP_PASS`: For email notifications.
+
+### **Frontend (Static Site)**
+- **Build Command**: `npm install && npm run build`
+- **Publish Directory**: `dist`
+- **SPA Routing (CRITICAL)**:
+  - Go to **Redirects/Rewrites** in the Render Dashboard.
+  - Add Rule: `/*` -> `/index.html` (Action: **Rewrite**).
+- **Environment Variables**:
+  - `VITE_API_URL`: Your deployed backend URL + `/api`.
+
+---
+
 ## 🛡️ License
 Proprietary. All rights reserved.
