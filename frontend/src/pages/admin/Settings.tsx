@@ -4,12 +4,9 @@ import {
   Shield, 
   Bell, 
   Lock, 
-  Settings as SettingsIcon, 
   Save, 
   UserPlus, 
   Trash2,
-  Mail,
-  Phone,
   Loader2,
   Database,
   Globe

@@ -14,7 +14,6 @@ import {
   Search, 
   Mail, 
   Phone,
-  School,
   Trash2,
   Pencil,
   Loader2,
