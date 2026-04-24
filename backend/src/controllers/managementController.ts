@@ -194,7 +194,7 @@ export const updateAdminProfile = asyncHandler(async (req: Request, res: Respons
       ...validatedData,
       updatedAt: new Date().toISOString() 
     })
-    .where(eq(users.uid, uid));
+    .where(eq(users.uid, uid as string));
 
   res.status(200).json({ status: 'success', message: 'Admin profile updated' });
 });
@@ -225,7 +225,7 @@ export const deleteAdminUser = asyncHandler(async (req: Request, res: Response) 
   // Prevent deleting self? (Optional, but good practice)
   // if (uid === (req as any).user.uid) ...
 
-  await db.delete(users).where(and(eq(users.uid, uid), eq(users.role, 'admin')));
+  await db.delete(users).where(and(eq(users.uid, uid as string), eq(users.role, 'admin')));
   res.status(200).json({ status: 'success', message: 'Admin account removed' });
 });
 
@@ -238,7 +238,7 @@ export const updateAdminPassword = asyncHandler(async (req: Request, res: Respon
   }
 
   const user = await db.query.users.findFirst({
-    where: and(eq(users.uid, uid), eq(users.password, currentPassword))
+    where: and(eq(users.uid, uid as string), eq(users.password, currentPassword))
   });
 
   if (!user) {
@@ -247,7 +247,7 @@ export const updateAdminPassword = asyncHandler(async (req: Request, res: Respon
 
   await db.update(users)
     .set({ password: newPassword, updatedAt: new Date().toISOString() })
-    .where(eq(users.uid, uid));
+    .where(eq(users.uid, uid as string));
 
   res.status(200).json({ status: 'success', message: 'Password updated successfully' });
 });

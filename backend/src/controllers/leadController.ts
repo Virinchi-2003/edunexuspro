@@ -164,7 +164,7 @@ export const updatePaymentStatus = asyncHandler(async (req: Request, res: Respon
         // Mark lead as converted
         await db.update(leads)
           .set({ status: 'converted' })
-          .where(eq(leads.id, id));
+          .where(eq(leads.id, id as string));
       }
     }
   }
