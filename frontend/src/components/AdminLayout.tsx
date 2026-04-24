@@ -9,7 +9,8 @@ import {
   Settings, 
   LogOut,
   Bell,
-  Search
+  Search,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,6 +22,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const adminNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
     { icon: School, label: 'Schools', path: '/admin/schools' },
+    { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
     { icon: Users, label: 'Principals', path: '/admin/principals' },
     { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
     { icon: Settings, label: 'Settings', path: '/admin/settings' },

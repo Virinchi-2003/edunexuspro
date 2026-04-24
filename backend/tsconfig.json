@@ -2,12 +2,19 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "nodenext",
-    "lib": ["esnext"],
+    "lib": [
+      "esnext"
+    ],
     "moduleResolution": "nodenext",
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
-      "@shared/*": ["./src/shared/*"],
-      "@/*": ["./src/*"]
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
     },
     "rootDir": "./src",
     "outDir": "./dist",
@@ -17,9 +24,13 @@
     "declaration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "ignoreDeprecations": "6.0",
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

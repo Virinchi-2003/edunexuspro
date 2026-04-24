@@ -4,6 +4,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
 import Schools from './pages/admin/Schools';
+import Enquiries from './pages/admin/Enquiries';
+import Principals from './pages/admin/Principals';
+import Subscriptions from './pages/admin/Subscriptions';
+import Settings from './pages/admin/Settings';
 import PrincipalDashboard from './pages/principal/Dashboard';
 import Login from './pages/Login';
 
@@ -43,9 +47,10 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<AdminDashboard />} />
                   <Route path="/schools" element={<Schools />} />
-                  <Route path="/principals" element={<div>Principals Management (Coming Soon)</div>} />
-                  <Route path="/subscriptions" element={<div>Subscription Plans (Coming Soon)</div>} />
-                  <Route path="/settings" element={<div>System Settings (Coming Soon)</div>} />
+                  <Route path="/enquiries" element={<Enquiries />} />
+                  <Route path="/principals" element={<Principals />} />
+                  <Route path="/subscriptions" element={<Subscriptions />} />
+                  <Route path="/settings" element={<Settings />} />
                 </Routes>
               </AdminLayout>
             </ProtectedRoute>

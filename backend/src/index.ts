@@ -6,6 +6,9 @@ import dotenv from 'dotenv';
 import { db } from './config/firebase';
 
 import schoolRoutes from './routes/schoolRoutes';
+import managementRoutes from './routes/managementRoutes';
+import leadRoutes from './routes/leadRoutes';
+import authRoutes from './routes/authRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 import { initDb } from './config/database';
@@ -29,6 +32,9 @@ app.use(express.json());
 
 // Routes
 app.use('/api/schools', schoolRoutes);
+app.use('/api/management', managementRoutes);
+app.use('/api/leads', leadRoutes);
+app.use('/api/auth', authRoutes);
 
 // Global Error Handler (must be after routes)
 app.use(errorHandler);

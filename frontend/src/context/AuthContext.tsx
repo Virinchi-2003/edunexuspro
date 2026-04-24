@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { UserProfile } from '@shared/types';
-// Assume firebase is configured in lib/firebase.ts
-// For now, mocking the auth state
+import api from '@/lib/api';
+import { toast } from 'sonner';
+
 export interface AuthContextType {
-  user: UserProfile | null;
+  user: any | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -12,11 +12,10 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mocking auth check
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
@@ -24,22 +23,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = async (email: string, _pass: string) => {
-    // Mock login logic
-    const mockUser: UserProfile = {
-      uid: '123',
-      email,
-      role: email.includes('admin') ? 'admin' : 'principal',
-      displayName: 'Test User',
-      createdAt: new Date(),
-    };
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+  const login = async (email: string, password: string) => {
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      const { token, data } = res.data;
+      
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(data));
+      setUser(data);
+      toast.success('Login successful');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Login failed');
+      throw error;
+    }
   };
 
   const logout = async () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (

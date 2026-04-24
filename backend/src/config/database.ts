@@ -1,44 +1,27 @@
 import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
+import * as schema from '../db/schema';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const turso = createClient({
+const client = createClient({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN!,
 });
 
+export const db = drizzle(client, { schema });
+export const turso = client; // Keep for legacy raw queries if needed
+
 export const initDb = async () => {
   try {
-    console.log('Initializing Turso Database...');
-    
-    // Create Schools Table
-    await turso.execute(`
-      CREATE TABLE IF NOT EXISTS schools (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        address TEXT NOT NULL,
-        contactEmail TEXT NOT NULL,
-        subscriptionPlan TEXT NOT NULL,
-        status TEXT DEFAULT 'active',
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create Users Table (for future auth sync)
-    await turso.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        uid TEXT PRIMARY KEY,
-        email TEXT NOT NULL,
-        role TEXT NOT NULL,
-        schoolId TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    console.log('✅ Turso Database Initialized.');
+    console.log('🔄 Checking Database Schema Sync...');
+    // In a real production environment, you'd use migrations.
+    // For "autosync", drizzle-kit push is used during development.
+    // Here we just ensure the client is connected.
+    await client.execute('SELECT 1');
+    console.log('✅ Turso Database Connected & Ready.');
   } catch (error) {
-    console.error('❌ Failed to initialize Turso Database:', error);
+    console.error('❌ Failed to connect to Turso Database:', error);
   }
 };
