@@ -21,6 +21,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
+import { useAuth } from '@/context/AuthContext';
+import api from '@/lib/api';
+import { toast } from 'sonner';
+import SchoolInsights from '@/components/SchoolInsights';
+
 const attendanceData = [
   { day: 'Mon', value: 92 },
   { day: 'Tue', value: 95 },
@@ -30,12 +35,55 @@ const attendanceData = [
 ];
 
 const PrincipalDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const [school, setSchool] = React.useState<any>(null);
+  const [stats, setStats] = React.useState({
+    students: 0,
+    staff: 0,
+    feesCollected: 0,
+    totalExpected: 0
+  });
+  const [todayAttendance, setTodayAttendance] = React.useState('0.0');
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      if (!user?.schoolId) return;
+      try {
+        setLoading(true);
+        const [schoolRes, statsRes] = await Promise.all([
+          api.get(`/schools/${user.schoolId}`),
+          api.get(`/management/school-stats/${user.schoolId}`)
+        ]);
+
+        setSchool(schoolRes.data.data);
+        const s = statsRes.data.data;
+
+        setStats({
+          students: s.students,
+          staff: s.staff,
+          feesCollected: s.feesCollected,
+          totalExpected: s.totalFeesExpected
+        });
+        
+        // Update Today Attendance if needed
+        setTodayAttendance(s.todayAttendance);
+
+      } catch (error) {
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [user]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-display font-bold text-slate-900">School Dashboard</h2>
-          <p className="text-slate-500">St. Xavier High School • Mumbai Campus</p>
+          <h2 className="text-3xl font-display font-bold text-slate-900">Welcome, {user?.name || 'Principal'}</h2>
+          <p className="text-slate-500">{school?.name || 'School Dashboard'} • {school?.address || 'Loading...'}</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="gap-2">
@@ -47,12 +95,12 @@ const PrincipalDashboard: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { title: 'Total Students', value: '1,240', icon: Users, change: '+24', positive: true },
-          { title: 'Today Attendance', value: '94.2%', icon: UserCheck, change: '-1.2%', positive: false },
-          { title: 'Fees Collected', value: '₹4.5L', icon: CreditCard, change: '+18%', positive: true },
-          { title: 'Active Staff', value: '84/86', icon: Users, change: 'Stable', positive: true },
+          { title: 'Total Students', value: stats.students.toLocaleString(), icon: Users, change: '+12%', positive: true },
+          { title: 'Today Attendance', value: `${todayAttendance}%`, icon: UserCheck, change: '-1.2%', positive: false },
+          { title: 'Fees Collected', value: `₹${(stats.feesCollected / 1000).toFixed(1)}k`, icon: CreditCard, change: `${((stats.feesCollected / (stats.totalExpected || 1)) * 100).toFixed(0)}%`, positive: true },
+          { title: 'Active Staff', value: stats.staff.toString(), icon: Users, change: 'Stable', positive: true },
         ].map((stat, i) => (
-          <Card key={i} className="border-none shadow-sm">
+          <Card key={i} className={`border-none shadow-sm ${loading ? 'animate-pulse' : ''}`}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center text-primary">
@@ -65,7 +113,7 @@ const PrincipalDashboard: React.FC = () => {
               </div>
               <div className="mt-4">
                 <p className="text-sm font-medium text-slate-500">{stat.title}</p>
-                <h3 className="text-2xl font-bold text-slate-900">{stat.value}</h3>
+                <h3 className="text-2xl font-bold text-slate-900">{loading ? '...' : stat.value}</h3>
               </div>
             </CardContent>
           </Card>
@@ -79,8 +127,8 @@ const PrincipalDashboard: React.FC = () => {
             <CardTitle className="text-lg font-bold">Weekly Attendance Trend</CardTitle>
             <Badge variant="secondary" className="bg-green-100 text-green-700 border-none">Target: 95%</Badge>
           </CardHeader>
-          <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <CardContent className="h-80 min-h-[320px]">
+            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
               <AreaChart data={attendanceData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
@@ -94,36 +142,42 @@ const PrincipalDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Notifications/Alerts */}
-        <Card className="border-none shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-bold">Critical Alerts</CardTitle>
-            <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { title: 'Low Attendance', desc: 'Class X-B below 80% for 3 days', type: 'error' },
-                { title: 'Pending Fees', desc: '42 students overdue by 15+ days', type: 'warning' },
-                { title: 'Staff Meeting', desc: 'Scheduled for 3:00 PM today', type: 'info' },
-              ].map((alert, i) => (
-                <div key={i} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-2 h-2 rounded-full ${
-                      alert.type === 'error' ? 'bg-red-500' : 
-                      alert.type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
-                    }`} />
-                    <h4 className="font-semibold text-sm text-slate-900">{alert.title}</h4>
-                  </div>
-                  <p className="text-xs text-slate-500 ml-4">{alert.desc}</p>
+        {/* School Insights / Alerts */}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-none shadow-sm bg-gradient-to-br from-indigo-600 to-violet-700 text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-white text-lg">Finance Analytics</CardTitle>
+                <MoreVertical className="w-4 h-4 opacity-60" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-indigo-100 text-sm">Revenue Realization</p>
+                  <h2 className="text-3xl font-bold">₹{stats.feesCollected.toLocaleString()}</h2>
                 </div>
-              ))}
-            </div>
-            <Button className="w-full mt-6 bg-slate-900 hover:bg-slate-800 text-white">
-              Manage All Alerts
-            </Button>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span>Projected: ₹{stats.totalExpected.toLocaleString()}</span>
+                    <span>{Math.round((stats.feesCollected / (stats.totalExpected || 1)) * 100)}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-white rounded-full transition-all duration-1000" 
+                      style={{ width: `${(stats.feesCollected / (stats.totalExpected || 1)) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <Button className="w-full bg-white text-indigo-600 hover:bg-indigo-50 border-none rounded-xl font-bold">
+                  BigQuery Reports
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <SchoolInsights stats={stats} />
+        </div>
       </div>
     </div>
   );

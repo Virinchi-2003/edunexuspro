@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [schoolId, setSchoolId] = useState('');
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,8 +112,21 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
-    navigate('/admin');
+    try {
+      setIsSubmitting(true);
+      const user = await login(email, password, schoolId);
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else if (user.role === 'principal') {
+        navigate('/principal');
+      } else {
+        navigate('/');
+      }
+    } catch (err) {
+      // Error handled in AuthContext
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -131,6 +145,16 @@ const Login: React.FC = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">School ID (Principals only)</label>
+              <Input 
+                type="text" 
+                placeholder="e.g. SCH-001" 
+                value={schoolId}
+                onChange={(e) => setSchoolId(e.target.value)}
+                className="bg-slate-50 border-slate-200 focus:bg-white transition-all"
+              />
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Email Address</label>
               <Input 

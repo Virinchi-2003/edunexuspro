@@ -44,6 +44,7 @@ const PrincipalsPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     phone: '',
     schoolId: '',
     userId: ''
@@ -84,7 +85,7 @@ const PrincipalsPage: React.FC = () => {
       toast.success('Principal record created successfully');
       setIsAddDialogOpen(false);
       fetchData();
-      setFormData({ name: '', email: '', phone: '', schoolId: '', userId: '' });
+      setFormData({ name: '', email: '', password: '', phone: '', schoolId: '', userId: '' });
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create principal record');
     } finally {
@@ -98,6 +99,7 @@ const PrincipalsPage: React.FC = () => {
       name: principal.name,
       email: principal.email,
       phone: principal.phone || '',
+      password: '', // Don't load password for security
       schoolId: principal.schoolId,
       userId: principal.userId || ''
     });
@@ -195,9 +197,14 @@ const PrincipalsPage: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <Building className="w-3.5 h-3.5" />
-                        {getSchoolName(p.schoolId)}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-slate-900 font-medium">
+                          <Building className="w-3.5 h-3.5" />
+                          {getSchoolName(p.schoolId)}
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-400 bg-slate-100 w-fit px-1.5 rounded">
+                          ID: {schools.find(s => s.id === p.schoolId)?.school_id || 'N/A'}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -240,7 +247,7 @@ const PrincipalsPage: React.FC = () => {
         if (!open) {
           setIsAddDialogOpen(false);
           setIsEditDialogOpen(false);
-          setFormData({ name: '', email: '', phone: '', schoolId: '', userId: '' });
+          setFormData({ name: '', email: '', password: '', phone: '', schoolId: '', userId: '' });
         }
       }}>
         <DialogContent className="sm:max-w-[450px]">
@@ -271,14 +278,24 @@ const PrincipalsPage: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold">Phone Number</label>
+                <label className="text-sm font-semibold">Password</label>
                 <Input 
-                  value={formData.phone}
-                  onChange={e => setFormData({...formData, phone: e.target.value})}
-                  placeholder="+91..."
+                  type="password"
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  placeholder={isEditDialogOpen ? "Leave blank to keep current" : "Min 6 characters"}
                   className="bg-slate-50 border-none"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Phone Number</label>
+              <Input 
+                value={formData.phone}
+                onChange={e => setFormData({...formData, phone: e.target.value})}
+                placeholder="+91..."
+                className="bg-slate-50 border-none"
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold">Assign School</label>

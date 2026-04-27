@@ -9,6 +9,11 @@ import Principals from './pages/admin/Principals';
 import Subscriptions from './pages/admin/Subscriptions';
 import Settings from './pages/admin/Settings';
 import PrincipalDashboard from './pages/principal/Dashboard';
+import PrincipalStudents from './pages/principal/Students';
+import PrincipalStaff from './pages/principal/Staff';
+import PrincipalFees from './pages/principal/Fees';
+import PrincipalAttendance from './pages/principal/Attendance';
+import PrincipalSettings from './pages/principal/Settings';
 import Login from './pages/Login';
 
 import { Toaster } from 'sonner';
@@ -62,9 +67,11 @@ const App: React.FC = () => {
               <AdminLayout>
                 <Routes>
                   <Route path="/" element={<PrincipalDashboard />} />
-                  <Route path="/students" element={<div>Students Management (Coming Soon)</div>} />
-                  <Route path="/staff" element={<div>Staff Management (Coming Soon)</div>} />
-                  <Route path="/fees" element={<div>Fees Management (Coming Soon)</div>} />
+                  <Route path="/students" element={<PrincipalStudents />} />
+                  <Route path="/staff" element={<PrincipalStaff />} />
+                  <Route path="/fees" element={<PrincipalFees />} />
+                  <Route path="/attendance" element={<PrincipalAttendance />} />
+                  <Route path="/settings" element={<PrincipalSettings />} />
                 </Routes>
               </AdminLayout>
             </ProtectedRoute>

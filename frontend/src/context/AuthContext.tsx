@@ -5,8 +5,9 @@ import { toast } from 'sonner';
 export interface AuthContextType {
   user: any | null;
   loading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string, schoolId?: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (newData: any) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,15 +24,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, schoolId?: string) => {
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email, password, schoolId });
       const { token, data } = res.data;
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(data));
       setUser(data);
       toast.success('Login successful');
+      return data;
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Login failed');
       throw error;
@@ -44,8 +46,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
   };
 
+  const updateUser = (newData: any) => {
+    const updatedUser = { ...user, ...newData };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

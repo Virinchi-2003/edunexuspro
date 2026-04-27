@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { principals, subscriptions, schools, students, leads, users, configs } from '../db/schema';
+import { principals, subscriptions, schools, students, leads, users, configs, staff, fees, attendance } from '../db/schema';
 import { principalSchema } from '../models/principalModel';
 import { subscriptionSchema } from '../models/subscriptionModel';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -66,6 +66,47 @@ export const getSystemStats = asyncHandler(async (_req: Request, res: Response) 
   });
 });
 
+export const getSchoolStats = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = req.params.schoolId as string;
+
+  // 1. Total Students
+  const [studentCount] = await db.select({ value: count() }).from(students).where(eq(students.schoolId, schoolId));
+  
+  // 2. Total Staff
+  const [staffCount] = await db.select({ value: count() }).from(staff).where(eq(staff.schoolId, schoolId));
+  
+  // 3. Fee Stats
+  const feeRecords = await db.select({ 
+    amount: fees.amount, 
+    paidAmount: fees.paidAmount,
+    status: fees.status
+  }).from(fees).where(eq(fees.schoolId, schoolId));
+
+  const totalExpected = feeRecords.reduce((acc, f) => acc + (f.amount || 0), 0);
+  const totalCollected = feeRecords.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
+  
+  // 4. Today Attendance (Simulated for now, or real if data exists)
+  const today = new Date().toISOString().split('T')[0];
+  const [presentCount] = await db.select({ value: count() })
+    .from(attendance)
+    .where(and(eq(attendance.schoolId, schoolId), eq(attendance.date, today), eq(attendance.status, 'present')));
+
+  const attendanceRate = studentCount.value > 0 
+    ? ((presentCount.value / studentCount.value) * 100).toFixed(1) 
+    : "0.0";
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      students: studentCount.value,
+      staff: staffCount.value,
+      feesCollected: totalCollected,
+      totalFeesExpected: totalExpected,
+      todayAttendance: attendanceRate
+    }
+  });
+});
+
 export const getSystemConfig = asyncHandler(async (_req: Request, res: Response) => {
   const result = await db.query.configs.findMany();
   res.status(200).json({ status: 'success', data: result });
@@ -88,14 +129,32 @@ export const updateSystemConfig = asyncHandler(async (req: Request, res: Respons
 export const createPrincipal = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = principalSchema.parse(req.body);
   const id = uuidv4();
+  const userId = uuidv4(); // Generate a UID for the users table
 
   const newPrincipal = {
     id,
     ...validatedData,
+    userId,
     status: 'active' as const,
   };
 
+  // 1. Insert into principals table
   await db.insert(principals).values(newPrincipal);
+
+  // 2. Insert into users table for login access
+  if (validatedData.password) {
+    await db.insert(users).values({
+      uid: userId,
+      email: validatedData.email,
+      name: validatedData.name,
+      password: validatedData.password,
+      role: 'principal',
+      schoolId: validatedData.schoolId,
+      phoneNumber: validatedData.phone,
+      status: 'active'
+    });
+  }
+
   res.status(201).json({ status: 'success', data: newPrincipal });
 });
 
@@ -112,6 +171,16 @@ export const updatePrincipal = asyncHandler(async (req: Request, res: Response) 
   const { id } = req.params;
   const validatedData = principalSchema.partial().parse(req.body);
 
+  // Get current principal to find userId
+  const currentPrincipal = await db.query.principals.findFirst({
+    where: eq(principals.id, id as string)
+  });
+
+  if (!currentPrincipal) {
+    return res.status(404).json({ status: 'error', message: 'Principal not found' });
+  }
+
+  // Update principal record
   await db.update(principals)
     .set({ 
       ...validatedData, 
@@ -119,11 +188,35 @@ export const updatePrincipal = asyncHandler(async (req: Request, res: Response) 
     })
     .where(eq(principals.id, id as string));
 
+  // Update corresponding user record if it exists
+  if (currentPrincipal.userId) {
+    const userUpdate: any = {};
+    if (validatedData.email) userUpdate.email = validatedData.email;
+    if (validatedData.name) userUpdate.name = validatedData.name;
+    if (validatedData.password) userUpdate.password = validatedData.password;
+    if (validatedData.schoolId) userUpdate.schoolId = validatedData.schoolId;
+    if (validatedData.phone) userUpdate.phoneNumber = validatedData.phone;
+
+    if (Object.keys(userUpdate).length > 0) {
+      await db.update(users)
+        .set({ ...userUpdate, updatedAt: new Date().toISOString() })
+        .where(eq(users.uid, currentPrincipal.userId));
+    }
+  }
+
   res.status(200).json({ status: 'success', message: 'Principal updated successfully' });
 });
 
 export const deletePrincipal = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
+
+  const currentPrincipal = await db.query.principals.findFirst({
+    where: eq(principals.id, id as string)
+  });
+
+  if (currentPrincipal?.userId) {
+    await db.delete(users).where(eq(users.uid, currentPrincipal.userId));
+  }
 
   await db.delete(principals).where(eq(principals.id, id as string));
   res.status(200).json({ status: 'success', message: 'Principal deleted successfully' });

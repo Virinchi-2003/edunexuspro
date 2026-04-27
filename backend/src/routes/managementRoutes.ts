@@ -4,7 +4,7 @@ import {
   createSubscription, getSubscriptions, updateSubscription, deleteSubscription,
   getAdminUsers, updateAdminProfile, createNewAdmin, deleteAdminUser,
   updateAdminPassword,
-  getSystemStats, getSystemConfig, updateSystemConfig
+  getSystemStats, getSchoolStats, getSystemConfig, updateSystemConfig
 } from '../controllers/managementController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -12,6 +12,7 @@ const router = Router();
 
 // Stats
 router.get('/stats', authenticate, authorize(['admin']), getSystemStats);
+router.get('/school-stats/:schoolId', authenticate, authorize(['admin', 'principal']), getSchoolStats);
 
 // Principals
 router.post('/principals', authenticate, authorize(['admin']), createPrincipal);

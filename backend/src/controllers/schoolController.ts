@@ -10,9 +10,15 @@ export const createSchool = asyncHandler(async (req: Request, res: Response) => 
   const { name, address, contactEmail, subscriptionPlan, adminEmail, password } = req.body;
   const id = uuidv4();
 
+  // Generate a human-readable School ID
+  const [lastSchool] = await db.select({ count: sql`count(*)` }).from(schools);
+  const schoolCount = Number((lastSchool as any)?.count || 0) + 1;
+  const school_id = `SCH-${String(schoolCount).padStart(3, '0')}`;
+
   // 1. Create the School
   await db.insert(schools).values({
     id,
+    school_id,
     name,
     address,
     contactEmail,
@@ -20,14 +26,30 @@ export const createSchool = asyncHandler(async (req: Request, res: Response) => 
     status: 'active',
   });
 
-  // 2. Create the Admin User for this school
+  // 2. Create the Admin User for this school (Principal role)
   const userId = uuidv4(); 
+  const defaultPassword = password || 'school123';
+  
   await db.insert(users).values({
     uid: userId,
     email: adminEmail || contactEmail,
+    password: defaultPassword,
     role: 'principal',
     schoolId: id,
     status: 'active',
+    name: `Principal of ${name}`
+  });
+
+  // 3. Also add to principals table for management
+  await db.insert(principals).values({
+    id: uuidv4(),
+    schoolId: id,
+    name: `Principal of ${name}`,
+    email: adminEmail || contactEmail,
+    password: defaultPassword,
+    phone: 'Not provided',
+    userId: userId,
+    status: 'active'
   });
 
   const result = await db.query.schools.findFirst({
@@ -36,7 +58,7 @@ export const createSchool = asyncHandler(async (req: Request, res: Response) => 
 
   res.status(201).json({
     status: 'success',
-    message: 'School registered and admin account created.',
+    message: `School registered with ID: ${school_id}. Admin account created.`,
     data: result
   });
 });
@@ -49,6 +71,22 @@ export const getSchools = asyncHandler(async (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'success',
     data: allSchools
+  });
+});
+
+export const getSchoolById = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await db.query.schools.findFirst({
+    where: eq(schools.id, id as string)
+  });
+
+  if (!result) {
+    return res.status(404).json({ status: 'error', message: 'School not found' });
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: result
   });
 });
 
@@ -121,10 +159,19 @@ export const syncLeadsToSchools = asyncHandler(async (_req: Request, res: Respon
 
   for (const lead of paidLeads) {
     const schoolId = uuidv4();
+    const userId = uuidv4();
+    
+    // Generate a human-readable School ID
+    const [lastSchool] = await db.select({ count: sql`count(*)` }).from(schools);
+    const schoolCount = Number((lastSchool as any)?.count || 0) + 1;
+    const school_id = `SCH-${String(schoolCount).padStart(3, '0')}`;
+
+    const defaultPassword = 'school' + Math.floor(1000 + Math.random() * 9000);
     
     // Create School
     await db.insert(schools).values({
       id: schoolId,
+      school_id,
       name: lead.schoolName,
       address: 'Auto-synced from Paid Lead',
       contactEmail: lead.email,
@@ -132,12 +179,26 @@ export const syncLeadsToSchools = asyncHandler(async (_req: Request, res: Respon
       status: 'active'
     });
 
-    // Create Principal account
+    // Create User record for login
     await db.insert(users).values({
-      uid: uuidv4(),
+      uid: userId,
       email: lead.email,
+      password: defaultPassword,
       role: 'principal',
       schoolId: schoolId,
+      status: 'active',
+      name: lead.adminName || `Principal of ${lead.schoolName}`
+    });
+
+    // Create Principal record for management
+    await db.insert(principals).values({
+      id: uuidv4(),
+      schoolId: schoolId,
+      name: lead.adminName || `Principal of ${lead.schoolName}`,
+      email: lead.email,
+      password: defaultPassword,
+      phone: lead.phone || 'Not provided',
+      userId: userId,
       status: 'active'
     });
 

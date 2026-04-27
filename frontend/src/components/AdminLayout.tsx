@@ -10,7 +10,9 @@ import {
   LogOut,
   Bell,
   Search,
-  MessageSquare
+  MessageSquare,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,6 +35,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: Users, label: 'Students', path: '/principal/students' },
     { icon: Users, label: 'Staff', path: '/principal/staff' },
     { icon: CreditCard, label: 'Fees', path: '/principal/fees' },
+    { icon: Calendar, label: 'Attendance', path: '/principal/attendance' },
     { icon: Settings, label: 'Settings', path: '/principal/settings' },
   ];
 
