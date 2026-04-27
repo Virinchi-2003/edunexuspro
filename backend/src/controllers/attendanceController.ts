@@ -4,19 +4,21 @@ import { attendance, students, staff, classes } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc, count, sql, isNull } from 'drizzle-orm';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const getAttendance = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.params;
-  const { date, type, classId } = req.query;
+  const schoolId = getSingleValue(req.params.schoolId);
+  const date = getSingleValue(req.query.date);
+  const classId = getSingleValue(req.query.classId);
 
   let whereClause = eq(attendance.schoolId, schoolId);
   
   if (date) {
-    whereClause = and(whereClause, eq(attendance.date, date as string)) as any;
+    whereClause = and(whereClause, eq(attendance.date, date)) as any;
   }
   
   if (classId) {
-    whereClause = and(whereClause, eq(attendance.classId, classId as string)) as any;
+    whereClause = and(whereClause, eq(attendance.classId, classId)) as any;
   }
 
   const result = await db.query.attendance.findMany({
@@ -76,7 +78,7 @@ export const markAttendance = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const updateAttendance = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const { status, remarks } = req.body;
 
   await db.update(attendance)
@@ -87,7 +89,7 @@ export const updateAttendance = asyncHandler(async (req: Request, res: Response)
 });
 
 export const deleteAttendance = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   await db.delete(attendance).where(eq(attendance.id, id));
   res.status(200).json({ status: 'success', message: 'Attendance record deleted' });
 });

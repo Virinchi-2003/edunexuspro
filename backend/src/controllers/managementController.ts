@@ -7,6 +7,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, sql, count, desc, and } from 'drizzle-orm';
 import * as z from 'zod';
+import { getSingleValue } from '../utils/queryHelper';
 
 const adminSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -67,7 +68,7 @@ export const getSystemStats = asyncHandler(async (_req: Request, res: Response) 
 });
 
 export const getSchoolStats = asyncHandler(async (req: Request, res: Response) => {
-  const schoolId = req.params.schoolId as string;
+  const schoolId = getSingleValue(req.params.schoolId);
 
   // 1. Total Students
   const [studentCount] = await db.select({ value: count() }).from(students).where(eq(students.schoolId, schoolId));
@@ -159,21 +160,29 @@ export const createPrincipal = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const getPrincipals = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.query;
-  const result = schoolId 
-    ? await db.query.principals.findMany({ where: eq(principals.schoolId, schoolId as string) })
+  const schoolId = getSingleValue(req.query.schoolId);
+  const allPrincipals = schoolId 
+    ? await db.query.principals.findMany({ where: eq(principals.schoolId, schoolId) })
     : await db.query.principals.findMany();
   
+  res.status(200).json({ status: 'success', data: allPrincipals });
+});
+
+export const getPrincipalById = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  const result = await db.query.principals.findFirst({
+    where: eq(principals.id, id)
+  });
   res.status(200).json({ status: 'success', data: result });
 });
 
 export const updatePrincipal = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const validatedData = principalSchema.partial().parse(req.body);
 
   // Get current principal to find userId
   const currentPrincipal = await db.query.principals.findFirst({
-    where: eq(principals.id, id as string)
+    where: eq(principals.id, id)
   });
 
   if (!currentPrincipal) {
@@ -186,7 +195,7 @@ export const updatePrincipal = asyncHandler(async (req: Request, res: Response) 
       ...validatedData, 
       updatedAt: new Date().toISOString() 
     })
-    .where(eq(principals.id, id as string));
+    .where(eq(principals.id, id));
 
   // Update corresponding user record if it exists
   if (currentPrincipal.userId) {
@@ -208,18 +217,18 @@ export const updatePrincipal = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const deletePrincipal = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
 
   const currentPrincipal = await db.query.principals.findFirst({
-    where: eq(principals.id, id as string)
+    where: eq(principals.id, id)
   });
 
   if (currentPrincipal?.userId) {
     await db.delete(users).where(eq(users.uid, currentPrincipal.userId));
   }
 
-  await db.delete(principals).where(eq(principals.id, id as string));
-  res.status(200).json({ status: 'success', message: 'Principal deleted successfully' });
+  await db.delete(principals).where(eq(principals.id, id));
+  res.status(200).json({ status: 'success', message: 'Principal deleted' });
 });
 
 // Subscription Controllers
@@ -239,16 +248,16 @@ export const createSubscription = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getSubscriptions = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.query;
+  const schoolId = getSingleValue(req.query.schoolId);
   const result = schoolId 
-    ? await db.query.subscriptions.findMany({ where: eq(subscriptions.schoolId, schoolId as string) })
+    ? await db.query.subscriptions.findMany({ where: eq(subscriptions.schoolId, schoolId) })
     : await db.query.subscriptions.findMany();
   
   res.status(200).json({ status: 'success', data: result });
 });
 
 export const updateSubscription = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const validatedData = subscriptionSchema.partial().parse(req.body);
 
   await db.update(subscriptions)
@@ -258,15 +267,15 @@ export const updateSubscription = asyncHandler(async (req: Request, res: Respons
       endDate: validatedData.endDate ? new Date(validatedData.endDate).toISOString() : undefined,
       updatedAt: new Date().toISOString() 
     })
-    .where(eq(subscriptions.id, id as string));
+    .where(eq(subscriptions.id, id));
 
   res.status(200).json({ status: 'success', message: 'Subscription updated successfully' });
 });
 
 export const deleteSubscription = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
 
-  await db.delete(subscriptions).where(eq(subscriptions.id, id as string));
+  await db.delete(subscriptions).where(eq(subscriptions.id, id));
   res.status(200).json({ status: 'success', message: 'Subscription deleted successfully' });
 });
 
@@ -278,8 +287,14 @@ export const getAdminUsers = asyncHandler(async (_req: Request, res: Response) =
   res.status(200).json({ status: 'success', data: result });
 });
 
+export const deleteAdmin = asyncHandler(async (req: Request, res: Response) => {
+  const uid = getSingleValue(req.params.uid);
+  await db.delete(users).where(and(eq(users.uid, uid), eq(users.role, 'admin')));
+  res.status(200).json({ status: 'success', message: 'Admin deleted' });
+});
+
 export const updateAdminProfile = asyncHandler(async (req: Request, res: Response) => {
-  const { uid } = req.params;
+  const uid = getSingleValue(req.params.uid);
   const validatedData = adminSchema.parse(req.body);
 
   await db.update(users)
@@ -287,7 +302,7 @@ export const updateAdminProfile = asyncHandler(async (req: Request, res: Respons
       ...validatedData,
       updatedAt: new Date().toISOString() 
     })
-    .where(eq(users.uid, uid as string));
+    .where(eq(users.uid, uid));
 
   res.status(200).json({ status: 'success', message: 'Admin profile updated' });
 });
@@ -312,26 +327,16 @@ export const createNewAdmin = asyncHandler(async (req: Request, res: Response) =
   res.status(201).json({ status: 'success', message: 'New admin account created' });
 });
 
-export const deleteAdminUser = asyncHandler(async (req: Request, res: Response) => {
-  const { uid } = req.params;
-
-  // Prevent deleting self? (Optional, but good practice)
-  // if (uid === (req as any).user.uid) ...
-
-  await db.delete(users).where(and(eq(users.uid, uid as string), eq(users.role, 'admin')));
-  res.status(200).json({ status: 'success', message: 'Admin account removed' });
-});
-
-export const updateAdminPassword = asyncHandler(async (req: Request, res: Response) => {
+export const changeAdminPassword = asyncHandler(async (req: Request, res: Response) => {
+  const uid = getSingleValue(req.params.uid);
   const { currentPassword, newPassword } = req.body;
-  const { uid } = req.params;
 
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ status: 'error', message: 'All password fields are required' });
   }
 
   const user = await db.query.users.findFirst({
-    where: and(eq(users.uid, uid as string), eq(users.password, currentPassword))
+    where: and(eq(users.uid, uid), eq(users.password, currentPassword))
   });
 
   if (!user) {
@@ -340,7 +345,7 @@ export const updateAdminPassword = asyncHandler(async (req: Request, res: Respon
 
   await db.update(users)
     .set({ password: newPassword, updatedAt: new Date().toISOString() })
-    .where(eq(users.uid, uid as string));
+    .where(eq(users.uid, uid));
 
-  res.status(200).json({ status: 'success', message: 'Password updated successfully' });
+  res.status(200).json({ status: 'success', message: 'Password updated' });
 });

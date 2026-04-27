@@ -3,6 +3,7 @@ import { db } from '../config/database';
 import { users, schools } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { eq, and } from 'drizzle-orm';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password, schoolId } = req.body;
@@ -86,7 +87,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
-  const { uid } = req.params;
+  const uid = getSingleValue(req.params.uid);
   const { name, phone, preferences } = req.body;
 
   await db.update(users)

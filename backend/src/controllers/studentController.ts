@@ -4,9 +4,10 @@ import { students, users, schools } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const getStudentsBySchool = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.params;
+  const schoolId = getSingleValue(req.params.schoolId);
   const result = await db.query.students.findMany({
     where: eq(students.schoolId, schoolId),
     orderBy: [desc(students.createdAt)]
@@ -186,11 +187,11 @@ export const bulkCreateStudents = asyncHandler(async (req: Request, res: Respons
 });
 
 export const updateStudent = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const updateData = req.body;
+  const id = getSingleValue(req.params.id);
+  const data = req.body;
 
   await db.update(students)
-    .set({ ...updateData, updatedAt: new Date().toISOString() })
+    .set({ ...data, updatedAt: new Date().toISOString() })
     .where(eq(students.id, id));
 
   // If email or password changed, update user record
@@ -210,7 +211,7 @@ export const updateStudent = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const deleteStudent = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const student = await db.query.students.findFirst({ where: eq(students.id, id) });
   
   if (student?.userId) {

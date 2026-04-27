@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { schools, users, leads } from '../db/schema';
+import { schools, users, leads, principals } from '../db/schema';
 import { schoolSchema } from '../models/schoolModel';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const createSchool = asyncHandler(async (req: Request, res: Response) => {
   const { name, address, contactEmail, subscriptionPlan, adminEmail, password } = req.body;
@@ -75,9 +76,9 @@ export const getSchools = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 export const getSchoolById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const result = await db.query.schools.findFirst({
-    where: eq(schools.id, id as string)
+    where: eq(schools.id, id)
   });
 
   if (!result) {
@@ -91,7 +92,7 @@ export const getSchoolById = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const updateSchoolStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const { status } = req.body;
 
   if (!['active', 'suspended', 'pending'].includes(status)) {
@@ -100,16 +101,15 @@ export const updateSchoolStatus = asyncHandler(async (req: Request, res: Respons
 
   await db.update(schools)
     .set({ status: status as 'active' | 'suspended' | 'pending', updatedAt: new Date().toISOString() })
-    .where(eq(schools.id, id as string));
+    .where(eq(schools.id, id));
 
   res.status(200).json({
     status: 'success',
     message: `School status updated to ${status}`
   });
 });
-
 export const updateSchool = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const { name, address, contactEmail, subscriptionPlan } = req.body;
 
   await db.update(schools)
@@ -120,7 +120,22 @@ export const updateSchool = asyncHandler(async (req: Request, res: Response) => 
       subscriptionPlan,
       updatedAt: new Date().toISOString() 
     })
-    .where(eq(schools.id, id as string));
+    .where(eq(schools.id, id));
+
+  res.status(200).json({
+    status: 'success',
+    message: 'School details updated successfully'
+  });
+});
+
+
+export const updateSchoolPlan = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  const { subscriptionPlan } = req.body;
+
+  await db.update(schools)
+    .set({ subscriptionPlan, updatedAt: new Date().toISOString() })
+    .where(eq(schools.id, id));
 
   res.status(200).json({
     status: 'success',
@@ -129,14 +144,9 @@ export const updateSchool = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const deleteSchool = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-
-  await db.delete(schools).where(eq(schools.id, id as string));
-
-  res.status(200).json({
-    status: 'success',
-    message: 'School deleted successfully'
-  });
+  const id = getSingleValue(req.params.id);
+  await db.delete(schools).where(eq(schools.id, id));
+  res.status(200).json({ status: 'success', message: 'School deleted successfully' });
 });
 
 export const syncLeadsToSchools = asyncHandler(async (_req: Request, res: Response) => {

@@ -4,9 +4,10 @@ import { classes, students } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, sql } from 'drizzle-orm';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const getClassesBySchool = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.params;
+  const schoolId = getSingleValue(req.params.schoolId);
   const result = await db.query.classes.findMany({
     where: eq(classes.schoolId, schoolId)
   });
@@ -30,7 +31,7 @@ export const createClass = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateClass = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const updateData = req.body;
 
   await db.update(classes)
@@ -41,7 +42,7 @@ export const updateClass = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const deleteClass = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   
   const existingClass = await db.query.classes.findFirst({ where: eq(classes.id, id) });
   if (!existingClass) {

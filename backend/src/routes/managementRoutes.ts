@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { 
   createPrincipal, getPrincipals, updatePrincipal, deletePrincipal,
   createSubscription, getSubscriptions, updateSubscription, deleteSubscription,
-  getAdminUsers, updateAdminProfile, createNewAdmin, deleteAdminUser,
-  updateAdminPassword,
+  getAdminUsers, updateAdminProfile, createNewAdmin, deleteAdmin,
+  changeAdminPassword,
   getSystemStats, getSchoolStats, getSystemConfig, updateSystemConfig
 } from '../controllers/managementController';
 import { authenticate, authorize } from '../middleware/auth';
@@ -30,8 +30,8 @@ router.delete('/subscriptions/:id', authenticate, authorize(['admin']), deleteSu
 router.get('/admins', authenticate, authorize(['admin']), getAdminUsers);
 router.post('/admins', authenticate, authorize(['admin']), createNewAdmin);
 router.put('/admins/:uid', authenticate, authorize(['admin']), updateAdminProfile);
-router.put('/admins/:uid/password', authenticate, authorize(['admin']), updateAdminPassword);
-router.delete('/admins/:uid', authenticate, authorize(['admin']), deleteAdminUser);
+router.put('/admins/:uid/password', authenticate, authorize(['admin']), changeAdminPassword);
+router.delete('/admins/:uid', authenticate, authorize(['admin']), deleteAdmin);
 
 // System Config
 router.get('/config', authenticate, authorize(['admin']), getSystemConfig);

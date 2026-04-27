@@ -4,9 +4,10 @@ import { fees, students, classes } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and } from 'drizzle-orm';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const getFeesBySchool = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.params;
+  const schoolId = getSingleValue(req.params.schoolId);
   
   // Fetch all students and all fees for this school
   const allStudents = await db.query.students.findMany({
@@ -59,7 +60,7 @@ export const getFeesBySchool = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const updateFeeStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const { status, paidAmount, transactionId, amount } = req.body;
 
   await db.update(fees)
@@ -144,7 +145,7 @@ export const importBulkFees = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const deleteFeeRecord = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   await db.delete(fees).where(eq(fees.id, id));
   res.status(200).json({ status: 'success', message: 'Fee record deleted' });
 });

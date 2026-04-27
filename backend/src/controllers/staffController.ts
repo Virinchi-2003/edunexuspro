@@ -4,9 +4,10 @@ import { staff, users } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and } from 'drizzle-orm';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const getStaffBySchool = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.params;
+  const schoolId = getSingleValue(req.params.schoolId);
   const result = await db.query.staff.findMany({
     where: eq(staff.schoolId, schoolId)
   });
@@ -64,7 +65,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const updateData = req.body;
 
   if (updateData.salary) {
@@ -79,7 +80,7 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const deleteStaff = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   
   const staffMember = await db.query.staff.findFirst({ where: eq(staff.id, id) });
   if (!staffMember) {

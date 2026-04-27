@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq } from 'drizzle-orm';
 import { sendCredentialEmail } from '../utils/mail';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const createLead = asyncHandler(async (req: Request, res: Response) => {
   const { schoolName, adminName, email, phone, message, plan, paymentStatus } = req.body;
@@ -41,7 +42,7 @@ export const getLeads = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 export const updateLeadStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const { status, adminNote } = req.body;
 
   // 1. Update the lead status
@@ -50,11 +51,11 @@ export const updateLeadStatus = asyncHandler(async (req: Request, res: Response)
       status: status as any, 
       adminNote, 
     })
-    .where(eq(leads.id, id as string));
+    .where(eq(leads.id, id));
 
   // 2. If converted, auto-provision the school and admin account
   if (status === 'converted') {
-    const lead = await db.query.leads.findFirst({ where: eq(leads.id, id as string) });
+    const lead = await db.query.leads.findFirst({ where: eq(leads.id, id) });
     
     if (lead) {
       const schoolId = uuidv4();
@@ -87,12 +88,12 @@ export const updateLeadStatus = asyncHandler(async (req: Request, res: Response)
 });
 
 export const replyToLead = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const { reply } = req.body;
 
   // 1. Fetch lead details to get email and school name
   const lead = await db.query.leads.findFirst({
-    where: eq(leads.id, id as string)
+    where: eq(leads.id, id)
   });
 
   if (!lead) {
@@ -105,7 +106,7 @@ export const replyToLead = asyncHandler(async (req: Request, res: Response) => {
       reply, 
       status: 'contacted' 
     })
-    .where(eq(leads.id, id as string));
+    .where(eq(leads.id, id));
 
   // 3. Send Email
   const mailResult = await sendCredentialEmail(lead.email, lead.schoolName, reply);
@@ -121,17 +122,17 @@ export const replyToLead = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updatePaymentStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
   const { paymentStatus } = req.body;
 
   // 1. Update Payment Status
   await db.update(leads)
     .set({ paymentStatus })
-    .where(eq(leads.id, id as string));
+    .where(eq(leads.id, id));
 
   // 2. If paid, auto-provision to school management section immediately
   if (paymentStatus === 'paid') {
-    const lead = await db.query.leads.findFirst({ where: eq(leads.id, id as string) });
+    const lead = await db.query.leads.findFirst({ where: eq(leads.id, id) });
     
     if (lead && lead.status !== 'converted') {
       // Check if school already exists by contact email to avoid duplicates
@@ -164,7 +165,7 @@ export const updatePaymentStatus = asyncHandler(async (req: Request, res: Respon
         // Mark lead as converted
         await db.update(leads)
           .set({ status: 'converted' })
-          .where(eq(leads.id, id as string));
+          .where(eq(leads.id, id));
       }
     }
   }
