@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 export interface AuthContextType {
   user: any | null;
   loading: boolean;
-  login: (email: string, pass: string, schoolId?: string) => Promise<void>;
+  login: (email: string, pass: string, schoolId?: string) => Promise<any>;
   logout: () => Promise<void>;
   updateUser: (newData: any) => void;
 }

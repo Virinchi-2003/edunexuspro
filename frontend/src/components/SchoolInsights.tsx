@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, TrendingUp, AlertCircle, Users, CheckCircle2 } from 'lucide-react';
+import { Sparkles, TrendingUp, AlertCircle, Users } from 'lucide-react';
 
 const SchoolInsights: React.FC<{ stats: any }> = ({ stats }) => {
   const insights = [

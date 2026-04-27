@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   BookOpen, 
-  Calendar, 
   CheckCircle2, 
   XCircle, 
   Clock, 
@@ -12,17 +11,15 @@ import {
   Scan, 
   Bell, 
   Mail, 
-  FileText,
   Loader2,
   MoreVertical,
-  Plus,
-  Filter
+  Plus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -81,7 +78,7 @@ const Attendance: React.FC = () => {
     }
   };
 
-  const fetchStudents = async (classId: string) => {
+  const fetchStudents = async (_classId: string) => {
     try {
       setLoading(true);
       const res = await api.get(`/students/school/${user.schoolId}`);

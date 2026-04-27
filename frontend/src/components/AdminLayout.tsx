@@ -11,7 +11,6 @@ import {
   Bell,
   Search,
   MessageSquare,
-  Clock,
   Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

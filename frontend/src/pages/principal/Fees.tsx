@@ -11,18 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Search, 
-  Phone,
   Loader2,
   ChevronLeft,
-  ChevronRight,
   IndianRupee,
   Receipt,
   CheckCircle2,
   AlertCircle,
-  Clock,
-  Filter,
-  ArrowUpRight,
-  GraduationCap,
   Plus,
   Pencil,
   Trash2,
@@ -115,7 +109,7 @@ const FeesPage: React.FC = () => {
   const generateReceiptPDF = (fee: any, student: any) => {
     try {
       const doc = new jsPDF();
-      const primaryColor = [16, 185, 129]; // Emerald 500
+      const primaryColor: [number, number, number] = [16, 185, 129]; // Emerald 500
 
       const amount = Number(fee.amount) || 0;
       const lateFee = Number(fee.lateFee) || 0;
