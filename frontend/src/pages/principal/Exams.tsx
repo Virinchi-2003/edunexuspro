@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
-  Plus, 
-  Calendar, 
-  FileText,
+  Plus,
   GraduationCap,
+  Calendar,
+  FileText,
   Layout
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -20,6 +20,8 @@ const Examinations: React.FC = () => {
   const { user } = useAuth();
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Assessment States
   const [isAddExamOpen, setIsAddExamOpen] = useState(false);
   const [isEditScheduleOpen, setIsEditScheduleOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any>(null);

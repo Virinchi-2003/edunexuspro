@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, 
   UserCheck, 
-  Calendar,
   Clock,
   BookOpen,
   CheckCircle,
@@ -13,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
-import { toast } from 'sonner';
 
 const TeacherDashboard: React.FC = () => {
   const { user } = useAuth();

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar, 
   CheckCircle2, 
   XCircle, 
   Clock, 
@@ -10,9 +9,8 @@ import {
   AlertTriangle,
   Loader2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 

@@ -10,14 +10,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
-  UserPlus, 
   Search, 
   Mail, 
   Phone,
-  Trash2,
   Pencil,
   Loader2,
-  GraduationCap,
   ChevronLeft,
   ChevronRight,
   User as UserIcon,

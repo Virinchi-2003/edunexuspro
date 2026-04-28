@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   Save, 
@@ -7,10 +7,7 @@ import {
   Loader2,
   Trophy,
   Download,
-  Filter,
   CheckCircle2,
-  GraduationCap,
-  BookOpen,
   Layout
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -19,7 +16,6 @@ import { toast } from 'sonner';
 import { 
   Table, 
   TableBody, 
-  TableCell, 
   TableHead, 
   TableHeader, 
   TableRow 

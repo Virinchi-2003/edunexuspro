@@ -5,50 +5,62 @@ import {
   Calendar,
   CreditCard,
   Bell,
-  Download,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
-import api from '@/lib/api';
+import { toast } from 'sonner';
 
 const ParentDashboard: React.FC = () => {
   const { user } = useAuth();
   const [student, setStudent] = useState<any>(null);
-  const [student, setStudent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      const studentRes = await api.get(`/students/user/${user.id}`);
+      const sData = studentRes.data.data;
+      setStudent(sData);
+
+      if (sData?.id) {
+        await Promise.all([
+          api.get(`/portal/dashboard/${sData.id}`),
+          api.get(`/portal/notifications/${user.id}`),
+          api.get(`/students/homework/${sData.classId}`),
+          api.get(`/portal/fees/history/${sData.id}`),
+          api.get(`/exams/performance/${sData.id}`),
+          api.get(`/students/leave/${sData.id}`)
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching parent portal data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStudentData = async () => {
-      try {
-        setLoading(true);
-        // Parents log in with student role in this system
-        // Let's find the student record associated with this user
-        const res = await api.get(`/students/user/${user.id}`);
-        setStudent(res.data.data);
-      } catch (error) {
-        console.error('Error fetching student data:', error);
-      }
-    };
-    fetchStudentData();
+    fetchData();
   }, [user]);
 
+  if (loading && !student) {
+    return <div className="flex items-center justify-center min-h-[400px]"><Clock className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-display font-bold text-slate-900">Welcome, {user?.name}</h2>
-          <p className="text-slate-500">Parent Portal • Ward: {student?.name || 'Loading...'}</p>
+          <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Parent Portal</h2>
+          <p className="text-slate-500 font-medium mt-1">Managing: {student?.name} • Class {student?.grade}-{student?.section}</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
-            <Download className="w-4 h-4" /> ID Card
-          </Button>
-          <Button className="gap-2 shadow-lg shadow-primary/20 bg-emerald-600 hover:bg-emerald-700">
-            <CreditCard className="w-4 h-4" /> Pay Fees
-          </Button>
         </div>
       </div>
 

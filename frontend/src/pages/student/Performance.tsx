@@ -4,14 +4,11 @@ import {
   TrendingUp, 
   BookOpen, 
   Award, 
-  ChevronRight,
   Download,
   Loader2,
-  PieChart,
-  BarChart3,
   Star
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';

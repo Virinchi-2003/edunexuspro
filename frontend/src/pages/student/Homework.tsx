@@ -2,27 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Clock, 
-  CheckCircle2, 
-  AlertCircle, 
   Download,
-  Calendar,
-  Layout,
   Search,
-  Filter,
   Loader2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
-import { toast } from 'sonner';
 
 const StudentHomework: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [student, setStudent] = useState<any>(null);
   const [homeworks, setHomeworks] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -31,7 +24,6 @@ const StudentHomework: React.FC = () => {
       setLoading(true);
       const studentRes = await api.get(`/students/user/${user.id}`);
       const sData = studentRes.data.data;
-      setStudent(sData);
 
       if (sData?.classId) {
         const res = await api.get(`/students/homework/${sData.classId}`);

@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   BookOpen, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
   Search, 
   ArrowLeft, 
   ChevronRight, 

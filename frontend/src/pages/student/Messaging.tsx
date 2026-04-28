@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, 
   Send, 
-  User, 
   Search, 
   MoreVertical, 
   Phone, 
@@ -12,10 +11,10 @@ import {
   Loader2,
   Paperclip
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 

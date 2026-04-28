@@ -4,7 +4,6 @@ import {
   Download, 
   Clock, 
   CheckCircle2, 
-  AlertCircle, 
   ArrowRight,
   ShieldCheck,
   Receipt,
@@ -20,7 +19,6 @@ import { toast } from 'sonner';
 const StudentFees: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [student, setStudent] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
 
   const fetchData = async () => {
@@ -28,7 +26,6 @@ const StudentFees: React.FC = () => {
       setLoading(true);
       const studentRes = await api.get(`/students/user/${user.id}`);
       const sData = studentRes.data.data;
-      setStudent(sData);
 
       if (sData?.id) {
         const res = await api.get(`/portal/fees/history/${sData.id}`);

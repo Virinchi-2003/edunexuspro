@@ -3,17 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   Plus, 
-  Calendar as CalendarIcon, 
-  Clock, 
-  MapPin, 
   User as UserIcon,
-  Save,
   AlertCircle,
   Users,
-  Building,
   Loader2,
-  BookOpen,
-  ChevronDown
+  BookOpen
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -43,9 +37,7 @@ const TIMES = [
 
 const Timetable: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [classes, setClasses] = useState<any[]>([]);
-  const [rooms, setRooms] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [slots, setSlots] = useState<any[]>([]);
@@ -61,7 +53,6 @@ const Timetable: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      setLoading(true);
       const [classRes, staffRes, timetableRes] = await Promise.all([
         api.get(`/classes/school/${user.schoolId}`),
         api.get(`/staff/school/${user.schoolId}`),
@@ -87,7 +78,7 @@ const Timetable: React.FC = () => {
       console.error('Error fetching timetable data:', error);
       toast.error('Failed to load scheduler data');
     } finally {
-      setLoading(false);
+      // Done
     }
   };
 
