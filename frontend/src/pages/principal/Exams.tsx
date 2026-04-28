@@ -5,29 +5,15 @@ import { Input } from '@/components/ui/input';
 import { 
   Plus, 
   Calendar, 
-  Clock, 
-  MapPin, 
-  Search,
-  Loader2,
   FileText,
-  Download,
   GraduationCap,
-  Layout,
-  CheckCircle2,
-  AlertCircle
+  Layout
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const Examinations: React.FC = () => {
@@ -139,26 +125,6 @@ const Examinations: React.FC = () => {
     }
   };
 
-  const handleDownloadHallTickets = async (examId: string) => {
-    try {
-      toast.info('Generating Hall Tickets for all students...');
-      const response = await api.get(`/exams/report/hall-tickets/${examId}?schoolId=${user.schoolId}`, { 
-        responseType: 'blob' 
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Hall_Tickets_${examId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      
-      toast.success('Hall Tickets Downloaded');
-    } catch (error) {
-      toast.error('Failed to generate hall tickets');
-    }
-  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

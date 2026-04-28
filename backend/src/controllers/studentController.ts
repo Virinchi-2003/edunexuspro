@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { students, users, schools } from '../db/schema';
+import { students, users, schools, homework, leaveRequests } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
@@ -221,8 +221,6 @@ export const deleteStudent = asyncHandler(async (req: Request, res: Response) =>
   await db.delete(students).where(eq(students.id, id));
   res.status(200).json({ status: 'success', message: 'Student deleted successfully' });
 });
-
-import { homework, leaveRequests } from '../db/schema';
 
 export const getStudentByUser = asyncHandler(async (req: Request, res: Response) => {
   const userId = getSingleValue(req.params.userId);

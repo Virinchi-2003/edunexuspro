@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   User, 
-  BookOpen, 
   Calendar,
   CreditCard,
   Bell,
@@ -14,12 +13,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
-import { toast } from 'sonner';
+import api from '@/lib/api';
 
 const ParentDashboard: React.FC = () => {
   const { user } = useAuth();
   const [student, setStudent] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [student, setStudent] = useState<any>(null);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -31,8 +30,6 @@ const ParentDashboard: React.FC = () => {
         setStudent(res.data.data);
       } catch (error) {
         console.error('Error fetching student data:', error);
-      } finally {
-        setLoading(false);
       }
     };
     fetchStudentData();
