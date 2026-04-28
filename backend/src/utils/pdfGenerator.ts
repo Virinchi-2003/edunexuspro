@@ -121,13 +121,13 @@ export const generateHallTicketPDF = (ticketsData: any[], res: Response) => {
     });
 
     doc.moveDown(8);
-    doc.fontSize(10).text('Instructions:', { bold: true }).moveDown(0.5);
+    doc.fontSize(10).font('Helvetica-Bold').text('Instructions:').font('Helvetica').moveDown(0.5);
     doc.fontSize(8).text('1. Candidates must reach the examination hall 30 minutes before the commencement.');
     doc.text('2. Please bring your own stationery and water bottle.');
     doc.text('3. Use of mobile phones or smartwatches is strictly prohibited.');
 
     doc.moveDown(4);
-    doc.fontSize(12).text("Principal's Signature", 400, 700, { align: 'right' });
+    doc.fontSize(12).text("Principal's Signature", { align: 'right' });
   });
 
   doc.end();
