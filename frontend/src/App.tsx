@@ -14,6 +14,21 @@ import PrincipalStaff from './pages/principal/Staff';
 import PrincipalFees from './pages/principal/Fees';
 import PrincipalAttendance from './pages/principal/Attendance';
 import PrincipalSettings from './pages/principal/Settings';
+import PrincipalAdmissions from './pages/principal/Admissions';
+import PrincipalTimetable from './pages/principal/Timetable';
+import PrincipalExams from './pages/principal/Exams';
+import PrincipalGradebook from './pages/principal/Gradebook';
+import TeacherDashboard from './pages/teacher/Dashboard';
+import TeacherStudents from './pages/teacher/Students';
+import TeacherAttendance from './pages/teacher/Attendance';
+import StudentDashboard from './pages/student/Dashboard';
+import StudentAttendance from './pages/student/Attendance';
+import StudentLeave from './pages/student/Leave';
+import StudentHomework from './pages/student/Homework';
+import StudentPerformance from './pages/student/Performance';
+import StudentFees from './pages/student/Fees';
+import StudentMessaging from './pages/student/Messaging';
+import AdmissionForm from './pages/AdmissionForm';
 import Login from './pages/Login';
 
 import { Toaster } from 'sonner';
@@ -34,6 +49,8 @@ const HomeRedirect: React.FC = () => {
   if (!user) return <Navigate to="/login" />;
   if (user.role === 'admin') return <Navigate to="/admin" />;
   if (user.role === 'principal') return <Navigate to="/principal" />;
+  if (user.role === 'staff' || user.role === 'teacher') return <Navigate to="/teacher" />;
+  if (user.role === 'student') return <Navigate to="/student" />;
   return <Navigate to="/login" />;
 };
 
@@ -44,6 +61,7 @@ const App: React.FC = () => {
         <Toaster position="top-right" richColors />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/admission" element={<AdmissionForm />} />
           
           {/* Admin Routes */}
           <Route path="/admin/*" element={
@@ -71,6 +89,42 @@ const App: React.FC = () => {
                   <Route path="/staff" element={<PrincipalStaff />} />
                   <Route path="/fees" element={<PrincipalFees />} />
                   <Route path="/attendance" element={<PrincipalAttendance />} />
+                  <Route path="/admissions" element={<PrincipalAdmissions />} />
+                  <Route path="/timetable" element={<PrincipalTimetable />} />
+                  <Route path="/exams" element={<PrincipalExams />} />
+                  <Route path="/gradebook" element={<PrincipalGradebook />} />
+                  <Route path="/settings" element={<PrincipalSettings />} />
+                </Routes>
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          {/* Teacher Routes */}
+          <Route path="/teacher/*" element={
+            <ProtectedRoute roles={['staff', 'teacher']}>
+              <AdminLayout>
+                <Routes>
+                  <Route path="/" element={<TeacherDashboard />} />
+                  <Route path="/students" element={<TeacherStudents />} />
+                  <Route path="/attendance" element={<TeacherAttendance />} />
+                  <Route path="/settings" element={<PrincipalSettings />} />
+                </Routes>
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          {/* Student Routes */}
+          <Route path="/student/*" element={
+            <ProtectedRoute roles={['student']}>
+              <AdminLayout>
+                <Routes>
+                  <Route path="/" element={<StudentDashboard />} />
+                  <Route path="/attendance" element={<StudentAttendance />} />
+                  <Route path="/leave" element={<StudentLeave />} />
+                  <Route path="/homework" element={<StudentHomework />} />
+                  <Route path="/performance" element={<StudentPerformance />} />
+                  <Route path="/messages" element={<StudentMessaging />} />
+                  <Route path="/fees" element={<StudentFees />} />
                   <Route path="/settings" element={<PrincipalSettings />} />
                 </Routes>
               </AdminLayout>

@@ -482,18 +482,16 @@ const StaffPage: React.FC = () => {
               </div>
             )}
 
-            {!isEditDialogOpen && (
-              <div className="space-y-2 col-span-2">
-                <label className="text-sm font-semibold text-slate-700">Portal Password</label>
-                <Input 
-                  type="password"
-                  value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  placeholder="Default password for login"
-                  className="bg-slate-50 border-none"
-                />
-              </div>
-            )}
+            <div className="space-y-2 col-span-2">
+              <label className="text-sm font-semibold text-slate-700">Portal Password</label>
+              <Input 
+                type="password"
+                value={formData.password}
+                onChange={e => setFormData({...formData, password: e.target.value})}
+                placeholder={isEditDialogOpen ? "Leave blank to keep current" : "Default password for login"}
+                className="bg-slate-50 border-none"
+              />
+            </div>
           </div>
 
           <DialogFooter className="pt-4 border-t border-slate-100">

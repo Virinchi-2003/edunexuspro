@@ -59,6 +59,11 @@ const FeesPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isAddFeeDialogOpen, setIsAddFeeDialogOpen] = useState(false);
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'management' | 'structures'>('management');
+  const [feeStructures, setFeeStructures] = useState<any[]>([]);
+  const [isStructureDialogOpen, setIsStructureDialogOpen] = useState(false);
+  const [selectedStructure, setSelectedStructure] = useState<any>(null);
+  const [structureData, setStructureData] = useState({ grade: '', amount: '', description: '' });
 
   const downloadTemplate = () => {
     const template = [
@@ -210,17 +215,49 @@ const FeesPage: React.FC = () => {
     if (!user?.schoolId) return;
     try {
       setLoading(true);
-      const [feesRes, classesRes] = await Promise.all([
+      const [feesRes, classesRes, structuresRes] = await Promise.all([
         api.get(`/fees/school/${user.schoolId}`),
-        api.get(`/classes/school/${user.schoolId}`)
+        api.get(`/classes/school/${user.schoolId}`),
+        api.get(`/fee-structures/school/${user.schoolId}`)
       ]);
       setFees(feesRes.data.data.fees || []);
       setStudents(feesRes.data.data.students || []);
       setClasses(classesRes.data.data || []);
+      setFeeStructures(structuresRes.data.data || []);
     } catch (error) {
       toast.error('Failed to load fees data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveStructure = async () => {
+    try {
+      setIsSaving(true);
+      if (selectedStructure) {
+        await api.put(`/fee-structures/${selectedStructure.id}`, structureData);
+        toast.success('Fee structure updated');
+      } else {
+        await api.post('/fee-structures', { ...structureData, schoolId: user.schoolId });
+        toast.success('Fee structure created');
+      }
+      setIsStructureDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to save fee structure');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteStructure = async (id: string) => {
+    if (!window.confirm('Delete this fee structure?')) return;
+    try {
+      await api.delete(`/fee-structures/${id}`);
+      toast.success('Fee structure removed');
+      fetchData();
+    } catch (error) {
+      toast.error('Delete failed');
     }
   };
 
@@ -335,326 +372,389 @@ const FeesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            {selectedClass && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 w-8 p-0 rounded-full hover:bg-slate-100"
-                onClick={() => setSelectedClass(null)}
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
-            )}
-            <h2 className="text-3xl font-display font-bold text-slate-900">
-              {selectedClass ? `Fees: Class ${currentClassData?.name} - ${currentClassData?.section}` : 'Fees Management'}
-            </h2>
-          </div>
-          <p className="text-slate-500">
-            {selectedClass 
-              ? `Tracking payments for ${currentClassData?.studentList?.length} students.` 
-              : 'Monitor revenue and fee collection across all classes.'}
-          </p>
-        </div>
-        {!selectedClass ? (
-          <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-             <div className="flex items-center gap-3 pr-4 border-r border-slate-100">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Collected</div>
-                  <div className="text-lg font-bold text-slate-900">
-                    {fees.filter(f => f.status === 'paid').length} / {students.length}
-                  </div>
-                </div>
-             </div>
-             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <AlertCircle className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending</div>
-                  <div className="text-lg font-bold text-slate-900">
-                    {students.length - fees.filter(f => f.status === 'paid').length}
-                  </div>
-                </div>
-             </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline"
-              className="gap-2 border-slate-200 hover:bg-slate-50 text-indigo-600"
-              onClick={sendReminders}
-              disabled={loading}
-            >
-              <BellRing className="w-4 h-4" /> Reminders
-            </Button>
-            <Button 
-              variant="outline"
-              className="gap-2 border-slate-200 hover:bg-slate-50"
-              onClick={() => setIsBulkDialogOpen(true)}
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Bulk Import
-            </Button>
-            <Button 
-              className="gap-2 shadow-lg shadow-primary/20"
-              onClick={() => {
-                setSelectedStudent(null);
-                setPaymentData({ feeType: 'Tuition Fee', amount: '', transactionId: '', status: 'unpaid', dueDate: new Date().toISOString().split('T')[0] });
-                setIsAddFeeDialogOpen(true);
-              }}
-            >
-              <Receipt className="w-4 h-4" /> Global Fee Creation
-            </Button>
-          </div>
-        )}
+      <div className="flex border-b border-slate-100">
+        <button 
+          className={`px-6 py-3 font-bold text-sm transition-all ${activeTab === 'management' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-600'}`}
+          onClick={() => setActiveTab('management')}
+        >
+          Fee Management
+        </button>
+        <button 
+          className={`px-6 py-3 font-bold text-sm transition-all ${activeTab === 'structures' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-600'}`}
+          onClick={() => setActiveTab('structures')}
+        >
+          Fee Structures
+        </button>
       </div>
 
-      {!selectedClass ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {loading ? (
-             Array.from({ length: 8 }).map((_, i) => (
-              <Card key={i} className="animate-pulse bg-slate-50 border-none h-48" />
-            ))
-          ) : sortedClasses.length === 0 ? (
-            <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-              <Receipt className="w-12 h-12 mx-auto mb-4 opacity-20" />
-              <p className="text-slate-500">No classes found. Set up your classes in the Students section first.</p>
+      {activeTab === 'management' ? (
+        <>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                {selectedClass && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 rounded-full hover:bg-slate-100"
+                    onClick={() => setSelectedClass(null)}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                )}
+                <h2 className="text-2xl font-display font-bold text-slate-900">
+                  {selectedClass ? `Fees: Class ${currentClassData?.name} - ${currentClassData?.section}` : 'Fees Overview'}
+                </h2>
+              </div>
+              <p className="text-slate-500">
+                {selectedClass 
+                  ? `Tracking payments for ${currentClassData?.studentList?.length} students.` 
+                  : 'Monitor revenue and fee collection across all classes.'}
+              </p>
+            </div>
+            {!selectedClass ? (
+              <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                 <div className="flex items-center gap-3 pr-4 border-r border-slate-100">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Collected</div>
+                      <div className="text-lg font-bold text-slate-900">
+                        {fees.filter(f => f.status === 'paid').length} / {students.length}
+                      </div>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending</div>
+                      <div className="text-lg font-bold text-slate-900">
+                        {students.length - fees.filter(f => f.status === 'paid').length}
+                      </div>
+                    </div>
+                 </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline"
+                  className="gap-2 border-slate-200 hover:bg-slate-50 text-indigo-600"
+                  onClick={sendReminders}
+                  disabled={loading}
+                >
+                  <BellRing className="w-4 h-4" /> Reminders
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="gap-2 border-slate-200 hover:bg-slate-50"
+                  onClick={() => setIsBulkDialogOpen(true)}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" /> Bulk Import
+                </Button>
+                <Button 
+                  className="gap-2 shadow-lg shadow-primary/20"
+                  onClick={() => {
+                    setSelectedStudent(null);
+                    setPaymentData({ feeType: 'Tuition Fee', amount: '', transactionId: '', status: 'unpaid', dueDate: new Date().toISOString().split('T')[0] });
+                    setIsAddFeeDialogOpen(true);
+                  }}
+                >
+                  <Receipt className="w-4 h-4" /> Global Fee Creation
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {!selectedClass ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <Card key={i} className="animate-pulse bg-slate-50 border-none h-48" />
+                ))
+              ) : sortedClasses.length === 0 ? (
+                <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                  <Receipt className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p className="text-slate-500">No classes found. Set up your classes in the Students section first.</p>
+                </div>
+              ) : (
+                sortedClasses.map((cls: any) => (
+                  <Card 
+                    key={cls.id} 
+                    className="group hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 cursor-pointer border-none shadow-sm overflow-hidden"
+                    onClick={() => setSelectedClass(cls.id)}
+                  >
+                    <div className="h-2 bg-slate-100 group-hover:bg-primary transition-colors" />
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center font-bold text-xl group-hover:bg-primary group-hover:text-white transition-colors">
+                          {cls.name}
+                        </div>
+                        <Badge variant="secondary" className="bg-slate-50 text-slate-500 font-mono">
+                          Sec {cls.section}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-end">
+                          <div className="text-2xl font-bold text-slate-900">{cls.studentList?.length || 0}</div>
+                          <div className="text-xs text-slate-400 font-medium">Total Students</div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-slate-500">Collection Status</span>
+                            <span className="font-bold text-emerald-600">{Math.round((cls.totalPaid / (cls.studentList?.length || 1)) * 100)}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-emerald-500 rounded-full transition-all duration-1000" 
+                              style={{ width: `${(cls.totalPaid / (cls.studentList?.length || 1)) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 pt-2">
+                          <div className="flex-1 text-center py-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs">
+                            {cls.totalPaid} Paid
+                          </div>
+                          <div className="flex-1 text-center py-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-xs">
+                            {cls.totalUnpaid} Due
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           ) : (
-            sortedClasses.map((cls: any) => (
-              <Card 
-                key={cls.id} 
-                className="group hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 cursor-pointer border-none shadow-sm overflow-hidden"
-                onClick={() => setSelectedClass(cls.id)}
-              >
-                <div className="h-2 bg-slate-100 group-hover:bg-primary transition-colors" />
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center font-bold text-xl group-hover:bg-primary group-hover:text-white transition-colors">
-                      {cls.name}
-                    </div>
-                    <Badge variant="secondary" className="bg-slate-50 text-slate-500 font-mono">
-                      Sec {cls.section}
-                    </Badge>
+            <Card className="border-none shadow-sm overflow-hidden rounded-3xl">
+              <CardHeader className="p-0 border-b border-slate-100 bg-white">
+                <div className="flex items-center gap-4 p-6">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input 
+                      placeholder="Search student by name or ID..." 
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      className="pl-10 bg-slate-50 border-none h-12 focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-slate-50/50">
+                    <TableRow>
+                      <TableHead className="pl-6 py-4">Student Details</TableHead>
+                      <TableHead>Fee Type & Amount</TableHead>
+                      <TableHead>Payment Info</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right pr-6">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStudents.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-20 text-slate-400">
+                          No student records found in this section.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredStudents.map((s: any) => (
+                        <React.Fragment key={s.id}>
+                          {s.studentFees?.length > 0 ? (
+                            s.studentFees.map((fee: any, idx: number) => (
+                              <TableRow key={fee.id} className="hover:bg-slate-50/50 transition-colors group">
+                                {idx === 0 && (
+                                  <TableCell className="pl-6" rowSpan={s.studentFees.length}>
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
+                                        {s.name.charAt(0)}
+                                      </div>
+                                      <div>
+                                        <div className="font-bold text-slate-900">{s.name}</div>
+                                        <div className="text-xs font-mono text-slate-400">{s.studentId}</div>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                )}
+                                <TableCell>
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-slate-800">{fee.feeType}</span>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-sm font-bold text-emerald-600">₹{fee.amount?.toLocaleString()}</span>
+                                      {(fee.lateFee || 0) > 0 && (
+                                        <Badge className="bg-amber-100 text-amber-700 border-none text-[10px] h-4">
+                                          +₹{fee.lateFee} Late
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 font-mono mt-1">{fee.challanNumber || 'GENERATING...'}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {fee.paymentDate ? (
+                                    <div className="flex flex-col gap-0.5">
+                                      <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                                        <ShieldCheck className="w-3 h-3 text-emerald-500" /> Paid on {new Date(fee.paymentDate).toLocaleDateString()}
+                                      </div>
+                                      {fee.transactionId && <div className="text-[10px] text-slate-400 font-mono">ID: {fee.transactionId}</div>}
+                                    </div>
+                                  ) : (
+                                    <div className="text-xs font-semibold text-amber-600 flex items-center gap-1">
+                                      <History className="w-3 h-3" /> Due by {fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={`rounded-lg ${
+                                    fee.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 
+                                    fee.status === 'partially_paid' ? 'bg-amber-50 text-amber-600' : 
+                                    'bg-slate-100 text-slate-500'
+                                  } border-none font-bold`}>
+                                    {fee.status.replace('_', ' ').toUpperCase()}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right pr-6">
+                                  <div className="flex justify-end gap-2">
+                                    {fee.status !== 'paid' && (
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="h-8 border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-1 rounded-lg"
+                                        onClick={() => handleRazorpayPayment(fee)}
+                                      >
+                                        <CreditCard className="w-3.5 h-3.5" /> Pay
+                                      </Button>
+                                    )}
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="h-8 text-slate-400 hover:text-indigo-600 gap-1"
+                                      onClick={() => generateReceiptPDF(fee, s)}
+                                    >
+                                      <FileText className="w-3.5 h-3.5" /> Receipt
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8 text-slate-400 hover:text-primary"
+                                      onClick={() => {
+                                        setSelectedStudent(s);
+                                        setPaymentData({ 
+                                          feeType: fee.feeType,
+                                          amount: fee.amount?.toString() || '', 
+                                          transactionId: fee.transactionId || '',
+                                          status: fee.status,
+                                          dueDate: fee.dueDate || ''
+                                        });
+                                        setIsPayDialogOpen(true);
+                                      }}
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8 text-slate-400 hover:text-red-500"
+                                      onClick={() => handleDeleteFee(fee.id)}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow className="hover:bg-slate-50/50 transition-colors group">
+                               <TableCell className="pl-6">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
+                                        {s.name.charAt(0)}
+                                      </div>
+                                      <div>
+                                        <div className="font-bold text-slate-900">{s.name}</div>
+                                        <div className="text-xs font-mono text-slate-400">{s.studentId}</div>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell colSpan={3} className="text-slate-400 italic text-sm">
+                                    No fee records created yet for this student.
+                                  </TableCell>
+                                  <TableCell className="text-right pr-6">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      className="gap-2 h-8 rounded-lg"
+                                      onClick={() => {
+                                        setSelectedStudent(s);
+                                        setPaymentData({ feeType: 'Tuition Fee', amount: '50000', transactionId: '', status: 'unpaid', dueDate: new Date().toISOString().split('T')[0] });
+                                        setIsPayDialogOpen(true);
+                                      }}
+                                    >
+                                      <Plus className="w-3 h-3" /> Add Fee
+                                    </Button>
+                                  </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-display font-bold text-slate-900">Standard Fee Structures</h2>
+              <p className="text-slate-500">Define the standard fee amount for each grade level.</p>
+            </div>
+            <Button className="gap-2" onClick={() => {
+              setSelectedStructure(null);
+              setStructureData({ grade: '', amount: '', description: '' });
+              setIsStructureDialogOpen(true);
+            }}>
+              <Plus className="w-4 h-4" /> Add Structure
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {feeStructures.map((struct) => (
+              <Card key={struct.id} className="border-none shadow-sm group">
+                <CardHeader className="flex flex-row justify-between items-start pb-2">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xl">
+                    {struct.grade}
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                      setSelectedStructure(struct);
+                      setStructureData({ grade: struct.grade, amount: struct.amount.toString(), description: struct.description || '' });
+                      setIsStructureDialogOpen(true);
+                    }}>
+                      <Pencil className="w-4 h-4 text-slate-400" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-red-600" onClick={() => handleDeleteStructure(struct.id)}>
+                      <Trash2 className="w-4 h-4 text-slate-400" />
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-end">
-                      <div className="text-2xl font-bold text-slate-900">{cls.studentList?.length || 0}</div>
-                      <div className="text-xs text-slate-400 font-medium">Total Students</div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">Collection Status</span>
-                        <span className="font-bold text-emerald-600">{Math.round((cls.totalPaid / (cls.studentList?.length || 1)) * 100)}%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-emerald-500 rounded-full transition-all duration-1000" 
-                          style={{ width: `${(cls.totalPaid / (cls.studentList?.length || 1)) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <div className="flex-1 text-center py-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs">
-                        {cls.totalPaid} Paid
-                      </div>
-                      <div className="flex-1 text-center py-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-xs">
-                        {cls.totalUnpaid} Due
-                      </div>
-                    </div>
-                  </div>
+                  <div className="text-2xl font-bold text-slate-900 mb-1">₹{struct.amount.toLocaleString()}</div>
+                  <p className="text-sm text-slate-500 line-clamp-2">{struct.description || 'No description provided'}</p>
                 </CardContent>
               </Card>
-            ))
-          )}
+            ))}
+          </div>
         </div>
-      ) : (
-        <Card className="border-none shadow-sm overflow-hidden rounded-3xl">
-          <CardHeader className="p-0 border-b border-slate-100 bg-white">
-            <div className="flex items-center gap-4 p-6">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input 
-                  placeholder="Search student by name or ID..." 
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="pl-10 bg-slate-50 border-none h-12 focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow>
-                  <TableHead className="pl-6 py-4">Student Details</TableHead>
-                  <TableHead>Fee Type & Amount</TableHead>
-                  <TableHead>Payment Info</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right pr-6">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-20 text-slate-400">
-                      No student records found in this section.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredStudents.map((s: any) => (
-                    <React.Fragment key={s.id}>
-                      {s.studentFees?.length > 0 ? (
-                        s.studentFees.map((fee: any, idx: number) => (
-                          <TableRow key={fee.id} className="hover:bg-slate-50/50 transition-colors group">
-                            {idx === 0 && (
-                              <TableCell className="pl-6" rowSpan={s.studentFees.length}>
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
-                                    {s.name.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <div className="font-bold text-slate-900">{s.name}</div>
-                                    <div className="text-xs font-mono text-slate-400">{s.studentId}</div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            )}
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-800">{fee.feeType}</span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-sm font-bold text-emerald-600">₹{fee.amount?.toLocaleString()}</span>
-                                  {(fee.lateFee || 0) > 0 && (
-                                    <Badge className="bg-amber-100 text-amber-700 border-none text-[10px] h-4">
-                                      +₹{fee.lateFee} Late
-                                    </Badge>
-                                  )}
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-mono mt-1">{fee.challanNumber || 'GENERATING...'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {fee.paymentDate ? (
-                                <div className="flex flex-col gap-0.5">
-                                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
-                                    <ShieldCheck className="w-3 h-3 text-emerald-500" /> Paid on {new Date(fee.paymentDate).toLocaleDateString()}
-                                  </div>
-                                  {fee.transactionId && <div className="text-[10px] text-slate-400 font-mono">ID: {fee.transactionId}</div>}
-                                </div>
-                              ) : (
-                                <div className="text-xs font-semibold text-amber-600 flex items-center gap-1">
-                                  <History className="w-3 h-3" /> Due by {fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={`rounded-lg ${
-                                fee.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 
-                                fee.status === 'partially_paid' ? 'bg-amber-50 text-amber-600' : 
-                                'bg-slate-100 text-slate-500'
-                              } border-none font-bold`}>
-                                {fee.status.replace('_', ' ').toUpperCase()}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right pr-6">
-                              <div className="flex justify-end gap-2">
-                                {fee.status !== 'paid' && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 border-emerald-200 text-emerald-600 hover:bg-emerald-50 gap-1 rounded-lg"
-                                    onClick={() => handleRazorpayPayment(fee)}
-                                  >
-                                    <CreditCard className="w-3.5 h-3.5" /> Pay
-                                  </Button>
-                                )}
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="h-8 text-slate-400 hover:text-indigo-600 gap-1"
-                                  onClick={() => generateReceiptPDF(fee, s)}
-                                >
-                                  <FileText className="w-3.5 h-3.5" /> Receipt
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-8 w-8 text-slate-400 hover:text-primary"
-                                  onClick={() => {
-                                    setSelectedStudent(s);
-                                    setPaymentData({ 
-                                      feeType: fee.feeType,
-                                      amount: fee.amount?.toString() || '', 
-                                      transactionId: fee.transactionId || '',
-                                      status: fee.status,
-                                      dueDate: fee.dueDate || ''
-                                    });
-                                    setIsPayDialogOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-8 w-8 text-slate-400 hover:text-red-500"
-                                  onClick={() => handleDeleteFee(fee.id)}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow className="hover:bg-slate-50/50 transition-colors group">
-                           <TableCell className="pl-6">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
-                                    {s.name.charAt(0)}
-                                  </div>
-                                  <div>
-                                    <div className="font-bold text-slate-900">{s.name}</div>
-                                    <div className="text-xs font-mono text-slate-400">{s.studentId}</div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell colSpan={3} className="text-slate-400 italic text-sm">
-                                No fee records created yet for this student.
-                              </TableCell>
-                              <TableCell className="text-right pr-6">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="gap-2 h-8 rounded-lg"
-                                  onClick={() => {
-                                    setSelectedStudent(s);
-                                    setPaymentData({ feeType: 'Tuition Fee', amount: '50000', transactionId: '', status: 'unpaid', dueDate: new Date().toISOString().split('T')[0] });
-                                    setIsPayDialogOpen(true);
-                                  }}
-                                >
-                                  <Plus className="w-3 h-3" /> Add Fee
-                                </Button>
-                              </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       )}
 
       {/* Payment Management Dialog */}
@@ -877,6 +977,64 @@ const FeesPage: React.FC = () => {
               <p className="text-xs text-slate-500 mt-1">This may take a moment</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Fee Structure Dialog */}
+      <Dialog open={isStructureDialogOpen} onOpenChange={setIsStructureDialogOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
+          <div className="bg-primary p-6 text-white">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-display font-bold text-white flex items-center gap-2">
+                <Receipt className="w-6 h-6" /> {selectedStructure ? 'Edit Fee Structure' : 'Add Fee Structure'}
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          
+          <div className="p-6 space-y-4">
+             <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Grade / Class</label>
+                  <Input 
+                    value={structureData.grade}
+                    onChange={e => setStructureData({...structureData, grade: e.target.value})}
+                    className="bg-slate-50 border-none h-11 rounded-xl"
+                    placeholder="e.g. 10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Amount (₹)</label>
+                  <Input 
+                    type="number"
+                    value={structureData.amount}
+                    onChange={e => setStructureData({...structureData, amount: e.target.value})}
+                    className="bg-slate-50 border-none h-11 rounded-xl"
+                    placeholder="50000"
+                  />
+                </div>
+             </div>
+
+             <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Description</label>
+                <Input 
+                  value={structureData.description}
+                  onChange={e => setStructureData({...structureData, description: e.target.value})}
+                  className="bg-slate-50 border-none h-11 rounded-xl"
+                  placeholder="Annual Tuition Fee"
+                />
+             </div>
+          </div>
+
+          <DialogFooter className="p-6 bg-slate-50">
+            <Button 
+              className="w-full h-12 rounded-xl shadow-lg shadow-primary/20 text-base font-bold" 
+              onClick={handleSaveStructure}
+              disabled={isSaving}
+            >
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Structure
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

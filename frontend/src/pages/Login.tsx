@@ -119,6 +119,10 @@ const Login: React.FC = () => {
         navigate('/admin');
       } else if (user.role === 'principal') {
         navigate('/principal');
+      } else if (user.role === 'staff' || user.role === 'teacher') {
+        navigate('/teacher');
+      } else if (user.role === 'student') {
+        navigate('/parent');
       } else {
         navigate('/');
       }
@@ -146,7 +150,7 @@ const Login: React.FC = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">School ID (Principals only)</label>
+              <label className="text-sm font-medium text-slate-700">School ID (Optional for Staff/Parents)</label>
               <Input 
                 type="text" 
                 placeholder="e.g. SCH-001" 
@@ -185,10 +189,20 @@ const Login: React.FC = () => {
             </Button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center space-y-4">
             <p className="text-sm text-slate-500">
               Not a member yet? <button onClick={() => setIsContactDialogOpen(true)} className="text-primary font-semibold hover:underline">Contact Sales</button>
             </p>
+            <div className="pt-2">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admission')} 
+                className="w-full h-11 border-dashed border-primary/30 text-primary hover:bg-primary/5 gap-2"
+              >
+                <School className="w-4 h-4" /> 
+                Looking for Admission? Apply Here
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -75,6 +75,19 @@ export const getSchools = asyncHandler(async (_req: Request, res: Response) => {
   });
 });
 
+export const getPublicSchools = asyncHandler(async (_req: Request, res: Response) => {
+  const allSchools = await db.select({
+    id: schools.id,
+    name: schools.name,
+    school_id: schools.school_id
+  }).from(schools).where(eq(schools.status, 'active'));
+  
+  res.status(200).json({
+    status: 'success',
+    data: allSchools
+  });
+});
+
 export const getSchoolById = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
   const result = await db.query.schools.findFirst({

@@ -1,8 +1,10 @@
 import { Router } from 'express';
-import { createSchool, getSchools, getSchoolById, updateSchoolStatus, deleteSchool, updateSchool, syncLeadsToSchools } from '../controllers/schoolController';
+import { createSchool, getSchools, getSchoolById, updateSchoolStatus, deleteSchool, updateSchool, syncLeadsToSchools, getPublicSchools } from '../controllers/schoolController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
+
+router.get('/public', getPublicSchools);
 
 // Only Super Admins can manage schools
 router.post('/', authenticate, authorize(['admin']), createSchool);

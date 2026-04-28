@@ -14,6 +14,17 @@ export const getStaffBySchool = asyncHandler(async (req: Request, res: Response)
   res.status(200).json({ status: 'success', data: result });
 });
 
+export const getStaffByUserId = asyncHandler(async (req: Request, res: Response) => {
+  const userId = getSingleValue(req.params.userId);
+  const result = await db.query.staff.findFirst({
+    where: eq(staff.userId, userId)
+  });
+  if (!result) {
+    return res.status(404).json({ status: 'error', message: 'Staff profile not found' });
+  }
+  res.status(200).json({ status: 'success', data: result });
+});
+
 export const createStaff = asyncHandler(async (req: Request, res: Response) => {
   const { 
     schoolId, name, email, password, department, role, 
@@ -22,6 +33,8 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
   
   const id = uuidv4();
   const userId = uuidv4();
+
+  const userRole = 'staff'; // All staff use the staff portal role
 
   const newStaff = {
     id,
@@ -48,7 +61,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
     email,
     password: password || 'staff123',
     name,
-    role: department === 'teaching' ? 'teacher' : 'staff',
+    role: userRole,
     schoolId,
     status: 'active'
   }).onConflictDoUpdate({
@@ -56,7 +69,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
     set: { 
       name, 
       password: password || 'staff123',
-      role: department === 'teaching' ? 'teacher' : 'staff',
+      role: userRole,
       updatedAt: new Date().toISOString()
     }
   });
@@ -72,9 +85,30 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
     updateData.salary = parseInt(updateData.salary.toString());
   }
 
+  // Find existing staff to get userId
+  const existingStaff = await db.query.staff.findFirst({ where: eq(staff.id, id) });
+  if (!existingStaff) {
+    return res.status(404).json({ status: 'error', message: 'Staff member not found' });
+  }
+
   await db.update(staff)
     .set({ ...updateData, updatedAt: new Date().toISOString() })
     .where(eq(staff.id, id));
+
+  // Sync with users table
+  if (existingStaff.userId) {
+    const userUpdate: any = {
+      name: updateData.name || existingStaff.name,
+      email: updateData.email || existingStaff.email,
+      updatedAt: new Date().toISOString()
+    };
+    if (updateData.password) {
+      userUpdate.password = updateData.password;
+    }
+    await db.update(users)
+      .set(userUpdate)
+      .where(eq(users.uid, existingStaff.userId));
+  }
 
   res.status(200).json({ status: 'success', message: 'Staff updated successfully' });
 });

@@ -144,6 +144,16 @@ export const fees = sqliteTable('fees', {
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const feeStructures = sqliteTable('fee_structures', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  grade: text('grade').notNull(),
+  amount: integer('amount').notNull(),
+  description: text('description'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const attendance = sqliteTable('attendance', {
   id: text('id').primaryKey(),
   schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
@@ -201,4 +211,299 @@ export const schoolRelations = relations(schools, ({ many }) => ({
 
 export const staffRelations = relations(staff, ({ many }) => ({
   attendance: many(attendance),
+}));
+
+export const admissions = sqliteTable('admissions', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentName: text('studentName').notNull(),
+  parentName: text('parentName').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone').notNull(),
+  grade: text('grade').notNull(),
+  address: text('address'),
+  dateOfBirth: text('dateOfBirth'),
+  gender: text('gender'),
+  aadhaarNumber: text('aadhaarNumber'),
+  bloodGroup: text('bloodGroup'),
+  previousSchool: text('previousSchool'),
+  religion: text('religion'),
+  category: text('category'),
+  documents: text('documents'), // JSON string of filenames
+  studentId: text('studentId'), // Generated ID after approval
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
+  appliedAt: text('appliedAt').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const admissionRelations = relations(admissions, ({ one }) => ({
+  school: one(schools, {
+    fields: [admissions.schoolId],
+    references: [schools.id],
+  }),
+}));
+
+// --- Timetable & Resource Planner ---
+
+export const rooms = sqliteTable('rooms', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  capacity: integer('capacity'),
+  type: text('type').default('classroom'), // classroom, lab, sports_ground
+  status: text('status').default('available'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const timetable = sqliteTable('timetable', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  classId: text('classId').notNull().references(() => classes.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(), // e.g. "Term 1 Schedule"
+  isActive: integer('isActive', { mode: 'boolean' }).default(true),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const timetableSlots = sqliteTable('timetable_slots', {
+  id: text('id').primaryKey(),
+  timetableId: text('timetableId').notNull().references(() => timetable.id, { onDelete: 'cascade' }),
+  dayOfWeek: text('dayOfWeek').notNull(), // Monday, Tuesday, etc.
+  startTime: text('startTime').notNull(), // HH:MM
+  endTime: text('endTime').notNull(), // HH:MM
+  subject: text('subject').notNull(),
+  teacherId: text('teacherId').references(() => staff.id, { onDelete: 'set null' }),
+  roomId: text('roomId').references(() => rooms.id, { onDelete: 'set null' }),
+});
+
+export const substitutions = sqliteTable('substitutions', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  slotId: text('slotId').notNull().references(() => timetableSlots.id, { onDelete: 'cascade' }),
+  originalTeacherId: text('originalTeacherId').notNull().references(() => staff.id),
+  substituteTeacherId: text('substituteTeacherId').notNull().references(() => staff.id),
+  date: text('date').notNull(),
+  status: text('status').default('pending'), // pending, approved, completed
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// --- Examination & Gradebook ---
+
+export const exams = sqliteTable('exams', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  term: text('term'),
+  startDate: text('startDate'),
+  endDate: text('endDate'),
+  status: text('status').default('scheduled'), // scheduled, ongoing, completed
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const examSchedule = sqliteTable('exam_schedule', {
+  id: text('id').primaryKey(),
+  examId: text('examId').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  subject: text('subject').notNull(),
+  date: text('date').notNull(),
+  startTime: text('startTime').notNull(),
+  endTime: text('endTime').notNull(),
+  roomId: text('roomId').references(() => rooms.id),
+  totalMarks: integer('totalMarks').default(100),
+});
+
+export const marks = sqliteTable('marks', {
+  id: text('id').primaryKey(),
+  examScheduleId: text('examScheduleId').references(() => examSchedule.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  marksObtained: real('marksObtained'),
+  totalMarks: integer('totalMarks'),
+  grade: text('grade'),
+  comments: text('comments'),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const gradingRules = sqliteTable('grading_rules', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  systemType: text('systemType').notNull(), // Percentage, GPA, IB, etc.
+  minScore: real('minScore').notNull(),
+  maxScore: real('maxScore').notNull(),
+  grade: text('grade').notNull(),
+  points: real('points'),
+});
+
+export const questionBank = sqliteTable('question_bank', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  subject: text('subject').notNull(),
+  question: text('question').notNull(),
+  options: text('options'), // JSON string for MCQs
+  answer: text('answer'),
+  difficulty: text('difficulty'), // easy, medium, hard
+  type: text('type').default('mcq'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const assessments = sqliteTable('assessments', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  classId: text('classId').references(() => classes.id),
+  teacherId: text('teacherId').references(() => staff.id),
+  title: text('title').notNull(),
+  description: text('description'),
+  dueDate: text('dueDate'),
+  totalMarks: integer('totalMarks'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const homework = sqliteTable('homework', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  classId: text('classId').notNull().references(() => classes.id, { onDelete: 'cascade' }),
+  subject: text('subject').notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  dueDate: text('dueDate'),
+  teacherId: text('teacherId').references(() => staff.id),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const leaveRequests = sqliteTable('leave_requests', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  reason: text('reason').notNull(),
+  startDate: text('startDate').notNull(),
+  endDate: text('endDate').notNull(),
+  status: text('status').default('pending'), // pending, approved, rejected
+  approvedBy: text('approvedBy').references(() => staff.id),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const notifications = sqliteTable('notifications', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull().references(() => users.uid, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  type: text('type').notNull(), // attendance, homework, fee, exam, announcement
+  isRead: integer('isRead', { mode: 'boolean' }).default(false),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const notificationPreferences = sqliteTable('notification_preferences', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull().references(() => users.uid, { onDelete: 'cascade' }),
+  attendanceAlerts: integer('attendanceAlerts', { mode: 'boolean' }).default(true),
+  homeworkAlerts: integer('homeworkAlerts', { mode: 'boolean' }).default(true),
+  feeReminders: integer('feeReminders', { mode: 'boolean' }).default(true),
+  announcements: integer('announcements', { mode: 'boolean' }).default(true),
+});
+
+export const homeworkSubmissions = sqliteTable('homework_submissions', {
+  id: text('id').primaryKey(),
+  homeworkId: text('homeworkId').notNull().references(() => homework.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  content: text('content'),
+  attachments: text('attachments'), // JSON string of URLs
+  status: text('status').default('submitted'), // submitted, late, reviewed
+  teacherFeedback: text('teacherFeedback'),
+  submittedAt: text('submittedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const feeTransactions = sqliteTable('fee_transactions', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  amount: real('amount').notNull(),
+  category: text('category').notNull(), // tuition, transport, activities
+  razorpayOrderId: text('razorpayOrderId'),
+  razorpayPaymentId: text('razorpayPaymentId'),
+  status: text('status').notNull(), // pending, success, failed
+  receiptUrl: text('receiptUrl'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const conversations = sqliteTable('conversations', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  participant1: text('participant1').notNull().references(() => users.uid),
+  participant2: text('participant2').notNull().references(() => users.uid),
+  lastMessage: text('lastMessage'),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const messages = sqliteTable('messages', {
+  id: text('id').primaryKey(),
+  conversationId: text('conversationId').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  senderId: text('senderId').notNull().references(() => users.uid),
+  content: text('content').notNull(),
+  isRead: integer('isRead', { mode: 'boolean' }).default(false),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const skillAssessments = sqliteTable('skill_assessments', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  skill: text('skill').notNull(), // Critical Thinking, Collaboration, Communication
+  score: integer('score').notNull(), // 1-5 scale
+  assessedBy: text('assessedBy').references(() => staff.id),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const aiFlags = sqliteTable('ai_flags', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // performance_drop, attendance_drop
+  message: text('message').notNull(),
+  severity: text('severity').default('medium'),
+  isResolved: integer('isResolved', { mode: 'boolean' }).default(false),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// --- Relations ---
+
+export const timetableRelations = relations(timetable, ({ many, one }) => ({
+  slots: many(timetableSlots),
+  class: one(classes, {
+    fields: [timetable.classId],
+    references: [classes.id],
+  }),
+}));
+
+export const timetableSlotRelations = relations(timetableSlots, ({ one }) => ({
+  timetable: one(timetable, {
+    fields: [timetableSlots.timetableId],
+    references: [timetable.id],
+  }),
+  teacher: one(staff, {
+    fields: [timetableSlots.teacherId],
+    references: [staff.id],
+  }),
+  room: one(rooms, {
+    fields: [timetableSlots.roomId],
+    references: [rooms.id],
+  }),
+}));
+
+export const examRelations = relations(exams, ({ many }) => ({
+  schedules: many(examSchedule),
+}));
+
+export const examScheduleRelations = relations(examSchedule, ({ one, many }) => ({
+  exam: one(exams, {
+    fields: [examSchedule.examId],
+    references: [exams.id],
+  }),
+  marks: many(marks),
+}));
+
+export const marksRelations = relations(marks, ({ one }) => ({
+  examSchedule: one(examSchedule, {
+    fields: [marks.examScheduleId],
+    references: [examSchedule.id],
+  }),
+  student: one(students, {
+    fields: [marks.studentId],
+    references: [students.id],
+  }),
 }));

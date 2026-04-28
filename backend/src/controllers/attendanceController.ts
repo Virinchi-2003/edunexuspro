@@ -179,3 +179,12 @@ export const generateReport = asyncHandler(async (req: Request, res: Response) =
     data: { reportId, stats }
   });
 });
+
+export const getStudentAttendance = asyncHandler(async (req: Request, res: Response) => {
+  const studentId = getSingleValue(req.params.studentId);
+  const result = await db.query.attendance.findMany({
+    where: eq(attendance.studentId, studentId),
+    orderBy: [desc(attendance.date)]
+  });
+  res.status(200).json({ status: 'success', data: result });
+});

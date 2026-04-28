@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { db } from './config/firebase';
+import { initDb, turso } from './config/database';
 
 import schoolRoutes from './routes/schoolRoutes';
 import managementRoutes from './routes/managementRoutes';
@@ -13,10 +13,13 @@ import studentRoutes from './routes/studentRoutes';
 import classRoutes from './routes/classRoutes';
 import staffRoutes from './routes/staffRoutes';
 import feesRoutes from './routes/feesRoutes';
+import feeStructureRoutes from './routes/feeStructureRoutes';
 import attendanceRoutes from './routes/attendanceRoutes';
+import admissionRoutes from './routes/admissionRoutes';
+import timetableRoutes from './routes/timetableRoutes';
+import examRoutes from './routes/examRoutes';
+import parentPortalRoutes from './routes/parentPortalRoutes';
 import { errorHandler } from './middleware/errorHandler';
-
-import { initDb } from './config/database';
 
 dotenv.config();
 
@@ -51,7 +54,12 @@ app.use('/api/students', studentRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/fees', feesRoutes);
+app.use('/api/fee-structures', feeStructureRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/admissions', admissionRoutes);
+app.use('/api/timetable', timetableRoutes);
+app.use('/api/exams', examRoutes);
+app.use('/api/portal', parentPortalRoutes);
 
 // Global Error Handler (must be after routes)
 app.use(errorHandler);
@@ -64,8 +72,8 @@ app.get('/', (req, res) => {
 // Health Check
 app.get('/health', async (req, res) => {
   try {
-    // Basic Firestore check
-    await db.collection('health').doc('status').get();
+    // Basic Turso check
+    await turso.execute('SELECT 1');
     res.status(200).json({ status: 'OK', database: 'Connected' });
   } catch (error) {
     res.status(500).json({ status: 'Error', database: 'Disconnected' });

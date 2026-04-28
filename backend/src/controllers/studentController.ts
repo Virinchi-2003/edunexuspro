@@ -221,3 +221,39 @@ export const deleteStudent = asyncHandler(async (req: Request, res: Response) =>
   await db.delete(students).where(eq(students.id, id));
   res.status(200).json({ status: 'success', message: 'Student deleted successfully' });
 });
+
+import { homework, leaveRequests } from '../db/schema';
+
+export const getStudentByUser = asyncHandler(async (req: Request, res: Response) => {
+  const userId = getSingleValue(req.params.userId);
+  const result = await db.query.students.findFirst({
+    where: eq(students.userId, userId)
+  });
+  res.status(200).json({ status: 'success', data: result });
+});
+
+export const getStudentHomework = asyncHandler(async (req: Request, res: Response) => {
+  const classId = getSingleValue(req.params.classId);
+  const result = await db.query.homework.findMany({
+    where: eq(homework.classId, classId),
+    orderBy: [desc(homework.createdAt)]
+  });
+  res.status(200).json({ status: 'success', data: result });
+});
+
+export const getStudentLeaves = asyncHandler(async (req: Request, res: Response) => {
+  const studentId = getSingleValue(req.params.studentId);
+  const result = await db.query.leaveRequests.findMany({
+    where: eq(leaveRequests.studentId, studentId),
+    orderBy: [desc(leaveRequests.createdAt)]
+  });
+  res.status(200).json({ status: 'success', data: result });
+});
+
+export const applyLeave = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, studentId, reason, startDate, endDate } = req.body;
+  const id = uuidv4();
+  const newLeave = { id, schoolId, studentId, reason, startDate, endDate, status: 'pending' };
+  await db.insert(leaveRequests).values(newLeave);
+  res.status(201).json({ status: 'success', data: newLeave });
+});

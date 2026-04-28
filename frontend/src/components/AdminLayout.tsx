@@ -11,7 +11,11 @@ import {
   Bell,
   Search,
   MessageSquare,
-  Calendar
+  Calendar,
+  GraduationCap,
+  Trophy,
+  FileText,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,13 +36,46 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const principalNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/principal' },
     { icon: Users, label: 'Students', path: '/principal/students' },
+    { icon: MessageSquare, label: 'Admissions', path: '/principal/admissions' },
     { icon: Users, label: 'Staff', path: '/principal/staff' },
+    { icon: Calendar, label: 'Timetable', path: '/principal/timetable' },
+    { icon: GraduationCap, label: 'Examinations', path: '/principal/exams' },
+    { icon: Trophy, label: 'Gradebook', path: '/principal/gradebook' },
     { icon: CreditCard, label: 'Fees', path: '/principal/fees' },
     { icon: Calendar, label: 'Attendance', path: '/principal/attendance' },
     { icon: Settings, label: 'Settings', path: '/principal/settings' },
   ];
 
-  const navItems = user?.role === 'admin' ? adminNavItems : principalNavItems;
+  const teacherNavItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/teacher' },
+    { icon: Users, label: 'Students', path: '/teacher/students' },
+    { icon: Calendar, label: 'Attendance', path: '/teacher/attendance' },
+    { icon: Settings, label: 'Settings', path: '/teacher/settings' },
+  ];
+
+  const studentNavItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/student' },
+    { icon: Calendar, label: 'Attendance', path: '/student/attendance' },
+    { icon: FileText, label: 'Leave Request', path: '/student/leave' },
+    { icon: BookOpen, label: 'Homework', path: '/student/homework' },
+    { icon: MessageSquare, label: 'Messages', path: '/student/messages' },
+    { icon: Trophy, label: 'Performance', path: '/student/performance' },
+    { icon: CreditCard, label: 'Fees', path: '/student/fees' },
+    { icon: Settings, label: 'Settings', path: '/student/settings' },
+  ];
+
+  const getNavItems = () => {
+    switch (user?.role) {
+      case 'admin': return adminNavItems;
+      case 'principal': return principalNavItems;
+      case 'staff':
+      case 'teacher': return teacherNavItems;
+      case 'student': return studentNavItems;
+      default: return [];
+    }
+  };
+
+  const navItems = getNavItems();
 
   const handleLogout = async () => {
     await logout();
@@ -50,7 +87,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
         <div className="p-6">
-          <NavLink to={user?.role === 'admin' ? '/admin' : '/principal'}>
+          <NavLink to={user?.role === 'admin' ? '/admin' : user?.role === 'principal' ? '/principal' : (user?.role === 'staff' || user?.role === 'teacher') ? '/teacher' : '/student'}>
             <h1 className="text-2xl font-display font-bold text-primary flex items-center gap-2">
               <School className="w-8 h-8" />
               EduNexus <span className="text-slate-400">Pro</span>
