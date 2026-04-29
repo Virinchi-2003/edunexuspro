@@ -1,6 +1,6 @@
 
-import { db } from './src/config/database';
-import { staff, teacherClassAssignments, classes, students, attendance } from './src/db/schema';
+import { db } from '../config/database';
+import { staff, teacherClassAssignments, classes, students, attendance } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
 async function checkJackson() {
