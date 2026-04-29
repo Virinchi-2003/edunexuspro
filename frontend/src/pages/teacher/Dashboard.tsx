@@ -37,57 +37,13 @@ const TeacherDashboard: React.FC = () => {
       const profileRes = await api.get(`/staff/user/${user.uid}`);
       const teacherProfile = profileRes.data.data;
       
-      // 2. Fetch Assigned Classes + Students (Relational)
-      const classesRes = await api.get(`/staff/my-classes/${teacherProfile.id}`);
-      const myClasses = classesRes.data.data || [];
-      setAssignedClasses(myClasses);
+      // 2. Fetch Unified Dashboard Stats
+      const statsRes = await api.get(`/staff/dashboard-stats/${teacherProfile.id}`);
+      const { stats: dashboardStats, todaySchedule, assignedClasses: classesData } = statsRes.data.data;
 
-      // 3. Stats Calculation
-      const totalStudents = myClasses.reduce((acc: number, c: any) => acc + (c.students?.length || 0), 0);
-      
-      // Attendance stats
-      const today = new Date().toISOString().split('T')[0];
-      let presentToday = 0;
-      for (const cls of myClasses) {
-        try {
-          const attRes = await api.get(`/attendance/class/${user.schoolId}/${cls.classId}?date=${today}`);
-          presentToday += attRes.data.data.filter((a: any) => a.status === 'present').length;
-        } catch (e) { /* silent */ }
-      }
-
-      // Timetable stats
-      const timetableRes = await api.get(`/timetable/school/${user.schoolId}`);
-      const fullTimetable = timetableRes.data.data || [];
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const currentDay = dayNames[new Date().getDay()];
-
-      const mySchedule = fullTimetable
-        .flatMap((t: any) => {
-          const matchedClass = myClasses.find((mc: any) => mc.classId === t.classId);
-          if (!matchedClass) return [];
-          return (t.slots || []).map((s: any) => ({
-            ...s,
-            className: matchedClass.className
-          }));
-        })
-        .filter((s: any) => s.dayOfWeek === currentDay && s.teacherId === teacherProfile.id)
-        .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
-
-      // Exam stats
-      const examsRes = await api.get(`/exams/school/${user.schoolId}`);
-      const allExams = examsRes.data.data || [];
-      const myExams = allExams.filter((e: any) => {
-        const examClasses = e.assignedClasses ? e.assignedClasses.split(',').map((c: string) => c.trim().toLowerCase()) : [];
-        return myClasses.some((mc: any) => examClasses.includes(mc.className.toLowerCase()));
-      });
-
-      setSchedule(mySchedule);
-      setStats({
-        totalStudents,
-        presentToday,
-        examsCount: myExams.length,
-        upcomingClasses: mySchedule.length
-      });
+      setStats(dashboardStats);
+      setSchedule(todaySchedule);
+      setAssignedClasses(classesData);
 
     } catch (error) {
       console.error('Error fetching teacher stats:', error);

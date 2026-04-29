@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { staff, users, teacherClassAssignments, classes, students } from '../db/schema';
+import { staff, users, teacherClassAssignments, classes, students, attendance, exams, timetableSlots } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
 
 export const getStaffBySchool = asyncHandler(async (req: Request, res: Response) => {
@@ -171,4 +171,105 @@ export const getTeacherClasses = asyncHandler(async (req: Request, res: Response
   }));
 
   res.status(200).json({ status: 'success', data: transformed });
+});
+
+export const getTeacherDashboardStats = asyncHandler(async (req: Request, res: Response) => {
+  const staffId = getSingleValue(req.params.staffId);
+  const today = new Date().toISOString().split('T')[0];
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const currentDay = dayNames[new Date().getDay()];
+
+  // 1. Get Teacher Profile
+  const teacher = await db.query.staff.findFirst({
+    where: eq(staff.id, staffId)
+  });
+
+  if (!teacher) {
+    return res.status(404).json({ status: 'error', message: 'Teacher profile not found' });
+  }
+
+  // 2. Get Assigned Classes
+  const assignments = await db.query.teacherClassAssignments.findMany({
+    where: eq(teacherClassAssignments.teacherId, staffId),
+    with: {
+      class: {
+        with: {
+          students: true
+        }
+      }
+    }
+  });
+
+  const myClassIds = assignments.map(a => a.classId);
+  const myClassNames = assignments.map(a => `${a.class.name}-${a.class.section}`.toLowerCase());
+
+  // 3. Calculate Total Students
+  const totalStudents = assignments.reduce((acc, curr) => acc + (curr.class.students?.length || 0), 0);
+
+  // 4. Calculate Present Today
+  let presentToday = 0;
+  if (myClassIds.length > 0) {
+    const todayAttendance = await db.query.attendance.findMany({
+      where: and(
+        inArray(attendance.classId, myClassIds),
+        eq(attendance.date, today),
+        eq(attendance.status, 'present')
+      )
+    });
+    presentToday = todayAttendance.length;
+  }
+
+  // 5. Get Upcoming Exams (Filtered by Teacher's Classes)
+  const allExams = await db.query.exams.findMany({
+    where: eq(exams.schoolId, teacher.schoolId)
+  });
+  
+  const myExams = allExams.filter(e => {
+    if (!e.assignedClasses) return false;
+    const examClassIds = e.assignedClasses.split(',').map(s => s.trim());
+    return examClassIds.some(cid => myClassIds.includes(cid));
+  });
+
+  // 6. Get Today's Schedule from Timetable
+  const timetableSlotsRes = await db.query.timetableSlots.findMany({
+    where: and(
+      eq(timetableSlots.teacherId, staffId),
+      eq(timetableSlots.dayOfWeek, currentDay)
+    ),
+    with: {
+      timetable: {
+        with: {
+          class: true
+        }
+      }
+    }
+  });
+
+  const todaySchedule = timetableSlotsRes.map(slot => ({
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    subject: slot.subject,
+    classId: slot.timetable.classId,
+    className: slot.timetable.class.name,
+    section: slot.timetable.class.section,
+    room: slot.roomId // This would ideally be mapped to room name
+  })).sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      stats: {
+        totalStudents,
+        presentToday,
+        examsCount: myExams.length,
+        upcomingClasses: todaySchedule.length
+      },
+      todaySchedule,
+      assignedClasses: assignments.map(a => ({
+        classId: a.classId,
+        className: `${a.class.name}-${a.class.section}`,
+        students: a.class.students
+      }))
+    }
+  });
 });
