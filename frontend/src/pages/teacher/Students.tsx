@@ -84,7 +84,7 @@ const TeacherStudents: React.FC = () => {
         const cleanClassName = className.replace(/(\d+)(st|nd|rd|th)/i, '$1');
         const cleanC = `${cleanClassName}${sectionName}`.replace(/[\s-]/g, '');
         
-        return assigned.some(a => {
+        return assigned.some((a: string) => {
           const lowerA = a.toLowerCase().trim();
           // "10thA" -> "10A", "10 A" -> "10A", "Class 10-A" -> "class10A"
           const cleanA = lowerA.replace(/(\d+)(st|nd|rd|th)/i, '$1').replace(/[\s-]/g, '').replace(/^class/i, '');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   User as UserIcon,
   Users,
@@ -24,7 +24,6 @@ const TeacherTimetable: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<any[]>([]);
-  const [teacherProfile, setTeacherProfile] = useState<any>(null);
   const [slots, setSlots] = useState<any[]>([]);
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
 
@@ -39,7 +38,6 @@ const TeacherTimetable: React.FC = () => {
       ]);
       
       const profile = profileRes.data.data;
-      setTeacherProfile(profile);
       setClasses(classRes.data.data || []);
       setSchoolInfo(schoolRes.data.data);
       

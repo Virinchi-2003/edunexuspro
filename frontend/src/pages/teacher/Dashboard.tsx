@@ -26,7 +26,6 @@ const TeacherDashboard: React.FC = () => {
   });
   const [schedule, setSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
 
   const [assignedClasses, setAssignedClasses] = useState<any[]>([]);
 
@@ -37,7 +36,6 @@ const TeacherDashboard: React.FC = () => {
       // 1. Fetch Teacher Profile
       const profileRes = await api.get(`/staff/user/${user.uid}`);
       const teacherProfile = profileRes.data.data;
-      setProfile(teacherProfile);
       
       // 2. Fetch Assigned Classes + Students (Relational)
       const classesRes = await api.get(`/staff/my-classes/${teacherProfile.id}`);
@@ -65,7 +63,7 @@ const TeacherDashboard: React.FC = () => {
 
       const mySchedule = fullTimetable
         .flatMap((t: any) => {
-          const matchedClass = myClasses.find(mc => mc.classId === t.classId);
+          const matchedClass = myClasses.find((mc: any) => mc.classId === t.classId);
           if (!matchedClass) return [];
           return (t.slots || []).map((s: any) => ({
             ...s,
@@ -80,7 +78,7 @@ const TeacherDashboard: React.FC = () => {
       const allExams = examsRes.data.data || [];
       const myExams = allExams.filter((e: any) => {
         const examClasses = e.assignedClasses ? e.assignedClasses.split(',').map((c: string) => c.trim().toLowerCase()) : [];
-        return myClasses.some(mc => examClasses.includes(mc.className.toLowerCase()));
+        return myClasses.some((mc: any) => examClasses.includes(mc.className.toLowerCase()));
       });
 
       setSchedule(mySchedule);

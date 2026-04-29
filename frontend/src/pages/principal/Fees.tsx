@@ -15,7 +15,6 @@ import {
   ChevronLeft,
   IndianRupee,
   Receipt,
-  CheckCircle2,
   AlertCircle,
   Plus,
   Pencil,

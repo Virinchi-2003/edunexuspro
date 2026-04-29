@@ -4,9 +4,7 @@ import { Button } from '@/components/ui/button';
 import { 
   User, 
   Mail, 
-  Phone, 
   Lock, 
-  Bell, 
   Shield, 
   LogOut,
   Camera,

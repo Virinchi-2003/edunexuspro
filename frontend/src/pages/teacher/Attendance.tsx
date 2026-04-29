@@ -51,7 +51,7 @@ const TeacherAttendance: React.FC = () => {
   
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [lastScanned, setLastScanned] = useState<string | null>(null);
-  const [markQueue, setMarkQueue] = useState<Record<string, 'present' | 'absent' | 'late'>>({});
+  const [markQueue, setMarkQueue] = useState<Record<string, 'present' | 'absent' | 'late' | undefined>>({});
   const [selfAttendance, setSelfAttendance] = useState<any>(null);
   const [teacherProfile, setTeacherProfile] = useState<any>(null);
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
@@ -155,7 +155,7 @@ const TeacherAttendance: React.FC = () => {
       setAttendanceRecords(records);
       
       // Pre-fill markQueue with existing records
-      const initialQueue: Record<string, any> = {};
+      const initialQueue: Record<string, 'present' | 'absent' | 'late' | undefined> = {};
       records.forEach((r: any) => {
         initialQueue[r.studentId] = r.status;
       });

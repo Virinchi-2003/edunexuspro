@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   CreditCard,
-  Users,
   Search,
   Loader2,
   CheckCircle2,
@@ -73,11 +72,11 @@ const TeacherFees: React.FC = () => {
       });
 
       setAssignedClasses(matchedClasses);
-      const classIds = matchedClasses.map(c => c.id);
+      const classIds = matchedClasses.map((c: any) => c.id);
 
       // Filter students who belong to these assigned classes
       const filteredStudents = studentsRes.data.data.filter((s: any) => 
-        classIds.includes(s.classId) || matchedClasses.some(c => c.name === s.grade)
+        classIds.includes(s.classId) || matchedClasses.some((c: any) => c.name === s.grade)
       );
       
       setStudents(filteredStudents);

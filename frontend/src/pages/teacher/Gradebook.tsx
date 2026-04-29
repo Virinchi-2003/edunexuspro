@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
   Trophy,
   Users,
-  Search,
   Loader2,
   Save,
   CheckCircle2,
-  BookOpen,
   ArrowLeft,
   ChevronRight,
   TrendingUp,
@@ -70,13 +68,13 @@ const TeacherGradebook: React.FC = () => {
       setAssignedClasses(matchedClasses);
       
       const allExams = examsRes.data.data || [];
-      const classIds = matchedClasses.map(c => c.id);
+      const classIds = matchedClasses.map((c: any) => c.id);
       
       // Filter exams that are assigned to this teacher's classes
       const filteredExams = allExams.filter((exam: any) => {
         if (!exam.assignedClasses) return false;
         const examClassIds = exam.assignedClasses.split(',').map((id: string) => id.trim());
-        return examClassIds.some(cid => classIds.includes(cid));
+        return examClassIds.some((cid: string) => classIds.includes(cid));
       });
       
       setExams(filteredExams);
