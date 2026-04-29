@@ -28,6 +28,11 @@ import StudentHomework from './pages/student/Homework';
 import StudentPerformance from './pages/student/Performance';
 import StudentFees from './pages/student/Fees';
 import StudentMessaging from './pages/student/Messaging';
+import TeacherExams from './pages/teacher/Exams';
+import TeacherGradebook from './pages/teacher/Gradebook';
+import TeacherFees from './pages/teacher/Fees';
+import TeacherTimetable from './pages/teacher/Timetable';
+import TeacherSettings from './pages/teacher/Settings';
 import AdmissionForm from './pages/AdmissionForm';
 import Login from './pages/Login';
 
@@ -107,7 +112,11 @@ const App: React.FC = () => {
                   <Route path="/" element={<TeacherDashboard />} />
                   <Route path="/students" element={<TeacherStudents />} />
                   <Route path="/attendance" element={<TeacherAttendance />} />
-                  <Route path="/settings" element={<PrincipalSettings />} />
+                  <Route path="/timetable" element={<TeacherTimetable />} />
+                  <Route path="/exams" element={<TeacherExams />} />
+                  <Route path="/gradebook" element={<TeacherGradebook />} />
+                  <Route path="/fees" element={<TeacherFees />} />
+                  <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
               </AdminLayout>
             </ProtectedRoute>

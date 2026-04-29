@@ -16,7 +16,7 @@ export const getStudentsBySchool = asyncHandler(async (req: Request, res: Respon
 });
 
 export const createStudent = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId, studentId, name, parentName, email, phone, password, grade, section } = req.body;
+  const { schoolId, studentId, name, parentName, email, phone, password, grade, section, classId } = req.body;
   
   // 1. Check Plan Capacity
   const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
@@ -45,7 +45,7 @@ export const createStudent = asyncHandler(async (req: Request, res: Response) =>
   const id = uuidv4();
   const userId = uuidv4();
 
-  const studentData = {
+  const studentData: any = {
     id,
     schoolId,
     studentId,
@@ -56,6 +56,7 @@ export const createStudent = asyncHandler(async (req: Request, res: Response) =>
     password: password || 'student123',
     grade,
     section,
+    classId,
     userId,
     status: 'active' as const,
   };
@@ -226,6 +227,28 @@ export const getStudentByUser = asyncHandler(async (req: Request, res: Response)
   const userId = getSingleValue(req.params.userId);
   const result = await db.query.students.findFirst({
     where: eq(students.userId, userId)
+  });
+  res.status(200).json({ status: 'success', data: result });
+});
+
+export const getStudentsByClass = asyncHandler(async (req: Request, res: Response) => {
+  const classId = getSingleValue(req.params.classId);
+  const result = await db.query.students.findMany({
+    where: eq(students.classId, classId),
+    orderBy: [desc(students.createdAt)]
+  });
+  res.status(200).json({ status: 'success', data: result });
+});
+
+export const getStudentsByMultipleClasses = asyncHandler(async (req: Request, res: Response) => {
+  const { classIds } = req.body;
+  if (!Array.isArray(classIds) || classIds.length === 0) {
+    return res.status(200).json({ status: 'success', data: [] });
+  }
+  
+  const result = await db.query.students.findMany({
+    where: sql`${students.classId} IN (${sql.join(classIds.map(id => sql`${id}`), sql`, `)})`,
+    orderBy: [desc(students.createdAt)]
   });
   res.status(200).json({ status: 'success', data: result });
 });

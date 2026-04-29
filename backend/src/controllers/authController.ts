@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { users, schools } from '../db/schema';
+import { users, schools, staff } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { eq, and } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
@@ -88,12 +88,13 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
   const uid = getSingleValue(req.params.uid);
-  const { name, phone, preferences } = req.body;
+  const { name, phone, preferences, photoURL } = req.body;
 
   await db.update(users)
     .set({ 
       name, 
       phoneNumber: phone,
+      photoURL,
       emailAlerts: preferences?.emailAlerts ?? true,
       smsAlerts: preferences?.smsAlerts ?? false,
       darkMode: preferences?.darkMode ?? false,
@@ -101,6 +102,14 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
       updatedAt: new Date().toISOString() 
     })
     .where(eq(users.uid, uid));
+
+  // If user is staff/teacher, sync photoURL to staff table
+  const user = await db.query.users.findFirst({ where: eq(users.uid, uid) });
+  if (user && (user.role === 'staff' || user.role === 'teacher')) {
+    await db.update(staff)
+      .set({ photoURL, name: name || user.name, updatedAt: new Date().toISOString() })
+      .where(eq(staff.userId, uid));
+  }
 
   res.status(200).json({ status: 'success', message: 'Profile updated successfully' });
 });

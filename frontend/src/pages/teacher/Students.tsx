@@ -14,6 +14,7 @@ import {
   Mail, 
   Phone,
   Pencil,
+  Trash2,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -40,6 +41,7 @@ const TeacherStudents: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -52,7 +54,8 @@ const TeacherStudents: React.FC = () => {
     email: '',
     phone: '',
     grade: '',
-    section: ''
+    section: '',
+    password: ''
   });
 
   const fetchData = async () => {
@@ -66,29 +69,48 @@ const TeacherStudents: React.FC = () => {
       setTeacherProfile(profile);
 
       // Parse assigned classes (e.g. "10A, 11B")
-      const assigned = profile.classes ? profile.classes.split(',').map((s: string) => s.trim()) : [];
+      const assigned = profile.classes ? profile.classes.split(',').map((s: string) => s.trim().toLowerCase()) : [];
 
-      // 2. Get students and classes
-      const [studentsRes, classesRes] = await Promise.all([
-        api.get(`/students/school/${user.schoolId}`),
-        api.get(`/classes/school/${user.schoolId}`)
-      ]);
-
-      const allStudents = studentsRes.data.data || [];
+      // 2. Get all classes of the school
+      const classesRes = await api.get(`/classes/school/${user.schoolId}`);
       const allClasses = classesRes.data.data || [];
 
       // 3. Filter classes that teacher teaches
-      const filteredClasses = allClasses.filter((c: any) => 
-        assigned.includes(`${c.name}${c.section}`) || assigned.includes(`${c.name} ${c.section}`)
-      );
+      const filteredClasses = allClasses.filter((c: any) => {
+        const className = c.name.toLowerCase().trim();
+        const sectionName = c.section.toLowerCase().trim();
+        
+        // Clean class name: "10th" -> "10", "2nd" -> "2"
+        const cleanClassName = className.replace(/(\d+)(st|nd|rd|th)/i, '$1');
+        const cleanC = `${cleanClassName}${sectionName}`.replace(/[\s-]/g, '');
+        
+        return assigned.some(a => {
+          const lowerA = a.toLowerCase().trim();
+          // "10thA" -> "10A", "10 A" -> "10A", "Class 10-A" -> "class10A"
+          const cleanA = lowerA.replace(/(\d+)(st|nd|rd|th)/i, '$1').replace(/[\s-]/g, '').replace(/^class/i, '');
+          
+          return cleanA === cleanC || 
+                 cleanA === cleanClassName || // Match if only grade is assigned (e.g. "10th" assigned to teacher)
+                 lowerA.includes(cleanC) || 
+                 cleanA.includes(cleanC);
+        });
+      });
+
+      console.log('Teacher assigned classes (raw):', profile.classes);
+      console.log('Parsed assigned list:', assigned);
+      console.log('All school classes:', allClasses.map((c: any) => `${c.name}${c.section}`));
+      console.log('Filtered assigned classes:', filteredClasses.map((c: any) => `${c.name}${c.section}`));
 
       setClasses(filteredClasses);
 
-      // 4. Filter students belonging to those classes
-      const classIds = filteredClasses.map((c: any) => c.id);
-      const filteredStudents = allStudents.filter((s: any) => classIds.includes(s.classId));
-      
-      setStudents(filteredStudents);
+      // 4. Fetch students for these specific classes only
+      if (filteredClasses.length > 0) {
+        const classIds = filteredClasses.map((c: any) => c.id);
+        const studentsRes = await api.post('/students/multiple-classes', { classIds });
+        setStudents(studentsRes.data.data || []);
+      } else {
+        setStudents([]);
+      }
     } catch (error) {
       console.error('Error loading teacher students:', error);
       toast.error('Failed to load assigned students');
@@ -101,6 +123,35 @@ const TeacherStudents: React.FC = () => {
     fetchData();
   }, [user]);
 
+  const handleAddStudent = async () => {
+    if (!formData.studentId || !formData.name) {
+      toast.error('Student ID and Name are required');
+      return;
+    }
+
+    const currentClass = classes.find(c => c.id === selectedClass);
+    if (!currentClass) return;
+
+    try {
+      setIsSaving(true);
+      await api.post('/students', { 
+        ...formData, 
+        schoolId: user.schoolId,
+        classId: currentClass.id,
+        grade: currentClass.name,
+        section: currentClass.section
+      });
+      toast.success('Student added successfully');
+      setIsAddDialogOpen(false);
+      fetchData();
+      resetForm();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to add student');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleEditClick = (student: any) => {
     setEditingId(student.id);
     setFormData({
@@ -110,7 +161,8 @@ const TeacherStudents: React.FC = () => {
       email: student.email || '',
       phone: student.phone || '',
       grade: student.grade,
-      section: student.section || ''
+      section: student.section || '',
+      password: ''
     });
     setIsEditDialogOpen(true);
   };
@@ -126,6 +178,30 @@ const TeacherStudents: React.FC = () => {
       toast.error(error.response?.data?.message || 'Update failed');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      studentId: '',
+      name: '',
+      parentName: '',
+      email: '',
+      phone: '',
+      grade: '',
+      section: '',
+      password: ''
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this student record?')) return;
+    try {
+      await api.delete(`/students/${id}`);
+      toast.success('Student record removed');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Delete failed');
     }
   };
 
@@ -161,6 +237,14 @@ const TeacherStudents: React.FC = () => {
               : `You are assigned to ${teacherProfile?.classes || 'no'} classes.`}
           </p>
         </div>
+        {selectedClass && (
+          <Button 
+            className="gap-2 shadow-lg shadow-primary/20"
+            onClick={() => setIsAddDialogOpen(true)}
+          >
+            <UserIcon className="w-4 h-4" /> Add Student
+          </Button>
+        )}
       </div>
 
       {!selectedClass ? (
@@ -266,9 +350,14 @@ const TeacherStudents: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(s)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(s)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(s.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -278,6 +367,89 @@ const TeacherStudents: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Add Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        setIsAddDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-display font-bold text-2xl">
+              <UserIcon className="w-6 h-6 text-primary" />
+              Add New Student
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Student ID / Roll No</label>
+                <Input 
+                  value={formData.studentId}
+                  onChange={e => setFormData({...formData, studentId: e.target.value})}
+                  placeholder="e.g. 2024-001"
+                  className="bg-slate-50 border-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Full Name</label>
+                <Input 
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  placeholder="Student's name"
+                  className="bg-slate-50 border-none"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Parent Name</label>
+              <Input 
+                value={formData.parentName}
+                onChange={e => setFormData({...formData, parentName: e.target.value})}
+                placeholder="Guardian's name"
+                className="bg-slate-50 border-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Email</label>
+                <Input 
+                  value={formData.email}
+                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  placeholder="student@school.com"
+                  className="bg-slate-50 border-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Phone</label>
+                <Input 
+                  value={formData.phone}
+                  onChange={e => setFormData({...formData, phone: e.target.value})}
+                  placeholder="+91..."
+                  className="bg-slate-50 border-none"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Portal Password</label>
+              <Input 
+                type="password"
+                value={formData.password}
+                onChange={e => setFormData({...formData, password: e.target.value})}
+                placeholder="Default: student123"
+                className="bg-slate-50 border-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddStudent} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add Student
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

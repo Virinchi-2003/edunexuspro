@@ -70,6 +70,30 @@ const Gradebook: React.FC = () => {
     if (user?.schoolId) fetchData();
   }, [user]);
 
+  const fetchMarks = async () => {
+    if (!selectedExam || !selectedClass || !selectedSubject) return;
+    
+    try {
+      const res = await api.get(`/exams/marks/query?examId=${selectedExam}&classId=${selectedClass}&subject=${selectedSubject}`);
+      const fetchedMarks = res.data.data || [];
+      
+      const newMarksData: Record<string, { marks: string; comments: string }> = {};
+      fetchedMarks.forEach((m: any) => {
+        newMarksData[m.studentId] = {
+          marks: m.marksObtained.toString(),
+          comments: m.comments || ''
+        };
+      });
+      setMarksData(newMarksData);
+    } catch (error) {
+      console.error('Error fetching marks:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchMarks();
+  }, [selectedExam, selectedClass, selectedSubject]);
+
   const handleMarkChange = (studentId: string, field: 'marks' | 'comments', value: string) => {
     setMarksData(prev => ({
       ...prev,

@@ -69,6 +69,7 @@ export const getSystemStats = asyncHandler(async (_req: Request, res: Response) 
 
 export const getSchoolStats = asyncHandler(async (req: Request, res: Response) => {
   const schoolId = getSingleValue(req.params.schoolId);
+  const academicYear = (req.query.academicYear as string) || '2026-27';
 
   // 1. Total Students
   const [studentCount] = await db.select({ value: count() }).from(students).where(eq(students.schoolId, schoolId));
@@ -76,21 +77,28 @@ export const getSchoolStats = asyncHandler(async (req: Request, res: Response) =
   // 2. Total Staff
   const [staffCount] = await db.select({ value: count() }).from(staff).where(eq(staff.schoolId, schoolId));
   
-  // 3. Fee Stats
+  // 3. Fee Stats (Filtered by Academic Year)
   const feeRecords = await db.select({ 
     amount: fees.amount, 
     paidAmount: fees.paidAmount,
     status: fees.status
-  }).from(fees).where(eq(fees.schoolId, schoolId));
+  })
+  .from(fees)
+  .where(and(eq(fees.schoolId, schoolId), eq(fees.academicYear, academicYear)));
 
   const totalExpected = feeRecords.reduce((acc, f) => acc + (f.amount || 0), 0);
   const totalCollected = feeRecords.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
   
-  // 4. Today Attendance (Simulated for now, or real if data exists)
+  // 4. Today Attendance (Filtered by Academic Year)
   const today = new Date().toISOString().split('T')[0];
   const [presentCount] = await db.select({ value: count() })
     .from(attendance)
-    .where(and(eq(attendance.schoolId, schoolId), eq(attendance.date, today), eq(attendance.status, 'present')));
+    .where(and(
+      eq(attendance.schoolId, schoolId), 
+      eq(attendance.date, today), 
+      eq(attendance.status, 'present'),
+      eq(attendance.academicYear, academicYear)
+    ));
 
   const attendanceRate = studentCount.value > 0 
     ? ((presentCount.value / studentCount.value) * 100).toFixed(1) 
@@ -103,7 +111,8 @@ export const getSchoolStats = asyncHandler(async (req: Request, res: Response) =
       staff: staffCount.value,
       feesCollected: totalCollected,
       totalFeesExpected: totalExpected,
-      todayAttendance: attendanceRate
+      todayAttendance: attendanceRate,
+      academicYear
     }
   });
 });

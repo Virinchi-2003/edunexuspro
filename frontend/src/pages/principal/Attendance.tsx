@@ -22,6 +22,13 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ViewMode = 'overview' | 'teachers' | 'classes' | 'class-detail';
 
@@ -36,6 +43,7 @@ const Attendance: React.FC = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'present' | 'absent' | 'late'>('all');
   const [stats, setStats] = useState<any>({
     students: 0,
     staff: 0,
@@ -303,9 +311,18 @@ const Attendance: React.FC = () => {
               className="pl-10 w-44 rounded-xl border-slate-200 shadow-sm"
             />
           </div>
-          <Button className="rounded-xl gap-2 shadow-md bg-indigo-600">
-             <Filter className="w-4 h-4" /> Custom Filter
-          </Button>
+          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+            <SelectTrigger className="w-[180px] h-11 rounded-xl bg-indigo-600 text-white border-none shadow-xl shadow-indigo-100 flex items-center gap-2 hover:bg-indigo-700 transition-all font-bold">
+              <Filter className="w-4 h-4" />
+              <SelectValue placeholder="Filter Status" />
+            </SelectTrigger>
+            <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
+              <SelectItem value="all" className="rounded-xl font-bold text-slate-600">All Students</SelectItem>
+              <SelectItem value="present" className="rounded-xl font-bold text-emerald-600">Present Only</SelectItem>
+              <SelectItem value="absent" className="rounded-xl font-bold text-rose-600">Absent Only</SelectItem>
+              <SelectItem value="late" className="rounded-xl font-bold text-amber-600">Late Arrivals</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -328,7 +345,11 @@ const Attendance: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {students.map((student) => {
+                  {students.filter(s => {
+                    if (statusFilter === 'all') return true;
+                    const record = attendanceRecords.find(r => r.studentId === s.id);
+                    return record?.status === statusFilter;
+                  }).map((student) => {
                     const statusRecord = attendanceRecords.find(r => r.studentId === student.id);
                     return (
                       <tr key={student.id} className="hover:bg-slate-50/50 transition-colors group">

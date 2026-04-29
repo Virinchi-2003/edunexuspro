@@ -49,7 +49,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const teacherNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/teacher' },
     { icon: Users, label: 'Students', path: '/teacher/students' },
+    { icon: Calendar, label: 'Timetable', path: '/teacher/timetable' },
+    { icon: GraduationCap, label: 'Examinations', path: '/teacher/exams' },
+    { icon: Trophy, label: 'Gradebook', path: '/teacher/gradebook' },
     { icon: Calendar, label: 'Attendance', path: '/teacher/attendance' },
+    { icon: CreditCard, label: 'Fees', path: '/teacher/fees' },
     { icon: Settings, label: 'Settings', path: '/teacher/settings' },
   ];
 

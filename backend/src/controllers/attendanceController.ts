@@ -180,10 +180,98 @@ export const generateReport = asyncHandler(async (req: Request, res: Response) =
   });
 });
 
+export const markAttendanceByQR = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, studentId, classId, date, status, remarks } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+  const recordDate = date || today;
+
+  // 1. Validate student exists
+  const student = await db.query.students.findFirst({
+    where: and(eq(students.id, studentId), eq(students.schoolId, schoolId))
+  });
+
+  if (!student) {
+    return res.status(404).json({ status: 'error', message: 'Student not found in this school' });
+  }
+
+  // 2. Check if already marked for today
+  const existing = await db.query.attendance.findFirst({
+    where: and(
+      eq(attendance.schoolId, schoolId),
+      eq(attendance.date, recordDate),
+      eq(attendance.studentId, studentId)
+    )
+  });
+
+  if (existing) {
+    await db.update(attendance)
+      .set({ 
+        status: status || 'present', 
+        remarks: remarks || 'Marked via QR',
+        updatedAt: new Date().toISOString() 
+      })
+      .where(eq(attendance.id, existing.id));
+    
+    return res.status(200).json({ 
+      status: 'success', 
+      message: `${student.name} marked as ${status || 'present'} (Updated)`,
+      data: student
+    });
+  }
+
+  // 3. Insert new record
+  await db.insert(attendance).values({
+    id: uuidv4(),
+    schoolId,
+    studentId,
+    classId: classId || student.classId,
+    status: status || 'present',
+    date: recordDate,
+    remarks: remarks || 'Marked via QR',
+  });
+
+  res.status(201).json({ 
+    status: 'success', 
+    message: `${student.name} marked as ${status || 'present'}`,
+    data: student
+  });
+});
+
+export const getAttendanceByClass = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  const classId = getSingleValue(req.params.classId);
+  const date = getSingleValue(req.query.date);
+
+  let whereClause = and(eq(attendance.schoolId, schoolId), eq(attendance.classId, classId));
+  
+  if (date) {
+    whereClause = and(whereClause, eq(attendance.date, date)) as any;
+  }
+
+  const result = await db.query.attendance.findMany({
+    where: whereClause,
+    orderBy: [desc(attendance.date)],
+    with: {
+      student: true
+    }
+  });
+
+  res.status(200).json({ status: 'success', data: result });
+});
+
 export const getStudentAttendance = asyncHandler(async (req: Request, res: Response) => {
   const studentId = getSingleValue(req.params.studentId);
   const result = await db.query.attendance.findMany({
     where: eq(attendance.studentId, studentId),
+    orderBy: [desc(attendance.date)]
+  });
+  res.status(200).json({ status: 'success', data: result });
+});
+
+export const getStaffAttendance = asyncHandler(async (req: Request, res: Response) => {
+  const staffId = getSingleValue(req.params.staffId);
+  const result = await db.query.attendance.findMany({
+    where: eq(attendance.staffId, staffId),
     orderBy: [desc(attendance.date)]
   });
   res.status(200).json({ status: 'success', data: result });

@@ -7,7 +7,9 @@ import {
   GraduationCap,
   Calendar,
   FileText,
-  Layout
+  Layout,
+  Users,
+  Trash2
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -19,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 const Examinations: React.FC = () => {
   const { user } = useAuth();
   const [exams, setExams] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Assessment States
@@ -31,7 +34,8 @@ const Examinations: React.FC = () => {
     name: '',
     term: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    assignedClasses: [] as string[]
   });
 
   const [scheduleData, setScheduleData] = useState({
@@ -45,10 +49,14 @@ const Examinations: React.FC = () => {
   const fetchExams = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/exams/school/${user.schoolId}`);
-      setExams(res.data.data || []);
+      const [examRes, classRes] = await Promise.all([
+        api.get(`/exams/school/${user.schoolId}`),
+        api.get(`/classes/school/${user.schoolId}`)
+      ]);
+      setExams(examRes.data.data || []);
+      setClasses(classRes.data.data || []);
     } catch (error) {
-      toast.error('Failed to load exams');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -77,8 +85,13 @@ const Examinations: React.FC = () => {
 
   const handleCreateExam = async () => {
     try {
-      await api.post('/exams', { ...formData, schoolId: user.schoolId });
+      await api.post('/exams', { 
+        ...formData, 
+        schoolId: user.schoolId,
+        assignedClasses: formData.assignedClasses.join(',')
+      });
       toast.success('Examination scheduled successfully');
+      setFormData({ name: '', term: '', startDate: '', endDate: '', assignedClasses: [] });
       setIsAddExamOpen(false);
       fetchExams();
     } catch (error) {
@@ -124,6 +137,15 @@ const Examinations: React.FC = () => {
       fetchExams();
     } catch (error) {
       toast.error('Failed to remove subject');
+    }
+  };  const handleDeleteExam = async (examId: string) => {
+    if (!window.confirm('Are you sure you want to delete this examination? All schedules and marks associated with it will be permanently removed.')) return;
+    try {
+      await api.delete(`/exams/${examId}`);
+      toast.success('Examination deleted successfully');
+      fetchExams();
+    } catch (error) {
+      toast.error('Failed to delete examination');
     }
   };
 
@@ -178,11 +200,28 @@ const Examinations: React.FC = () => {
                     <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center"><FileText className="w-4 h-4" /></div>
                     <span className="text-sm">Subjects: <span className="font-bold text-slate-900">Configured</span></span>
                   </div>
+                  <div className="flex items-start gap-3 text-slate-500 font-medium">
+                    <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center mt-1"><Users className="w-4 h-4" /></div>
+                    <div className="flex flex-wrap gap-1">
+                      {exam.assignedClasses ? (
+                        exam.assignedClasses.split(',').map((cid: string) => {
+                          const cls = classes.find(c => c.id === cid);
+                          return cls ? (
+                            <Badge key={cid} variant="outline" className="bg-slate-50 border-slate-100 text-[10px] font-bold text-slate-600">
+                              {cls.name}-{cls.section}
+                            </Badge>
+                          ) : null;
+                        })
+                      ) : (
+                        <span className="text-sm italic text-slate-400">No classes assigned</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <Button 
                     variant="outline" 
-                    className="w-full rounded-2xl h-12 font-bold hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 border-slate-100 shadow-sm"
+                    className="flex-1 rounded-2xl h-12 font-bold hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 border-slate-100 shadow-sm"
                     onClick={() => {
                       setSelectedExam(exam);
                       setIsEditScheduleOpen(true);
@@ -190,6 +229,14 @@ const Examinations: React.FC = () => {
                     }}
                   >
                     Edit Schedule
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="w-12 h-12 rounded-2xl text-rose-500 hover:bg-rose-50 hover:text-rose-600 border border-transparent hover:border-rose-100 transition-all"
+                    onClick={() => handleDeleteExam(exam.id)}
+                  >
+                    <Trash2 className="w-5 h-5" />
                   </Button>
                 </div>
               </CardContent>
@@ -311,6 +358,35 @@ const Examinations: React.FC = () => {
                 value={formData.term}
                 onChange={(e) => setFormData({...formData, term: e.target.value})}
               />
+            </div>
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Assign Classes</label>
+              <div className="flex flex-wrap gap-2 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 min-h-[60px]">
+                {classes.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No classes found...</p>
+                ) : (
+                  classes.map((cls) => (
+                    <Badge 
+                      key={cls.id}
+                      className={`cursor-pointer px-3 py-1.5 rounded-xl border-none transition-all ${
+                        formData.assignedClasses.includes(cls.id) 
+                          ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' 
+                          : 'bg-white text-slate-500 hover:bg-slate-100 shadow-sm'
+                      }`}
+                      onClick={() => {
+                        const current = formData.assignedClasses;
+                        if (current.includes(cls.id)) {
+                          setFormData({...formData, assignedClasses: current.filter(id => id !== cls.id)});
+                        } else {
+                          setFormData({...formData, assignedClasses: [...current, cls.id]});
+                        }
+                      }}
+                    >
+                      {cls.name}-{cls.section}
+                    </Badge>
+                  ))
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

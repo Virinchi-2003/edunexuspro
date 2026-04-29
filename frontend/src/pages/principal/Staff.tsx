@@ -47,6 +47,7 @@ const StaffPage: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDept, setSelectedDept] = useState<'teaching' | 'non-teaching' | null>(null);
+  const [classList, setClassList] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -66,8 +67,12 @@ const StaffPage: React.FC = () => {
     if (!user?.schoolId) return;
     try {
       setLoading(true);
-      const res = await api.get(`/staff/school/${user.schoolId}`);
-      setStaffList(res.data.data || []);
+      const [staffRes, classesRes] = await Promise.all([
+        api.get(`/staff/school/${user.schoolId}`),
+        api.get(`/classes/school/${user.schoolId}`)
+      ]);
+      setStaffList(staffRes.data.data || []);
+      setClassList(classesRes.data.data || []);
     } catch (error) {
       toast.error('Failed to load staff data');
     } finally {
@@ -460,14 +465,42 @@ const StaffPage: React.FC = () => {
                     className="bg-slate-50 border-none"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Assigned Classes</label>
+                <div className="space-y-2 col-span-2">
+                  <label className="text-sm font-semibold text-slate-700">Assigned Classes (Select to add/remove)</label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl min-h-[50px] border-2 border-dashed border-slate-200">
+                    {classList.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No classes found. Create classes in Students page first.</p>
+                    ) : (
+                      classList.map((cls) => {
+                        const classStr = `${cls.name}${cls.section}`;
+                        const isSelected = formData.classes.split(',').map(s => s.trim()).includes(classStr);
+                        return (
+                          <Badge 
+                            key={cls.id}
+                            className={`cursor-pointer px-3 py-1.5 transition-all ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-indigo-50 border-slate-200'}`}
+                            variant={isSelected ? 'default' : 'outline'}
+                            onClick={() => {
+                              const current = formData.classes.split(',').map(s => s.trim()).filter(Boolean);
+                              if (isSelected) {
+                                setFormData({...formData, classes: current.filter(c => c !== classStr).join(', ')});
+                              } else {
+                                setFormData({...formData, classes: [...current, classStr].join(', ')});
+                              }
+                            }}
+                          >
+                            {cls.name}-{cls.section}
+                          </Badge>
+                        );
+                      })
+                    )}
+                  </div>
                   <Input 
                     value={formData.classes}
                     onChange={e => setFormData({...formData, classes: e.target.value})}
-                    placeholder="e.g. 10A, 11B"
-                    className="bg-slate-50 border-none"
+                    placeholder="e.g. 10A, 11B (comma separated)"
+                    className="bg-slate-50 border-none text-xs"
                   />
+                  <p className="text-[10px] text-slate-400">You can also type manually if a class is not in the list.</p>
                 </div>
               </>
             ) : (

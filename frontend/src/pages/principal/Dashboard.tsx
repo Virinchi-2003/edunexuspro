@@ -26,6 +26,14 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import SchoolInsights from '@/components/SchoolInsights';
 
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
+
 const attendanceData = [
   { day: 'Mon', value: 92 },
   { day: 'Tue', value: 95 },
@@ -34,9 +42,12 @@ const attendanceData = [
   { day: 'Fri', value: 88 },
 ];
 
+const academicYears = ['2024-25', '2025-26', '2026-27', '2027-28'];
+
 const PrincipalDashboard: React.FC = () => {
   const { user } = useAuth();
   const [school, setSchool] = React.useState<any>(null);
+  const [academicYear, setAcademicYear] = React.useState('2026-27');
   const [stats, setStats] = React.useState({
     students: 0,
     staff: 0,
@@ -53,10 +64,16 @@ const PrincipalDashboard: React.FC = () => {
         setLoading(true);
         const [schoolRes, statsRes] = await Promise.all([
           api.get(`/schools/${user.schoolId}`),
-          api.get(`/management/school-stats/${user.schoolId}`)
+          api.get(`/management/school-stats/${user.schoolId}?academicYear=${academicYear}`)
         ]);
 
-        setSchool(schoolRes.data.data);
+        const schoolData = schoolRes.data.data;
+        setSchool(schoolData);
+        // Only set the initial academic year if it's the first load
+        if (schoolData.currentAcademicYear && schoolData.currentAcademicYear !== academicYear) {
+          setAcademicYear(schoolData.currentAcademicYear);
+        }
+        
         const s = statsRes.data.data;
 
         setStats({
@@ -66,7 +83,6 @@ const PrincipalDashboard: React.FC = () => {
           totalExpected: s.totalFeesExpected
         });
         
-        // Update Today Attendance if needed
         setTodayAttendance(s.todayAttendance);
 
       } catch (error) {
@@ -76,7 +92,20 @@ const PrincipalDashboard: React.FC = () => {
       }
     };
     fetchData();
-  }, [user]);
+  }, [user, academicYear]);
+
+  const handleYearChange = async (year: string) => {
+    try {
+      setAcademicYear(year);
+      await api.put(`/schools/${user.schoolId}`, {
+        ...school,
+        currentAcademicYear: year
+      });
+      toast.success(`Academic Year updated to ${year}`);
+    } catch (error) {
+      toast.error('Failed to sync academic year');
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -86,9 +115,26 @@ const PrincipalDashboard: React.FC = () => {
           <p className="text-slate-500">{school?.name || 'School Dashboard'} • {school?.address || 'Loading...'}</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
-            <Calendar className="w-4 h-4" /> Academic Year 2026-27
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 border-slate-200 bg-white hover:bg-slate-50 shadow-sm">
+                <Calendar className="w-4 h-4 text-primary" /> 
+                Academic Year {academicYear}
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[180px] rounded-xl p-1">
+              {academicYears.map((year) => (
+                <DropdownMenuItem 
+                  key={year}
+                  onClick={() => handleYearChange(year)}
+                  className={`rounded-lg cursor-pointer ${academicYear === year ? 'bg-primary/5 text-primary font-bold' : ''}`}
+                >
+                  Academic Year {year}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

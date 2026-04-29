@@ -335,14 +335,32 @@ const FeesPage: React.FC = () => {
     }
   };
 
+  // Revenue Calculations
+  const totalTargetRevenue = fees.reduce((acc, f) => acc + (f.amount + (f.lateFee || 0)), 0);
+  const totalCollectedRevenue = fees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
+  const totalPendingRevenue = totalTargetRevenue - totalCollectedRevenue;
+
   // Group students by class
   const classGroups = classes.reduce((acc: any, cls: any) => {
-    const studentList = students.filter(s => s.classId === cls.id || (s.grade === cls.name && s.section === cls.section));
+    const normalize = (s: string) => s.replace(/[-\s]/g, '').toLowerCase();
+    const clsName = normalize(`${cls.name}${cls.section || ''}`);
+    
+    const studentList = students.filter(s => {
+      if (s.classId === cls.id) return true;
+      const sName = normalize(`${s.grade}${s.section || ''}`);
+      return sName === clsName;
+    });
+
     const classFees = fees.filter(f => studentList.some(s => s.id === f.studentId));
     
+    const classTarget = classFees.reduce((acc, f) => acc + (f.amount + (f.lateFee || 0)), 0);
+    const classCollected = classFees.reduce((acc, f) => acc + (f.paidAmount || 0), 0);
+
     acc[cls.id] = {
       ...cls,
       studentList,
+      targetRevenue: classTarget,
+      collectedRevenue: classCollected,
       totalPaid: classFees.filter(f => f.status === 'paid').length,
       totalUnpaid: studentList.length - classFees.filter(f => f.status === 'paid').length
     };
@@ -412,27 +430,33 @@ const FeesPage: React.FC = () => {
                   : 'Monitor revenue and fee collection across all classes.'}
               </p>
             </div>
-            {!selectedClass ? (
-              <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                 <div className="flex items-center gap-3 pr-4 border-r border-slate-100">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                      <CheckCircle2 className="w-6 h-6" />
+             {!selectedClass ? (
+              <div className="flex items-center gap-6 bg-white p-6 rounded-3xl shadow-xl border border-slate-50">
+                 <div className="flex items-center gap-4 pr-6 border-r border-slate-100">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+                      <IndianRupee className="w-6 h-6" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Collected</div>
-                      <div className="text-lg font-bold text-slate-900">
-                        {fees.filter(f => f.status === 'paid').length} / {students.length}
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Collected</div>
+                      <div className="text-xl font-display font-bold text-slate-900 tracking-tight">
+                        ₹{totalCollectedRevenue.toLocaleString()}
+                      </div>
+                      <div className="text-[10px] font-medium text-emerald-500">
+                        {fees.filter(f => f.status === 'paid').length} Paid Records
                       </div>
                     </div>
                  </div>
-                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                 <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shadow-sm">
                       <AlertCircle className="w-6 h-6" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pending</div>
-                      <div className="text-lg font-bold text-slate-900">
-                        {students.length - fees.filter(f => f.status === 'paid').length}
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Pending</div>
+                      <div className="text-xl font-display font-bold text-slate-900 tracking-tight">
+                        ₹{totalPendingRevenue.toLocaleString()}
+                      </div>
+                      <div className="text-[10px] font-medium text-rose-500">
+                        {fees.filter(f => f.status !== 'paid').length} Outstanding
                       </div>
                     </div>
                  </div>

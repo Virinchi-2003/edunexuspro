@@ -9,6 +9,7 @@ export const schools = sqliteTable('schools', {
   contactEmail: text('contactEmail').notNull(),
   subscriptionPlan: text('subscriptionPlan').notNull(),
   status: text('status', { enum: ['active', 'suspended', 'pending'] }).default('active'),
+  currentAcademicYear: text('currentAcademicYear').default('2026-27'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
@@ -61,6 +62,7 @@ export const students = sqliteTable('students', {
   email: text('email'),
   phone: text('phone'),
   password: text('password'),
+  photoURL: text('photoURL'),
   grade: text('grade').notNull(), // Kept for legacy/direct access
   section: text('section'), // Kept for legacy/direct access
   status: text('status').default('active'),
@@ -75,6 +77,7 @@ export const users = sqliteTable('users', {
   name: text('name'),
   phoneNumber: text('phoneNumber'),
   password: text('password'),
+  photoURL: text('photoURL'),
   role: text('role').notNull(),
   schoolId: text('schoolId').references(() => schools.id, { onDelete: 'set null' }),
   emailAlerts: integer('emailAlerts', { mode: 'boolean' }).default(true),
@@ -93,6 +96,7 @@ export const staff = sqliteTable('staff', {
   name: text('name').notNull(),
   email: text('email').notNull(),
   password: text('password'),
+  photoURL: text('photoURL'),
   dob: text('dob'),
   department: text('department').notNull(), // 'teaching' | 'non-teaching'
   role: text('role').notNull(), // e.g., "Senior Teacher", "Accountant"
@@ -140,6 +144,7 @@ export const fees = sqliteTable('fees', {
   lateFee: integer('lateFee').default(0),
   gracePeriodDays: integer('gracePeriodDays').default(5),
   challanNumber: text('challanNumber'),
+  academicYear: text('academicYear').default('2026-27'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
@@ -161,8 +166,9 @@ export const attendance = sqliteTable('attendance', {
   staffId: text('staffId').references(() => staff.id, { onDelete: 'cascade' }),
   classId: text('classId').references(() => classes.id, { onDelete: 'cascade' }),
   date: text('date').notNull(), // ISO Date string (YYYY-MM-DD)
-  status: text('status', { enum: ['present', 'absent', 'late'] }).notNull(),
+  status: text('status', { enum: ['present', 'absent', 'late', 'half-day'] }).notNull(),
   remarks: text('remarks'),
+  academicYear: text('academicYear').default('2026-27'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
@@ -300,6 +306,7 @@ export const exams = sqliteTable('exams', {
   startDate: text('startDate'),
   endDate: text('endDate'),
   status: text('status').default('scheduled'), // scheduled, ongoing, completed
+  assignedClasses: text('assignedClasses'), // comma separated class IDs
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
 });
 

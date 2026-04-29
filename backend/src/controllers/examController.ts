@@ -5,12 +5,12 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
-import { generateReportCardPDF, generateBatchReportPDF, generateHallTicketPDF } from '../utils/pdfGenerator';
+import { generateReportCardPDF, generateBatchReportPDF, generateHallTicketPDF, generateExamSchedulePDF } from '../utils/pdfGenerator';
 
 export const createExam = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId, name, term, startDate, endDate } = req.body;
+  const { schoolId, name, term, startDate, endDate, assignedClasses } = req.body;
   const id = uuidv4();
-  const newExam = { id, schoolId, name, term, startDate, endDate };
+  const newExam = { id, schoolId, name, term, startDate, endDate, assignedClasses };
   await db.insert(exams).values(newExam);
   res.status(201).json({ status: 'success', data: newExam });
 });
@@ -116,7 +116,13 @@ export const downloadClassReportCards = asyncHandler(async (req: Request, res: R
   if (!cls) return res.status(404).json({ status: 'error', message: 'Class not found' });
 
   const classStudents = await db.query.students.findMany({
-    where: eq(students.classId, classId)
+    where: (students, { eq, and, or }) => or(
+      eq(students.classId, classId),
+      and(
+        eq(students.grade, cls.name),
+        eq(students.section, cls.section)
+      )
+    )
   });
 
   const examInfo = await db.query.exams.findFirst({ where: eq(exams.id, examId) });
@@ -253,6 +259,60 @@ export const getStudentPerformance = asyncHandler(async (req: Request, res: Resp
     }
   });
   res.status(200).json({ status: 'success', data: result });
+});
+
+export const downloadExamSchedule = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  const exam = await db.query.exams.findFirst({
+    where: eq(exams.id, id),
+    with: {
+      schedules: true
+    }
+  });
+
+  if (!exam) return res.status(404).json({ status: 'error', message: 'Exam not found' });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=Schedule_${exam.name.replace(/\s+/g, '_')}.pdf`);
+  generateExamSchedulePDF(exam, res);
+});
+
+export const getExamMarks = asyncHandler(async (req: Request, res: Response) => {
+  const examId = getSingleValue(req.query.examId as string);
+  const classId = getSingleValue(req.query.classId as string);
+  const subject = getSingleValue(req.query.subject as string);
+  
+  if (!examId || !classId || !subject) {
+    return res.status(400).json({ status: 'error', message: 'Missing parameters' });
+  }
+
+  const schedule = await db.query.examSchedule.findFirst({
+    where: and(
+      eq(examSchedule.examId, examId),
+      eq(examSchedule.subject, subject)
+    )
+  });
+
+  if (!schedule) {
+    return res.status(200).json({ status: 'success', data: [] });
+  }
+
+  const studentMarks = await db.query.marks.findMany({
+    where: eq(marks.examScheduleId, schedule.id),
+    with: {
+      student: true
+    }
+  });
+
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, classId) });
+
+  // Filter marks only for the students in the selected class
+  const filteredMarks = studentMarks.filter(m => 
+    m.student?.classId === classId || 
+    (cls && m.student?.grade === cls.name && m.student?.section === cls.section)
+  );
+
+  res.status(200).json({ status: 'success', data: filteredMarks });
 });
 
 export const updateExam = asyncHandler(async (req: Request, res: Response) => {

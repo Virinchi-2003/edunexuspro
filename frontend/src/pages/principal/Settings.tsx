@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,8 @@ import {
   LogOut,
   MapPin,
   School,
-  CheckCircle2
+  CheckCircle2,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
@@ -24,6 +25,7 @@ const PrincipalSettings: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [school, setSchool] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profileForm, setProfileForm] = useState({
     name: '',
@@ -36,6 +38,35 @@ const PrincipalSettings: React.FC = () => {
     new: '',
     confirm: ''
   });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+      try {
+        setLoading(true);
+        await api.put(`/auth/profile/${user.uid}`, { 
+          ...profileForm,
+          photoURL: base64String 
+        });
+        updateUser({ photoURL: base64String });
+        toast.success('Profile picture updated');
+      } catch (error) {
+        toast.error('Failed to upload image');
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     if (user?.schoolId) {
@@ -99,8 +130,25 @@ const PrincipalSettings: React.FC = () => {
           <Card className="border-none shadow-sm overflow-hidden rounded-3xl">
             <div className="h-24 bg-gradient-to-r from-primary to-indigo-600" />
             <div className="px-6 pb-6 -mt-12">
-              <div className="w-24 h-24 rounded-3xl bg-white shadow-xl flex items-center justify-center text-primary mb-4 border-4 border-white overflow-hidden">
-                <School className="w-12 h-12" />
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleImageUpload} 
+              />
+              <div 
+                className="w-24 h-24 rounded-3xl bg-white shadow-xl flex items-center justify-center text-primary mb-4 border-4 border-white overflow-hidden cursor-pointer group relative"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <School className="w-12 h-12" />
+                )}
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
               </div>
               <h3 className="text-xl font-bold text-slate-900">{school?.name || 'Loading...'}</h3>
               <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
