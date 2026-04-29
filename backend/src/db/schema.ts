@@ -220,7 +220,32 @@ export const schoolRelations = relations(schools, ({ many }) => ({
 }));
 
 export const staffRelations = relations(staff, ({ many }) => ({
+  assignments: many(teacherClassAssignments),
   attendance: many(attendance),
+}));
+
+export const teacherClassAssignments = sqliteTable('teacher_class_assignments', {
+  id: text('id').primaryKey(),
+  teacherId: text('teacherId').notNull().references(() => staff.id, { onDelete: 'cascade' }),
+  classId: text('classId').notNull().references(() => classes.id, { onDelete: 'cascade' }),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const teacherClassAssignmentsRelations = relations(teacherClassAssignments, ({ one }) => ({
+  teacher: one(staff, {
+    fields: [teacherClassAssignments.teacherId],
+    references: [staff.id],
+  }),
+  class: one(classes, {
+    fields: [teacherClassAssignments.classId],
+    references: [classes.id],
+  }),
+}));
+
+export const classesRelations = relations(classes, ({ many }) => ({
+  assignments: many(teacherClassAssignments),
+  students: many(students),
+  timetable: many(timetable),
 }));
 
 export const admissions = sqliteTable('admissions', {

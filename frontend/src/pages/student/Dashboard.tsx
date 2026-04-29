@@ -33,36 +33,47 @@ const StudentDashboard: React.FC = () => {
   });
 
   const fetchData = async () => {
-    if (!user?.id) return;
+    if (!user?.uid) return;
     try {
       setLoading(true);
-      const studentRes = await api.get(`/students/user/${user.id}`);
+      // 1. Fetch Student Profile using user UID
+      const studentRes = await api.get(`/students/user/${user.uid}`);
       const sData = studentRes.data.data;
+      if (!sData) {
+        toast.error('Student profile not found');
+        return;
+      }
       setStudent(sData);
 
-      if (sData?.id) {
-        const [statsRes, homeworkRes, leavesRes, perfRes] = await Promise.all([
-          api.get(`/portal/dashboard/${sData.id}`),
-          api.get(`/students/homework/${sData.classId}`),
-          api.get(`/students/leave/${sData.id}`),
-          api.get(`/exams/performance/${sData.id}`)
-        ]);
+      // 2. Fetch all portal data in parallel
+      const [statsRes, homeworkRes, leavesRes, perfRes] = await Promise.all([
+        api.get(`/portal/dashboard/${sData.id}`),
+        api.get(`/students/homework/${sData.classId}`),
+        api.get(`/students/leave/${sData.id}`),
+        api.get(`/exams/marks/student/${sData.id}`)
+      ]);
 
-        setStats(statsRes.data.data);
-        setHomeworkList(homeworkRes.data.data || []);
-        setLeaves(leavesRes.data.data || []);
-        setPerformance(perfRes.data.data || []);
-      }
+      setStats(statsRes.data.data);
+      setHomeworkList(homeworkRes.data.data || []);
+      setLeaves(leavesRes.data.data || []);
+      setPerformance(perfRes.data.data || []);
+
     } catch (error) {
       console.error('Error fetching student data:', error);
-      toast.error('Failed to load dashboard data');
+      // Don't toast on polling errors unless it's the first load
+      if (!student) toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    if (user?.uid) {
+      fetchData();
+      // Near real-time sync via polling
+      const interval = setInterval(fetchData, 30000);
+      return () => clearInterval(interval);
+    }
   }, [user]);
 
   const handleApplyLeave = async () => {

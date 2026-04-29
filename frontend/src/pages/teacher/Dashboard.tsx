@@ -28,96 +28,84 @@ const TeacherDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
 
+  const [assignedClasses, setAssignedClasses] = useState<any[]>([]);
+
   const fetchTeacherData = async () => {
     try {
       setLoading(true);
       
-      // 1. Fetch Teacher Profile for assigned classes
+      // 1. Fetch Teacher Profile
       const profileRes = await api.get(`/staff/user/${user.uid}`);
       const teacherProfile = profileRes.data.data;
       setProfile(teacherProfile);
       
-      const assignedClasses = teacherProfile.classes ? teacherProfile.classes.split(',').map((c: string) => c.trim()) : [];
-      const normalize = (s: string) => s.replace(/(\d+)(st|nd|rd|th)/i, '$1').replace(/[-\s]/g, '').toLowerCase();
-      const normalizedAssigned = assignedClasses.map(normalize);
+      // 2. Fetch Assigned Classes + Students (Relational)
+      const classesRes = await api.get(`/staff/my-classes/${teacherProfile.id}`);
+      const myClasses = classesRes.data.data || [];
+      setAssignedClasses(myClasses);
 
-      // 2. Fetch School Students and filter by assigned classes
-      const studentsRes = await api.get(`/students/school/${user.schoolId}`);
-      const allStudents = studentsRes.data.data;
-      const myStudents = allStudents.filter((s: any) => {
-        const studentClass = normalize(`${s.grade}${s.section || ''}`);
-        return normalizedAssigned.includes(studentClass);
-      });
-
-      // 3. Fetch Today's Attendance for these students
-      const today = new Date().toISOString().split('T')[0];
-      let presentCount = 0;
+      // 3. Stats Calculation
+      const totalStudents = myClasses.reduce((acc: number, c: any) => acc + (c.students?.length || 0), 0);
       
-      // Get attendance for each assigned class
-      const classesRes = await api.get(`/classes/school/${user.schoolId}`);
-      const allClassData = classesRes.data.data;
-      const myClassIds = allClassData
-        .filter((c: any) => {
-          const className = normalize(`${c.name}${c.section || ''}`);
-          return normalizedAssigned.includes(className);
-        })
-        .map((c: any) => c.id);
-
-      for (const classId of myClassIds) {
+      // Attendance stats
+      const today = new Date().toISOString().split('T')[0];
+      let presentToday = 0;
+      for (const cls of myClasses) {
         try {
-          const attRes = await api.get(`/attendance/class/${user.schoolId}/${classId}?date=${today}`);
-          const dayAttendance = attRes.data.data;
-          presentCount += dayAttendance.filter((a: any) => a.status === 'present').length;
-        } catch (e) {
-          console.warn(`No attendance found for class ${classId}`);
-        }
+          const attRes = await api.get(`/attendance/class/${user.schoolId}/${cls.classId}?date=${today}`);
+          presentToday += attRes.data.data.filter((a: any) => a.status === 'present').length;
+        } catch (e) { /* silent */ }
       }
 
-      // 4. Fetch Timetable and filter for today
+      // Timetable stats
       const timetableRes = await api.get(`/timetable/school/${user.schoolId}`);
-      const fullTimetable = timetableRes.data.data;
-      
+      const fullTimetable = timetableRes.data.data || [];
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const currentDay = dayNames[new Date().getDay()];
-      
-      // Flatten slots and filter for this teacher on THIS day
+
       const mySchedule = fullTimetable
         .flatMap((t: any) => {
-          const classInfo = allClassData.find((c: any) => c.id === t.classId);
+          const matchedClass = myClasses.find(mc => mc.classId === t.classId);
+          if (!matchedClass) return [];
           return (t.slots || []).map((s: any) => ({
             ...s,
-            className: classInfo?.name || 'Unknown',
-            section: classInfo?.section || ''
+            className: matchedClass.className
           }));
         })
         .filter((s: any) => s.dayOfWeek === currentDay && s.teacherId === teacherProfile.id)
         .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
 
-      // 5. Fetch Exams and filter by assigned classes
+      // Exam stats
       const examsRes = await api.get(`/exams/school/${user.schoolId}`);
       const allExams = examsRes.data.data || [];
       const myExams = allExams.filter((e: any) => {
-        const examClasses = e.assignedClasses ? e.assignedClasses.split(',').map((c: string) => normalize(c.trim())) : [];
-        return normalizedAssigned.some(a => examClasses.includes(a));
+        const examClasses = e.assignedClasses ? e.assignedClasses.split(',').map((c: string) => c.trim().toLowerCase()) : [];
+        return myClasses.some(mc => examClasses.includes(mc.className.toLowerCase()));
       });
 
       setSchedule(mySchedule);
       setStats({
-        totalStudents: myStudents.length,
-        presentToday: presentCount,
+        totalStudents,
+        presentToday,
         examsCount: myExams.length,
         upcomingClasses: mySchedule.length
       });
 
     } catch (error) {
       console.error('Error fetching teacher stats:', error);
+      toast.error('Failed to sync dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user?.uid) fetchTeacherData();
+    if (user?.uid) {
+      fetchTeacherData();
+      // Polling for real-time sync (every 30 seconds)
+      const interval = setInterval(fetchTeacherData, 30000);
+      return () => clearInterval(interval);
+    }
   }, [user]);
 
   return (
@@ -225,26 +213,75 @@ const TeacherDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Tools */}
+        {/* Quick Tools / Assigned Classes */}
         <div className="space-y-6">
-          <Card className="border-none shadow-sm bg-primary text-white overflow-hidden relative">
-            <CardHeader>
-              <CardTitle className="text-lg">Announcements</CardTitle>
+          <Card className="border-none shadow-xl bg-white rounded-[2.5rem] overflow-hidden">
+            <CardHeader className="p-8 pb-4">
+              <CardTitle className="text-xl font-display font-bold flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-emerald-50">
+                  <BookOpen className="w-5 h-5 text-emerald-600" />
+                </div>
+                Assigned Classes
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-8 pt-0">
               <div className="space-y-4">
-                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-sm">
+                {assignedClasses.length > 0 ? (
+                  assignedClasses.map((cls, i) => (
+                    <div key={i} className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 group hover:border-indigo-200 transition-all">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-bold text-slate-900">{cls.className}</h4>
+                        <Badge className="bg-indigo-600 text-white border-none px-3 py-1 rounded-lg text-[10px]">
+                          {cls.students?.length || 0} Students
+                        </Badge>
+                      </div>
+                      <div className="flex -space-x-3 overflow-hidden">
+                        {cls.students?.slice(0, 6).map((s: any) => (
+                          <div 
+                            key={s.id} 
+                            className="inline-block h-10 w-10 rounded-full ring-4 ring-white bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600"
+                            title={s.name}
+                          >
+                            {s.name.split(' ').map((n: any) => n[0]).join('')}
+                          </div>
+                        ))}
+                        {cls.students?.length > 6 && (
+                          <div className="inline-block h-10 w-10 rounded-full ring-4 ring-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                            +{cls.students.length - 6}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-12 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                    <AlertCircle className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 font-bold text-sm">No classes assigned.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Assignments managed by Principal</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm bg-primary text-white overflow-hidden relative rounded-[2.5rem]">
+            <CardHeader className="p-8 pb-4">
+              <CardTitle className="text-lg font-display">Announcements</CardTitle>
+            </CardHeader>
+            <CardContent className="p-8 pt-0">
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 text-sm leading-relaxed">
                   Staff meeting at 4:00 PM today in the Conference Hall.
                 </div>
-                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-sm">
+                <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 text-sm leading-relaxed">
                   Exam schedule for Grade 10 has been updated in the portal.
                 </div>
                 <Button 
                   variant="secondary" 
-                  className="w-full font-bold"
-                  onClick={() => toast.info('Announcements can be managed by the Principal.')}
+                  className="w-full font-bold h-12 rounded-xl bg-white text-primary hover:bg-slate-100"
+                  onClick={() => toast.info('Announcements managed by Principal.')}
                 >
-                  Post New
+                  View All
                 </Button>
               </div>
             </CardContent>

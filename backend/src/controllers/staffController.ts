@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { staff, users } from '../db/schema';
+import { staff, users, teacherClassAssignments, classes, students } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
 
 export const getStaffBySchool = asyncHandler(async (req: Request, res: Response) => {
@@ -128,4 +128,47 @@ export const deleteStaff = asyncHandler(async (req: Request, res: Response) => {
 
   await db.delete(staff).where(eq(staff.id, id));
   res.status(200).json({ status: 'success', message: 'Staff member deleted' });
+});
+
+export const assignClasses = asyncHandler(async (req: Request, res: Response) => {
+  const { teacherId, classIds } = req.body;
+
+  // 1. Delete old assignments
+  await db.delete(teacherClassAssignments).where(eq(teacherClassAssignments.teacherId, teacherId));
+
+  // 2. Insert new ones
+  if (classIds && classIds.length > 0) {
+    const values = classIds.map((classId: string) => ({
+      id: uuidv4(),
+      teacherId,
+      classId
+    }));
+    await db.insert(teacherClassAssignments).values(values);
+  }
+
+  res.status(200).json({ status: 'success', message: 'Classes assigned successfully' });
+});
+
+export const getTeacherClasses = asyncHandler(async (req: Request, res: Response) => {
+  const teacherId = getSingleValue(req.params.teacherId);
+
+  const result = await db.query.teacherClassAssignments.findMany({
+    where: eq(teacherClassAssignments.teacherId, teacherId),
+    with: {
+      class: {
+        with: {
+          students: true
+        }
+      }
+    }
+  });
+
+  // Transform to match requested response format
+  const transformed = result.map(a => ({
+    classId: a.classId,
+    className: `${a.class.name}-${a.class.section}`,
+    students: a.class.students
+  }));
+
+  res.status(200).json({ status: 'success', data: transformed });
 });

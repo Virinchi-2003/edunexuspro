@@ -45,7 +45,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   // For this demo, we return a mock token and user info.
   res.status(200).json({
     status: 'success',
-    token: 'mock-token',
+    token: `mock-token-${user.uid}`,
     data: {
       uid: user.uid,
       email: user.email,

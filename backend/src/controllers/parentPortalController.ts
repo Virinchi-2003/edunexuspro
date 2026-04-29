@@ -47,7 +47,7 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
   // 3. Performance Summary (Average Grade)
   const allMarks = await db.query.marks.findMany({ where: eq(marks.studentId, studentId) });
   const avgMarks = allMarks.length > 0 
-    ? allMarks.reduce((acc, m) => acc + (m.marksObtained || 0), 0) / allMarks.length 
+    ? (allMarks.reduce((acc, m) => acc + ((m.marksObtained || 0) / (m.totalMarks || 100)), 0) / allMarks.length) * 100
     : 0;
 
   // 4. AI Flags

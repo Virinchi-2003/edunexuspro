@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { auth } from '../config/firebase';
+import { db } from '../config/database';
+import { users } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -25,13 +28,18 @@ export const authenticate = async (
     const token = authHeader.split(' ')[1]!;
     
     // Support mock token for development/demo
-    if (token === 'mock-token') {
-      req.user = {
-        uid: 'mock-admin-uid',
-        email: 'admin@edunexus.pro',
-        role: 'admin',
-      };
-      return next();
+    if (token.startsWith('mock-token-')) {
+      const uid = token.replace('mock-token-', '');
+      const user = await db.query.users.findFirst({ where: eq(users.uid, uid) });
+      if (user) {
+        req.user = {
+          uid,
+          email: user.email,
+          role: user.role,
+          schoolId: user.schoolId || undefined,
+        };
+        return next();
+      }
     }
 
     const decodedToken = await auth.verifyIdToken(token);

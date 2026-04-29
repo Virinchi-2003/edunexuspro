@@ -22,7 +22,9 @@ import {
   GraduationCap,
   Calendar,
   IndianRupee,
-  Building2
+  Building2,
+  Link,
+  CheckCircle2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,6 +51,9 @@ const StaffPage: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<'teaching' | 'non-teaching' | null>(null);
   const [classList, setClassList] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -143,6 +148,39 @@ const StaffPage: React.FC = () => {
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Delete failed');
+    }
+  };
+
+  const handleAssignClick = async (teacher: any) => {
+    setSelectedTeacher(teacher);
+    try {
+      setLoading(true);
+      const res = await api.get(`/staff/my-classes/${teacher.id}`);
+      const currentIds = res.data.data.map((a: any) => a.classId);
+      setSelectedClassIds(currentIds);
+      setIsAssignDialogOpen(true);
+    } catch (error) {
+      toast.error('Failed to fetch assignments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAssignments = async () => {
+    if (!selectedTeacher) return;
+    try {
+      setIsSaving(true);
+      await api.post('/staff/assign-classes', {
+        teacherId: selectedTeacher.id,
+        classIds: selectedClassIds
+      });
+      toast.success('Classes assigned successfully');
+      setIsAssignDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to save assignments');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -349,8 +387,19 @@ const StaffPage: React.FC = () => {
                           </div>
                           <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Per Month</div>
                         </TableCell>
-                        <TableCell className="text-right">
+                          <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {s.department === 'teaching' && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="text-indigo-600 hover:bg-indigo-50"
+                                onClick={() => handleAssignClick(s)}
+                                title="Assign Classes"
+                              >
+                                <Link className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(s)}>
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -539,6 +588,78 @@ const StaffPage: React.FC = () => {
             >
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditDialogOpen ? 'Save Changes' : 'Register Member'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Classes Dialog */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-3xl border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                <Link className="w-6 h-6" />
+              </div>
+              Assign Classes
+            </DialogTitle>
+            <DialogDescription>
+              Assign teaching responsibilities for <span className="font-bold text-slate-900">{selectedTeacher?.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-6">
+            <label className="text-sm font-semibold text-slate-700 mb-3 block">Available Classes</label>
+            <div className="grid grid-cols-2 gap-3">
+              {classList.map((cls) => {
+                const isSelected = selectedClassIds.includes(cls.id);
+                return (
+                  <button
+                    key={cls.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedClassIds(prev => prev.filter(id => id !== cls.id));
+                      } else {
+                        setSelectedClassIds(prev => [...prev, cls.id]);
+                      }
+                    }}
+                    className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all text-left ${
+                      isSelected 
+                        ? 'border-indigo-600 bg-indigo-50/50 ring-4 ring-indigo-500/10' 
+                        : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                    }`}
+                  >
+                    <div>
+                      <div className={`font-bold ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                        {cls.name}-{cls.section}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                        {cls.studentsCount || 0} Students
+                      </div>
+                    </div>
+                    {isSelected && <CheckCircle2 className="w-5 h-5 text-indigo-600" />}
+                  </button>
+                );
+              })}
+            </div>
+            {classList.length === 0 && (
+              <div className="text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                <p className="text-sm text-slate-400">No classes defined in the system.</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-xl" onClick={() => setIsAssignDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-indigo-600 hover:bg-indigo-700" 
+              onClick={handleSaveAssignments}
+              disabled={isSaving}
+            >
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Assignments
             </Button>
           </DialogFooter>
         </DialogContent>
