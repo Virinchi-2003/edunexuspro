@@ -1,15 +1,39 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { students, attendance, examMarks } from '../db/schema';
+import { marks, attendance, students } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
 
+/**
+ * Interface for Student Dashboard Stats
+ */
+interface DashboardStats {
+  attendance: {
+    status: string;
+    date?: string;
+  };
+  performance: {
+    totalMarksObtained: number;
+    totalPossibleMarks: number;
+    percentage: string;
+    grade: string;
+  };
+  summary: {
+    pendingHomeworkCount: number;
+    activeFlags: number;
+  };
+}
+
+/**
+ * Fetch and calculate student dashboard statistics
+ * @route GET /api/portal/dashboard/:studentId
+ */
 export const getStudentDashboardStats = asyncHandler(async (req: Request, res: Response) => {
   const studentId = getSingleValue(req.params.studentId);
-
-  // 1. Get today's attendance
   const today = new Date().toISOString().split('T')[0];
+
+  // 1. Fetch Today's Attendance
   const todayAttendance = await db.query.attendance.findFirst({
     where: and(
       eq(attendance.studentId, studentId),
@@ -17,27 +41,53 @@ export const getStudentDashboardStats = asyncHandler(async (req: Request, res: R
     )
   });
 
-  // 2. Get pending homework count (mock logic or actual if homework table exists)
-  // For now, let's assume 3 pending homeworks as mock or count from a table
-  const pendingHomeworkCount = 3; 
+  // 2. Fetch Performance Data (Marks)
+  const studentMarks = await db.select().from(marks).where(eq(marks.studentId, studentId));
 
-  // 3. Get average performance from exam marks
-  const performanceRecords = await db.query.examMarks.findMany({
-    where: eq(examMarks.studentId, studentId)
-  });
+  const performance = studentMarks.reduce(
+    (acc: { obtained: number; total: number }, curr: typeof marks.$inferSelect) => {
+      return {
+        obtained: acc.obtained + (curr.marksObtained || 0),
+        total: acc.total + (curr.totalMarks || 100)
+      };
+    },
+    { obtained: 0, total: 0 }
+  );
 
-  let averagePerformance = '0.0';
-  if (performanceRecords.length > 0) {
-    const total = performanceRecords.reduce((acc, curr) => acc + (curr.marksObtained / curr.totalMarks), 0);
-    averagePerformance = ((total / performanceRecords.length) * 100).toFixed(1);
-  }
+  const percentage = performance.total > 0 
+    ? ((performance.obtained / performance.total) * 100).toFixed(1) 
+    : '0.0';
+
+  // Helper to determine grade based on percentage
+  const calculateGrade = (pct: number): string => {
+    if (pct >= 90) return 'A+';
+    if (pct >= 80) return 'A';
+    if (pct >= 70) return 'B';
+    if (pct >= 60) return 'C';
+    if (pct >= 50) return 'D';
+    return 'F';
+  };
+
+  // 3. Construct Stats Response
+  const stats: DashboardStats = {
+    attendance: {
+      status: todayAttendance?.status || 'Not Marked',
+      date: todayAttendance?.date || today
+    },
+    performance: {
+      totalMarksObtained: performance.obtained,
+      totalPossibleMarks: performance.total,
+      percentage,
+      grade: calculateGrade(parseFloat(percentage))
+    },
+    summary: {
+      pendingHomeworkCount: 3, // Mock value as per requirement for now
+      activeFlags: 0
+    }
+  };
 
   res.status(200).json({
     status: 'success',
-    data: {
-      attendance: todayAttendance || { status: 'Not Marked' },
-      pendingHomeworkCount,
-      averagePerformance
-    }
+    data: stats
   });
 });

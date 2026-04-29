@@ -18,7 +18,7 @@ import attendanceRoutes from './routes/attendanceRoutes';
 import admissionRoutes from './routes/admissionRoutes';
 import timetableRoutes from './routes/timetableRoutes';
 import examRoutes from './routes/examRoutes';
-import parentPortalRoutes from './routes/parentPortalRoutes';
+import portalRoutes from './routes/portalRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -59,7 +59,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admissions', admissionRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/exams', examRoutes);
-app.use('/api/portal', parentPortalRoutes);
+app.use('/api/portal', portalRoutes);
 
 // Global Error Handler (must be after routes)
 app.use(errorHandler);
