@@ -4,7 +4,6 @@ import {
   Download, 
   Clock, 
   CheckCircle2, 
-  ArrowRight,
   ShieldCheck,
   Receipt,
   Loader2,

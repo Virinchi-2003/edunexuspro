@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   ChevronRight,
-  TrendingUp,
   AlertCircle,
   Download
 } from 'lucide-react';

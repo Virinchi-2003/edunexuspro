@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
-  Search, 
   Calendar as CalendarIcon, 
-  Clock, 
   MoreVertical, 
   Pencil, 
   Trash2, 
   Users, 
-  CheckCircle2, 
   Loader2,
-  FileText,
   ChevronRight,
   Send,
-  MessageSquare,
-  Filter,
   BookOpen
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';

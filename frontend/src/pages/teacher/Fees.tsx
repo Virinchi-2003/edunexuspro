@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  TrendingUp,
   Filter,
   ArrowUpRight
 } from 'lucide-react';
