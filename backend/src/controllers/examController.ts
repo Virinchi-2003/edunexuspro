@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
-import { generateReportCardPDF, generateBatchReportPDF, generateHallTicketPDF, generateExamSchedulePDF } from '../utils/pdfGenerator';
+import { generateReportCardPDF, generateBatchReportPDF, generateHallTicketPDF, generateExamSchedulePDF, generateGradebookPDF } from '../utils/pdfGenerator';
 
 export const createExam = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, name, term, startDate, endDate, assignedClasses } = req.body;
@@ -326,4 +326,58 @@ export const deleteExam = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
   await db.delete(exams).where(eq(exams.id, id));
   res.status(200).json({ status: 'success', message: 'Exam deleted' });
+});
+
+export const downloadGradebook = asyncHandler(async (req: Request, res: Response) => {
+  const examId = getSingleValue(req.query.examId as string);
+  const classId = getSingleValue(req.query.classId as string);
+  const subject = getSingleValue(req.query.subject as string);
+
+  if (!examId || !classId || !subject) {
+    return res.status(400).json({ status: 'error', message: 'Missing parameters' });
+  }
+
+  const examInfo = await db.query.exams.findFirst({ where: eq(exams.id, examId) });
+  const cls = await db.query.classes.findFirst({ where: eq(classes.id, classId) });
+  const schedule = await db.query.examSchedule.findFirst({
+    where: and(
+      eq(examSchedule.examId, examId),
+      eq(examSchedule.subject, subject)
+    )
+  });
+
+  if (!examInfo || !cls || !schedule) {
+    return res.status(404).json({ status: 'error', message: 'Exam, Class or Subject not found' });
+  }
+
+  const studentMarks = await db.query.marks.findMany({
+    where: eq(marks.examScheduleId, schedule.id),
+    with: {
+      student: true
+    }
+  });
+
+  const filteredMarks = studentMarks.filter(m => 
+    m.student?.classId === classId || 
+    (cls && m.student?.grade === cls.name && m.student?.section === cls.section)
+  );
+
+  const gradebookData = {
+    examName: examInfo.name,
+    term: examInfo.term || 'N/A',
+    className: `${cls.name}-${cls.section}`,
+    subject: subject,
+    totalMarks: schedule.totalMarks || 100,
+    records: filteredMarks.map(m => ({
+      studentName: m.student?.name || 'Unknown',
+      studentId: m.student?.studentId || 'N/A',
+      marksObtained: m.marksObtained,
+      grade: calculateGrade(m.marksObtained, schedule.totalMarks || 100),
+      comments: m.comments || '-'
+    }))
+  };
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=Gradebook_${cls.name}_${subject}.pdf`);
+  generateGradebookPDF(gradebookData, res);
 });

@@ -32,7 +32,7 @@ const StudentLeave: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const studentRes = await api.get(`/students/user/${user.id}`);
+      const studentRes = await api.get(`/students/user/${user.uid}`);
       const sData = studentRes.data.data;
       setStudent(sData);
 
@@ -48,7 +48,7 @@ const StudentLeave: React.FC = () => {
   };
 
   useEffect(() => {
-    if (user?.id) fetchData();
+    if (user?.uid) fetchData();
   }, [user]);
 
   const handleApplyLeave = async () => {
@@ -140,6 +140,12 @@ const StudentLeave: React.FC = () => {
                         <div className="flex flex-col items-end gap-3">
                            {getStatusBadge(leave.status)}
                            <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Applied {new Date(leave.createdAt).toLocaleDateString()}</div>
+                           {leave.teacherMessage && (
+                             <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-w-xs">
+                                <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-1">Teacher Feedback</div>
+                                <p className="text-xs text-slate-600 italic leading-relaxed">"{leave.teacherMessage}"</p>
+                             </div>
+                           )}
                         </div>
                      </div>
                   </CardContent>

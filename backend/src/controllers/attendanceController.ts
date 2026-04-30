@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { attendance, students, staff, classes } from '../db/schema';
+import { attendance, students, staff, classes, schools } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and, desc, count, sql, isNull } from 'drizzle-orm';
+import { eq, and, desc, count, sql, isNull, like } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
+import { generateAttendanceReportPDF } from '../utils/pdfGenerator';
 
 export const getAttendance = asyncHandler(async (req: Request, res: Response) => {
   const schoolId = getSingleValue(req.params.schoolId);
@@ -151,33 +152,60 @@ export const sendAlerts = asyncHandler(async (req: Request, res: Response) => {
 export const generateReport = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, date, type } = req.body; // type: 'student' | 'staff' | 'all'
 
-  const allAttendance = await db.query.attendance.findMany({
-    where: and(eq(attendance.schoolId, schoolId), eq(attendance.date, date)),
+  const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
+
+  let whereClause = eq(attendance.schoolId, schoolId);
+  if (date) whereClause = and(whereClause, eq(attendance.date, date)) as any;
+  
+  if (type === 'student') whereClause = and(whereClause, isNull(attendance.staffId)) as any;
+  if (type === 'staff') whereClause = and(whereClause, isNull(attendance.studentId)) as any;
+
+  const records = await db.query.attendance.findMany({
+    where: whereClause,
     with: {
         student: true,
         staff: true
     }
   });
 
-  const stats = {
-    total: allAttendance.length,
-    present: allAttendance.filter(a => a.status === 'present').length,
-    absent: allAttendance.filter(a => a.status === 'absent').length,
-    late: allAttendance.filter(a => a.status === 'late').length
-  };
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=Attendance_Report_${date}.pdf`);
 
-  const reportId = uuidv4().slice(0, 8).toUpperCase();
+  generateAttendanceReportPDF({
+    schoolName: school?.name || 'EduNexus School',
+    date: date || 'Today',
+    type: type || 'overall',
+    records
+  }, res);
+});
+
+export const getMonthlyAttendanceStats = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  const month = getSingleValue(req.query.month); // Format: YYYY-MM
   
-  // Simulate sending report to principal
-  console.log(`[REPORT] Generating ${type} attendance report for ${date}...`);
-  console.log(`[REPORT] Report ID: ${reportId}`);
-  console.log(`[REPORT] Stats: ${JSON.stringify(stats)}`);
+  const targetMonth = month || new Date().toISOString().slice(0, 7);
 
-  res.status(200).json({ 
-    status: 'success', 
-    message: `Attendance report (${reportId}) has been sent to your registered email.`,
-    data: { reportId, stats }
+  const result = await db.query.attendance.findMany({
+    where: and(
+      eq(attendance.schoolId, schoolId),
+      like(attendance.date, `${targetMonth}%`)
+    )
   });
+
+  // Process results into day-wise stats
+  const stats: any = {};
+  result.forEach(r => {
+    if (!stats[r.date]) {
+      stats[r.date] = { date: r.date, present: 0, absent: 0, total: 0 };
+    }
+    stats[r.date].total++;
+    if (r.status === 'present') stats[r.date].present++;
+    else if (r.status === 'absent') stats[r.date].absent++;
+  });
+
+  const formattedStats = Object.values(stats).sort((a: any, b: any) => a.date.localeCompare(b.date));
+
+  res.status(200).json({ status: 'success', data: formattedStats });
 });
 
 export const markAttendanceByQR = asyncHandler(async (req: Request, res: Response) => {

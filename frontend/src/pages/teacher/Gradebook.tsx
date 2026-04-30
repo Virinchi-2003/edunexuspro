@@ -10,7 +10,8 @@ import {
   ArrowLeft,
   ChevronRight,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -156,6 +157,30 @@ const TeacherGradebook: React.FC = () => {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!selectedExam || !selectedClassId || !selectedSubject) return;
+
+    try {
+      setLoading(true);
+      const res = await api.get(`/exams/report/gradebook?examId=${selectedExam.id}&classId=${selectedClassId}&subject=${selectedSubject}`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Gradebook_${selectedExam.name}_${selectedSubject}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Gradebook exported successfully');
+    } catch (error) {
+      toast.error('Failed to export gradebook');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderClassSelect = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {exams.map((exam) => (
@@ -176,8 +201,8 @@ const TeacherGradebook: React.FC = () => {
             <div className="bg-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-indigo-100">
               <Trophy className="w-6 h-6" />
             </div>
-            <h3 className="text-2xl font-display font-bold text-slate-900 mb-1">{exam.title}</h3>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{exam.subject} • Class {exam.grade}</p>
+            <h3 className="text-2xl font-display font-bold text-slate-900 mb-1">{exam.name}</h3>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{exam.term || 'Term'} Exam</p>
             <div className="mt-8 flex items-center justify-between border-t border-slate-50 pt-4">
               <div className="text-xs font-bold text-indigo-600 flex items-center gap-1">
                 Enter Marks <ChevronRight className="w-3 h-3" />
@@ -207,16 +232,20 @@ const TeacherGradebook: React.FC = () => {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h2 className="text-2xl font-display font-bold text-slate-900">{selectedExam?.title} - Grading</h2>
-            <p className="text-sm text-slate-500 font-medium">{selectedExam?.subject} • Max Marks: {selectedExam?.maxMarks || 100}</p>
+            <h2 className="text-2xl font-display font-bold text-slate-900">{selectedExam?.name} - Grading</h2>
+            <p className="text-sm text-slate-500 font-medium">{selectedExam?.term || 'Term'} Exam • Max Marks: {selectedExam?.schedules?.find((s:any) => s.subject === selectedSubject)?.maxMarks || 100}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
            <Badge className="bg-indigo-50 text-indigo-600 border-none px-4 py-2 rounded-xl font-bold uppercase text-[10px] tracking-widest">
              {students.length} Students Total
            </Badge>
-           <Button className="rounded-xl bg-slate-900 text-white gap-2 h-11 px-6 shadow-xl shadow-slate-200">
-              <TrendingUp className="w-4 h-4" /> Performance Stats
+           <Button 
+             className="rounded-xl bg-slate-900 text-white gap-2 h-11 px-6 shadow-xl shadow-slate-200"
+             onClick={handleExportPDF}
+             disabled={loading}
+           >
+              <Download className="w-4 h-4" /> Export PDF
            </Button>
         </div>
       </div>

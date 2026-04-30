@@ -12,7 +12,8 @@ import {
   updateExam,
   deleteExam,
   downloadExamSchedule,
-  getExamMarks
+  getExamMarks,
+  downloadGradebook
 } from '../controllers/examController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -29,6 +30,7 @@ router.put('/:id', authorize(['admin', 'principal']), updateExam);
 router.delete('/:id', authorize(['admin', 'principal']), deleteExam);
 router.post('/marks', authorize(['admin', 'principal', 'staff', 'teacher']), enterMarks);
 router.get('/report/class/:classId', downloadClassReportCards);
+router.get('/report/gradebook', authorize(['admin', 'principal', 'staff', 'teacher']), downloadGradebook);
 router.get('/download-schedule/:id', downloadExamSchedule);
 router.get('/report/hall-tickets/:examId', downloadHallTickets);
 router.get('/marks/student/:studentId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentPerformance);

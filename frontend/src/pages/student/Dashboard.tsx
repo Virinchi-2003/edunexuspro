@@ -45,18 +45,21 @@ const StudentDashboard: React.FC = () => {
       }
       setStudent(sData);
 
-      // 2. Fetch all portal data in parallel
-      const [statsRes, homeworkRes, leavesRes, perfRes] = await Promise.all([
-        api.get(`/portal/dashboard/${sData.id}`),
-        api.get(`/students/homework/${sData.classId}`),
-        api.get(`/students/leave/${sData.id}`),
-        api.get(`/exams/marks/student/${sData.id}`)
-      ]);
+      // 2. Fetch all portal data in parallel only if we have IDs
+      const fetchers = [];
+      if (sData.id) fetchers.push(api.get(`/portal/dashboard/${sData.id}`));
+      if (sData.classId) fetchers.push(api.get(`/students/homework/${sData.classId}`));
+      if (sData.id) fetchers.push(api.get(`/students/leave/${sData.id}`));
+      if (sData.id) fetchers.push(api.get(`/exams/marks/student/${sData.id}`));
 
-      setStats(statsRes.data.data);
-      setHomeworkList(homeworkRes.data.data || []);
-      setLeaves(leavesRes.data.data || []);
-      setPerformance(perfRes.data.data || []);
+      const results = await Promise.all(fetchers);
+      
+      // Map results back to state
+      let resIdx = 0;
+      if (sData.id) setStats(results[resIdx++].data.data);
+      if (sData.classId) setHomeworkList(results[resIdx++].data.data || []);
+      if (sData.id) setLeaves(results[resIdx++].data.data || []);
+      if (sData.id) setPerformance(results[resIdx++].data.data || []);
 
     } catch (error) {
       console.error('Error fetching student data:', error);

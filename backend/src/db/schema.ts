@@ -145,6 +145,7 @@ export const fees = sqliteTable('fees', {
   gracePeriodDays: integer('gracePeriodDays').default(5),
   challanNumber: text('challanNumber'),
   academicYear: text('academicYear').default('2026-27'),
+  breakdown: text('breakdown'), // JSON string: { tuition: 5000, transport: 2000, activity: 1000 }
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
@@ -181,16 +182,6 @@ export const configs = sqliteTable('configs', {
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const attendanceRelations = relations(attendance, ({ one }) => ({
-  student: one(students, {
-    fields: [attendance.studentId],
-    references: [students.id],
-  }),
-  staff: one(staff, {
-    fields: [attendance.staffId],
-    references: [staff.id],
-  }),
-}));
 
 export const feesRelations = relations(fees, ({ one }) => ({
   student: one(students, {
@@ -203,14 +194,7 @@ export const feesRelations = relations(fees, ({ one }) => ({
   }),
 }));
 
-export const studentRelations = relations(students, ({ many, one }) => ({
-  attendance: many(attendance),
-  fees: many(fees),
-  class: one(classes, {
-    fields: [students.classId],
-    references: [classes.id],
-  }),
-}));
+
 
 export const schoolRelations = relations(schools, ({ many }) => ({
   students: many(students),
@@ -242,11 +226,7 @@ export const teacherClassAssignmentsRelations = relations(teacherClassAssignment
   }),
 }));
 
-export const classesRelations = relations(classes, ({ many }) => ({
-  assignments: many(teacherClassAssignments),
-  students: many(students),
-  timetable: many(timetable),
-}));
+
 
 export const admissions = sqliteTable('admissions', {
   id: text('id').primaryKey(),
@@ -412,6 +392,7 @@ export const leaveRequests = sqliteTable('leave_requests', {
   endDate: text('endDate').notNull(),
   status: text('status').default('pending'), // pending, approved, rejected
   approvedBy: text('approvedBy').references(() => staff.id),
+  teacherMessage: text('teacherMessage'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -444,7 +425,9 @@ export const homeworkSubmissions = sqliteTable('homework_submissions', {
   status: text('status').default('submitted'), // submitted, late, reviewed
   teacherFeedback: text('teacherFeedback'),
   submittedAt: text('submittedAt').default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => ({
+  homeworkStudentIndex: uniqueIndex('homework_student_idx').on(table.homeworkId, table.studentId),
+}));
 
 export const feeTransactions = sqliteTable('fee_transactions', {
   id: text('id').primaryKey(),
@@ -456,6 +439,9 @@ export const feeTransactions = sqliteTable('fee_transactions', {
   razorpayPaymentId: text('razorpayPaymentId'),
   status: text('status').notNull(), // pending, success, failed
   receiptUrl: text('receiptUrl'),
+  gstAmount: real('gstAmount').default(0),
+  invoiceNumber: text('invoiceNumber'),
+  paymentMethod: text('paymentMethod'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -541,5 +527,102 @@ export const marksRelations = relations(marks, ({ one }) => ({
   student: one(students, {
     fields: [marks.studentId],
     references: [students.id],
+  }),
+}));
+
+export const studentRelations = relations(students, ({ one, many }) => ({
+  school: one(schools, {
+    fields: [students.schoolId],
+    references: [schools.id],
+  }),
+  class: one(classes, {
+    fields: [students.classId],
+    references: [classes.id],
+  }),
+  leaves: many(leaveRequests),
+  marks: many(marks),
+  attendance: many(attendance),
+  fees: many(fees),
+  homeworkSubmissions: many(homeworkSubmissions),
+}));
+
+export const classRelations = relations(classes, ({ one, many }) => ({
+  school: one(schools, {
+    fields: [classes.schoolId],
+    references: [schools.id],
+  }),
+  students: many(students),
+  assignments: many(teacherClassAssignments),
+  timetables: many(timetable),
+}));
+
+export const leaveRequestRelations = relations(leaveRequests, ({ one }) => ({
+  student: one(students, {
+    fields: [leaveRequests.studentId],
+    references: [students.id],
+  }),
+  teacher: one(staff, {
+    fields: [leaveRequests.approvedBy],
+    references: [staff.id],
+  }),
+}));
+
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  student: one(students, {
+    fields: [attendance.studentId],
+    references: [students.id],
+  }),
+  staff: one(staff, {
+    fields: [attendance.staffId],
+    references: [staff.id],
+  }),
+  class: one(classes, {
+    fields: [attendance.classId],
+    references: [classes.id],
+  }),
+}));
+
+export const homeworkRelations = relations(homework, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [homework.classId],
+    references: [classes.id],
+  }),
+  teacher: one(staff, {
+    fields: [homework.teacherId],
+    references: [staff.id],
+  }),
+  submissions: many(homeworkSubmissions),
+}));
+
+export const homeworkSubmissionsRelations = relations(homeworkSubmissions, ({ one }) => ({
+  homework: one(homework, {
+    fields: [homeworkSubmissions.homeworkId],
+    references: [homework.id],
+  }),
+  student: one(students, {
+    fields: [homeworkSubmissions.studentId],
+    references: [students.id],
+  }),
+}));
+
+export const feesRelations = relations(fees, ({ one }) => ({
+  student: one(students, {
+    fields: [fees.studentId],
+    references: [students.id],
+  }),
+  school: one(schools, {
+    fields: [fees.schoolId],
+    references: [schools.id],
+  }),
+}));
+
+export const feeTransactionsRelations = relations(feeTransactions, ({ one }) => ({
+  student: one(students, {
+    fields: [feeTransactions.studentId],
+    references: [students.id],
+  }),
+  school: one(schools, {
+    fields: [feeTransactions.schoolId],
+    references: [schools.id],
   }),
 }));

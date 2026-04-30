@@ -53,6 +53,8 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: GraduationCap, label: 'Examinations', path: '/teacher/exams' },
     { icon: Trophy, label: 'Gradebook', path: '/teacher/gradebook' },
     { icon: Calendar, label: 'Attendance', path: '/teacher/attendance' },
+    { icon: FileText, label: 'Leave Requests', path: '/teacher/leave' },
+    { icon: BookOpen, label: 'Homework', path: '/teacher/homework' },
     { icon: CreditCard, label: 'Fees', path: '/teacher/fees' },
     { icon: Settings, label: 'Settings', path: '/teacher/settings' },
   ];

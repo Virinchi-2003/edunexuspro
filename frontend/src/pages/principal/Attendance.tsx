@@ -18,6 +18,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
@@ -49,6 +65,10 @@ const Attendance: React.FC = () => {
     staff: 0,
     todayAttendance: '0.0'
   });
+  const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -68,6 +88,45 @@ const Attendance: React.FC = () => {
     }
   };
 
+  const fetchMonthlyStats = async () => {
+    try {
+      setStatsLoading(true);
+      const currentMonth = selectedDate.slice(0, 7);
+      const res = await api.get(`/attendance/stats/${user.schoolId}?month=${currentMonth}`);
+      setMonthlyStats(res.data.data || []);
+      setIsStatsOpen(true);
+    } catch (error) {
+      toast.error('Failed to load monthly statistics');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      const res = await api.post('/attendance/report', {
+        schoolId: user.schoolId,
+        date: selectedDate,
+        type: view === 'teachers' ? 'staff' : 'student'
+      }, { responseType: 'blob' });
+
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Attendance_Report_${selectedDate}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Attendance report downloaded successfully');
+    } catch (error) {
+      toast.error('Failed to generate PDF report');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+
   const fetchAttendance = async (date: string) => {
     try {
       const res = await api.get(`/attendance/school/${user.schoolId}?date=${date}`);
@@ -77,16 +136,16 @@ const Attendance: React.FC = () => {
     }
   };
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (classId?: string) => {
     try {
+      const targetClassId = classId || selectedClass?.id;
+      if (!targetClassId) return;
+
       setLoading(true);
-      const res = await api.get(`/students/school/${user.schoolId}`);
-      const classStudents = res.data.data.filter((s: any) => 
-        s.grade?.toLowerCase().trim() === selectedClass?.name?.toLowerCase().trim()
-      );
-      setStudents(classStudents);
+      const res = await api.get(`/students/class/${targetClassId}`);
+      setStudents(res.data.data || []);
     } catch (error) {
-      toast.error('Failed to load students');
+      toast.error('Failed to load students for this class');
     } finally {
       setLoading(false);
     }
@@ -177,11 +236,22 @@ const Attendance: React.FC = () => {
               className="pl-10 w-44 rounded-xl border-slate-200 shadow-sm focus:ring-primary/20"
             />
           </div>
-          <Button className="rounded-xl gap-2 shadow-sm" variant="outline">
-            <TrendingUp className="w-4 h-4" /> Monthly Stats
+          <Button 
+            className="rounded-xl gap-2 shadow-sm" 
+            variant="outline"
+            onClick={fetchMonthlyStats}
+            disabled={statsLoading}
+          >
+            {statsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+            Monthly Stats
           </Button>
-          <Button className="rounded-xl gap-2 shadow-md bg-slate-900 text-white">
-            <Mail className="w-4 h-4" /> Export PDF
+          <Button 
+            className="rounded-xl gap-2 shadow-md bg-slate-900 text-white"
+            onClick={handleExportPDF}
+            disabled={exporting}
+          >
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            Export PDF
           </Button>
         </div>
       </div>
@@ -264,7 +334,7 @@ const Attendance: React.FC = () => {
             onClick={() => {
               setSelectedClass(cls);
               setView('class-detail');
-              fetchStudents();
+              fetchStudents(cls.id);
             }}
           >
             <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform" />
@@ -323,6 +393,14 @@ const Attendance: React.FC = () => {
               <SelectItem value="late" className="rounded-xl font-bold text-amber-600">Late Arrivals</SelectItem>
             </SelectContent>
           </Select>
+          <Button 
+            className="rounded-xl h-11 gap-2 shadow-md bg-slate-900 text-white"
+            onClick={handleExportPDF}
+            disabled={exporting}
+          >
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            Export PDF
+          </Button>
         </div>
       </div>
 
@@ -458,6 +536,77 @@ const Attendance: React.FC = () => {
           </Card>
         </div>
       )}
+
+      {/* Monthly Stats Dialog */}
+      <Dialog open={isStatsOpen} onOpenChange={setIsStatsOpen}>
+        <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] border-none shadow-2xl overflow-hidden">
+          <DialogHeader className="p-4">
+            <DialogTitle className="text-2xl font-display font-bold flex items-center gap-3">
+              <div className="bg-indigo-50 p-2 rounded-xl"><TrendingUp className="w-6 h-6 text-indigo-600" /></div>
+              Monthly Attendance Trends
+            </DialogTitle>
+            <DialogDescription className="font-medium text-slate-500">
+              Daily presence analysis for {new Date(selectedDate).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="h-80 w-full mt-4 pr-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthlyStats}>
+                <defs>
+                  <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#94a3b8', fontSize: 10}}
+                  tickFormatter={(val) => val.split('-')[2]}
+                />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                <Tooltip 
+                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}}
+                  labelFormatter={(label) => `Date: ${label}`}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="present" 
+                  stroke="#6366f1" 
+                  strokeWidth={3} 
+                  fillOpacity={1} 
+                  fill="url(#colorPresent)" 
+                  name="Present Count"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4 mt-6 p-4">
+            <div className="p-4 rounded-3xl bg-slate-50">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Logs</p>
+              <h4 className="text-xl font-bold text-slate-900">{monthlyStats.reduce((acc, curr) => acc + curr.total, 0)}</h4>
+            </div>
+            <div className="p-4 rounded-3xl bg-emerald-50">
+              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Avg Presence</p>
+              <h4 className="text-xl font-bold text-emerald-600">
+                {monthlyStats.length > 0 
+                  ? Math.round((monthlyStats.reduce((acc, curr) => acc + curr.present, 0) / monthlyStats.reduce((acc, curr) => acc + curr.total, 0)) * 100) 
+                  : 0}%
+              </h4>
+            </div>
+            <div className="p-4 rounded-3xl bg-rose-50">
+              <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-1">Peak Absences</p>
+              <h4 className="text-xl font-bold text-rose-600">
+                {Math.max(...monthlyStats.map(s => s.absent), 0)}
+              </h4>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

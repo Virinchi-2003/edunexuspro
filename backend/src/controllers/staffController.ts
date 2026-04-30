@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { staff, users, teacherClassAssignments, classes, students, attendance, exams, timetableSlots } from '../db/schema';
+import { staff, users, teacherClassAssignments, classes, students, attendance, exams, timetableSlots, leaveRequests } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql, inArray, desc } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
 
 export const getStaffBySchool = asyncHandler(async (req: Request, res: Response) => {
@@ -150,28 +150,87 @@ export const assignClasses = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const getTeacherClasses = asyncHandler(async (req: Request, res: Response) => {
-  const teacherId = getSingleValue(req.params.teacherId);
+  const staffId = getSingleValue(req.params.teacherId);
 
-  const result = await db.query.teacherClassAssignments.findMany({
-    where: eq(teacherClassAssignments.teacherId, teacherId),
-    with: {
-      class: {
-        with: {
-          students: true
-        }
-      }
-    }
+  // 1. Get Teacher Profile
+  const teacher = await db.query.staff.findFirst({
+    where: eq(staff.id, staffId)
   });
 
+  if (!teacher) {
+    return res.status(404).json({ status: 'error', message: 'Teacher profile not found' });
+  }
+
+  // 2. Collect all associated Class IDs from multiple sources
+  const assignments = await db.query.teacherClassAssignments.findMany({
+    where: eq(teacherClassAssignments.teacherId, staffId),
+  });
+  const classIdsFromAssignments = assignments.map(a => a.classId);
+
+  const timetableSlotsAll = await db.query.timetableSlots.findMany({
+    where: eq(timetableSlots.teacherId, staffId),
+    with: {
+      timetable: true
+    }
+  });
+  const classIdsFromTimetable = timetableSlotsAll.map(s => s.timetable?.classId).filter(Boolean);
+
+  let classIdsFromStaffField: string[] = [];
+  if (teacher.classes) {
+    let legacyClasses: string[] = [];
+    try {
+      const parsed = JSON.parse(teacher.classes);
+      if (Array.isArray(parsed)) legacyClasses = parsed;
+    } catch (e) {
+      legacyClasses = teacher.classes.split(',').map(s => s.trim()).filter(s => s);
+    }
+    
+    // Map legacy class names to actual class IDs
+    const allClasses = await db.query.classes.findMany({
+      where: eq(classes.schoolId, teacher.schoolId)
+    });
+    
+    for (const a of legacyClasses) {
+      const lowerA = a.toLowerCase().trim();
+      const cleanA = lowerA.replace(/(\d+)(st|nd|rd|th)/i, '$1').replace(/[\s-]/g, '').replace(/^class/i, '');
+      
+      const matched = allClasses.filter(c => {
+        const className = c.name.toLowerCase().trim();
+        const sectionName = (c.section || '').toLowerCase().trim();
+        const cleanClassName = className.replace(/(\d+)(st|nd|rd|th)/i, '$1');
+        const cleanC = `${cleanClassName}${sectionName}`.replace(/[\s-]/g, '');
+        
+        return c.id === a || cleanA === cleanC || cleanA === cleanClassName || lowerA.includes(cleanC) || cleanA.includes(cleanC);
+      });
+      
+      classIdsFromStaffField.push(...matched.map(m => m.id));
+    }
+  }
+
+  const myClassIds = Array.from(new Set([
+    ...classIdsFromAssignments, 
+    ...classIdsFromTimetable, 
+    ...classIdsFromStaffField
+  ]));
+
+  // 3. Fetch full class details with students
+  const myClasses = myClassIds.length > 0 ? await db.query.classes.findMany({
+    where: inArray(classes.id, myClassIds),
+    with: {
+      students: true
+    }
+  }) : [];
+
   // Transform to match requested response format
-  const transformed = result.map(a => ({
-    classId: a.classId,
-    className: `${a.class.name}-${a.class.section}`,
-    students: a.class.students
+  const transformed = myClasses.map(cls => ({
+    classId: cls.id,
+    className: `${cls.name}-${cls.section}`,
+    students: cls.students
   }));
 
   res.status(200).json({ status: 'success', data: transformed });
 });
+
 
 export const getTeacherDashboardStats = asyncHandler(async (req: Request, res: Response) => {
   const staffId = getSingleValue(req.params.staffId);
@@ -188,25 +247,75 @@ export const getTeacherDashboardStats = asyncHandler(async (req: Request, res: R
     return res.status(404).json({ status: 'error', message: 'Teacher profile not found' });
   }
 
-  // 2. Get Assigned Classes
+  // 2. Collect all associated Class IDs from multiple sources
+  
+  // A. From formal assignments
   const assignments = await db.query.teacherClassAssignments.findMany({
     where: eq(teacherClassAssignments.teacherId, staffId),
+  });
+  const classIdsFromAssignments = assignments.map(a => a.classId);
+
+  // B. From timetable slots (The teacher might be in the timetable but not formally "assigned")
+  const timetableSlotsAll = await db.query.timetableSlots.findMany({
+    where: eq(timetableSlots.teacherId, staffId),
     with: {
-      class: {
-        with: {
-          students: true
-        }
-      }
+      timetable: true
     }
   });
+  const classIdsFromTimetable = timetableSlotsAll.map(s => s.timetable?.classId).filter(Boolean);
 
-  const myClassIds = assignments.map(a => a.classId);
-  const myClassNames = assignments.map(a => `${a.class.name}-${a.class.section}`.toLowerCase());
+  // C. From staff.classes field (legacy or manual entry)
+  let classIdsFromStaffField: string[] = [];
+  if (teacher.classes) {
+    let legacyClasses: string[] = [];
+    try {
+      const parsed = JSON.parse(teacher.classes);
+      if (Array.isArray(parsed)) legacyClasses = parsed;
+    } catch (e) {
+      legacyClasses = teacher.classes.split(',').map(s => s.trim()).filter(s => s);
+    }
+    
+    // Map legacy class names to actual class IDs
+    const allClasses = await db.query.classes.findMany({
+      where: eq(classes.schoolId, teacher.schoolId)
+    });
+    
+    for (const a of legacyClasses) {
+      const lowerA = a.toLowerCase().trim();
+      const cleanA = lowerA.replace(/(\d+)(st|nd|rd|th)/i, '$1').replace(/[\s-]/g, '').replace(/^class/i, '');
+      
+      const matched = allClasses.filter(c => {
+        const className = c.name.toLowerCase().trim();
+        const sectionName = (c.section || '').toLowerCase().trim();
+        const cleanClassName = className.replace(/(\d+)(st|nd|rd|th)/i, '$1');
+        const cleanC = `${cleanClassName}${sectionName}`.replace(/[\s-]/g, '');
+        
+        return c.id === a || cleanA === cleanC || cleanA === cleanClassName || lowerA.includes(cleanC) || cleanA.includes(cleanC);
+      });
+      
+      classIdsFromStaffField.push(...matched.map(m => m.id));
+    }
+  }
 
-  // 3. Calculate Total Students
-  const totalStudents = assignments.reduce((acc, curr) => acc + (curr.class.students?.length || 0), 0);
+  // Unified unique Class IDs
+  const myClassIds = Array.from(new Set([
+    ...classIdsFromAssignments, 
+    ...classIdsFromTimetable, 
+    ...classIdsFromStaffField
+  ]));
 
-  // 4. Calculate Present Today
+  // 3. Fetch all relevant Class details with Students
+  const myClasses = myClassIds.length > 0 ? await db.query.classes.findMany({
+    where: inArray(classes.id, myClassIds),
+    with: {
+      students: true
+    }
+  }) : [];
+
+  // 4. Calculate Stats
+  const totalStudents = myClasses.reduce((acc, curr) => acc + (curr.students?.length || 0), 0);
+
+  // 5. Calculate Present Today
   let presentToday = 0;
   if (myClassIds.length > 0) {
     const todayAttendance = await db.query.attendance.findMany({
@@ -219,7 +328,7 @@ export const getTeacherDashboardStats = asyncHandler(async (req: Request, res: R
     presentToday = todayAttendance.length;
   }
 
-  // 5. Get Upcoming Exams (Filtered by Teacher's Classes)
+  // 6. Get Upcoming Exams
   const allExams = await db.query.exams.findMany({
     where: eq(exams.schoolId, teacher.schoolId)
   });
@@ -230,8 +339,8 @@ export const getTeacherDashboardStats = asyncHandler(async (req: Request, res: R
     return examClassIds.some(cid => myClassIds.includes(cid));
   });
 
-  // 6. Get Today's Schedule from Timetable
-  const timetableSlotsRes = await db.query.timetableSlots.findMany({
+  // 7. Get Today's Schedule
+  const timetableSlotsToday = await db.query.timetableSlots.findMany({
     where: and(
       eq(timetableSlots.teacherId, staffId),
       eq(timetableSlots.dayOfWeek, currentDay)
@@ -245,14 +354,14 @@ export const getTeacherDashboardStats = asyncHandler(async (req: Request, res: R
     }
   });
 
-  const todaySchedule = timetableSlotsRes.map(slot => ({
+  const todaySchedule = timetableSlotsToday.map(slot => ({
     startTime: slot.startTime,
     endTime: slot.endTime,
     subject: slot.subject,
-    classId: slot.timetable.classId,
-    className: slot.timetable.class.name,
-    section: slot.timetable.class.section,
-    room: slot.roomId // This would ideally be mapped to room name
+    classId: slot.timetable?.classId,
+    className: slot.timetable?.class?.name || 'Unknown',
+    section: slot.timetable?.class?.section || '',
+    room: slot.roomId
   })).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   res.status(200).json({
@@ -265,11 +374,98 @@ export const getTeacherDashboardStats = asyncHandler(async (req: Request, res: R
         upcomingClasses: todaySchedule.length
       },
       todaySchedule,
-      assignedClasses: assignments.map(a => ({
-        classId: a.classId,
-        className: `${a.class.name}-${a.class.section}`,
-        students: a.class.students
+      assignedClasses: myClasses.map(cls => ({
+        classId: cls.id,
+        className: `${cls.name}-${cls.section}`,
+        students: cls.students
       }))
     }
   });
+});
+
+
+export const getLeavesByTeacher = asyncHandler(async (req: Request, res: Response) => {
+  const staffId = getSingleValue(req.params.staffId);
+  
+  const teacher = await db.query.staff.findFirst({ where: eq(staff.id, staffId) });
+  if (!teacher) return res.status(404).json({ status: 'error', message: 'Teacher not found' });
+
+  // Collect all associated Class IDs from multiple sources
+  const assignments = await db.query.teacherClassAssignments.findMany({ where: eq(teacherClassAssignments.teacherId, staffId) });
+  const classIdsFromAssignments = assignments.map(a => a.classId);
+
+  const timetableSlotsAll = await db.query.timetableSlots.findMany({
+    where: eq(timetableSlots.teacherId, staffId),
+    with: { timetable: true }
+  });
+  const classIdsFromTimetable = timetableSlotsAll.map(s => s.timetable?.classId).filter(Boolean) as string[];
+
+  let classIdsFromStaffField: string[] = [];
+  if (teacher.classes) {
+    let legacyClasses: string[] = [];
+    try {
+      const parsed = JSON.parse(teacher.classes);
+      if (Array.isArray(parsed)) legacyClasses = parsed;
+    } catch (e) {
+      legacyClasses = teacher.classes.split(',').map(s => s.trim()).filter(s => s);
+    }
+    
+    const allClasses = await db.query.classes.findMany({
+      where: eq(classes.schoolId, teacher.schoolId)
+    });
+    
+    for (const a of legacyClasses) {
+      const lowerA = a.toLowerCase().trim();
+      const cleanA = lowerA.replace(/(\d+)(st|nd|rd|th)/i, '$1').replace(/[\s-]/g, '').replace(/^class/i, '');
+      const matched = allClasses.filter(c => {
+        const className = c.name.toLowerCase().trim();
+        const sectionName = (c.section || '').toLowerCase().trim();
+        const cleanClassName = className.replace(/(\d+)(st|nd|rd|th)/i, '$1');
+        const cleanC = `${cleanClassName}${sectionName}`.replace(/[\s-]/g, '');
+        return c.id === a || cleanA === cleanC || cleanA === cleanClassName || lowerA.includes(cleanC) || cleanA.includes(cleanC);
+      });
+      classIdsFromStaffField.push(...matched.map(m => m.id));
+    }
+  }
+
+  const myClassIds = Array.from(new Set([...classIdsFromAssignments, ...classIdsFromTimetable, ...classIdsFromStaffField]));
+
+  // Get students in these classes
+  const myStudents = await db.query.students.findMany({
+    where: inArray(students.classId, myClassIds.length > 0 ? myClassIds : ['none'])
+  });
+
+  const studentIds = myStudents.map(s => s.id);
+
+  if (studentIds.length === 0) {
+    return res.status(200).json({ status: 'success', data: [] });
+  }
+
+  const leaves = await db.query.leaveRequests.findMany({
+    where: and(
+      eq(leaveRequests.schoolId, teacher.schoolId),
+      inArray(leaveRequests.studentId, studentIds)
+    ),
+    with: {
+      student: true
+    },
+    orderBy: [desc(leaveRequests.createdAt)]
+  });
+
+  res.status(200).json({ status: 'success', data: leaves });
+});
+
+export const updateLeaveStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { leaveId, status, teacherMessage, staffId } = req.body;
+
+  await db.update(leaveRequests)
+    .set({ 
+      status, 
+      teacherMessage, 
+      approvedBy: staffId,
+      updatedAt: new Date().toISOString() 
+    } as any)
+    .where(eq(leaveRequests.id, leaveId));
+
+  res.status(200).json({ status: 'success', message: `Leave ${status} successfully` });
 });

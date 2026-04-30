@@ -179,3 +179,170 @@ export const generateExamSchedulePDF = (examData: any, res: Response) => {
 
   doc.end();
 };
+
+export const generateAttendanceReportPDF = (reportData: any, res: Response) => {
+  const doc = new PDFDocument({ margin: 50 });
+  doc.pipe(res);
+
+  doc
+    .fontSize(20)
+    .text('EduNexus Pro - Attendance Report', { align: 'center' })
+    .moveDown();
+
+  doc
+    .fontSize(12)
+    .text(`School: ${reportData.schoolName}`)
+    .text(`Date: ${reportData.date}`)
+    .text(`Type: ${reportData.type.toUpperCase()} Attendance`)
+    .moveDown();
+
+  // Table Header
+  doc.fontSize(10).font('Helvetica-Bold');
+  doc.text('Name', 50, 180, { width: 200 });
+  doc.text('ID', 250, 180, { width: 100 });
+  doc.text('Status', 350, 180, { width: 100 });
+  doc.text('Remarks', 450, 180, { width: 100 });
+  doc.moveTo(50, 195).lineTo(550, 195).stroke();
+
+  doc.font('Helvetica');
+  let y = 205;
+  
+  reportData.records.forEach((r: any) => {
+    const name = r.student ? r.student.name : (r.staff ? r.staff.name : 'N/A');
+    const id = r.student ? r.student.studentId : (r.staff ? r.staff.id.slice(0,8) : 'N/A');
+
+    doc.text(name, 50, y, { width: 200 });
+    doc.text(id, 250, y, { width: 100 });
+    doc.text(r.status.toUpperCase(), 350, y, { width: 100 });
+    doc.text(r.remarks || '-', 450, y, { width: 100 });
+    
+    y += 20;
+
+    if (y > 700) {
+      doc.addPage();
+      y = 50;
+    }
+  });
+
+  doc.end();
+};
+export const generateGradebookPDF = (data: any, res: Response) => {
+  const doc = new PDFDocument({ margin: 50 });
+  doc.pipe(res);
+
+  doc
+    .fontSize(22)
+    .text('EduNexus Pro - Academic Gradebook', { align: 'center' })
+    .moveDown();
+
+  doc
+    .fontSize(12)
+    .text(`Exam: ${data.examName}`)
+    .text(`Class: ${data.className}`)
+    .text(`Subject: ${data.subject}`)
+    .text(`Term: ${data.term}`)
+    .text(`Date Generated: ${new Date().toLocaleDateString()}`)
+    .moveDown();
+
+  // Table Header
+  doc.fontSize(10).font('Helvetica-Bold');
+  doc.text('Student Name', 50, 180, { width: 180 });
+  doc.text('Student ID', 230, 180, { width: 80 });
+  doc.text('Marks', 320, 180, { width: 60 });
+  doc.text('Grade', 390, 180, { width: 50 });
+  doc.text('Remarks', 450, 180, { width: 100 });
+  doc.moveTo(50, 195).lineTo(550, 195).stroke();
+
+  doc.font('Helvetica');
+  let y = 205;
+
+  data.records.forEach((r: any) => {
+    doc.text(r.studentName, 50, y, { width: 180 });
+    doc.text(r.studentId, 230, y, { width: 80 });
+    doc.text(`${r.marksObtained}/${data.totalMarks}`, 320, y, { width: 60 });
+    doc.text(r.grade, 390, y, { width: 50 });
+    doc.text(r.comments || '-', 450, y, { width: 100 });
+    
+    y += 20;
+
+    if (y > 700) {
+      doc.addPage();
+      y = 50;
+    }
+  });
+
+  doc.end();
+};
+
+export const generateFeeReceiptPDF = (data: any, res: Response) => {
+  const doc = new PDFDocument({ margin: 50 });
+  doc.pipe(res);
+
+  const school = data.student?.school;
+  const student = data.student;
+
+  // Header - School Details
+  doc.fillColor('#1e293b').fontSize(24).font('Helvetica-Bold').text(school?.name || 'EduNexus Pro Institution', { align: 'center' });
+  doc.fontSize(10).font('Helvetica').text(school?.address || 'Institutional Area, Tech Park, City', { align: 'center' });
+  doc.text(`Contact: ${school?.phone || '+91 98765 43210'} | Email: ${school?.email || 'admin@edunexus.pro'}`, { align: 'center' });
+  doc.moveDown(2);
+
+  // Receipt Label
+  doc.rect(50, 120, 500, 30).fill('#f1f5f9');
+  doc.fillColor('#0f172a').fontSize(14).font('Helvetica-Bold').text('FEE PAYMENT RECEIPT', 50, 128, { align: 'center' });
+  doc.moveDown(2);
+
+  // info
+  const startY = 170;
+  doc.fontSize(10).font('Helvetica-Bold').text('RECEIPT DETAILS', 50, startY);
+  doc.font('Helvetica');
+  doc.text(`Invoice No: ${data.invoiceNumber || 'INV-'+data.id.slice(0,8).toUpperCase()}`, 50, startY + 20);
+  doc.text(`Transaction ID: ${data.razorpayPaymentId || data.id}`, 50, startY + 35);
+  doc.text(`Date: ${new Date(data.createdAt).toLocaleDateString()}`, 50, startY + 50);
+  doc.text(`Payment Method: ${data.paymentMethod?.toUpperCase() || 'ONLINE'}`, 50, startY + 65);
+
+  doc.font('Helvetica-Bold').text('STUDENT INFORMATION', 300, startY);
+  doc.font('Helvetica');
+  doc.text(`Name: ${student?.name}`, 300, startY + 20);
+  doc.text(`Student ID: ${student?.studentId}`, 300, startY + 35);
+  doc.text(`Class/Grade: ${student?.grade || 'N/A'}`, 300, startY + 50);
+
+  doc.moveDown(6);
+
+  // Table
+  const tableY = 270;
+  doc.rect(50, tableY, 500, 20).fill('#1e293b');
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(10);
+  doc.text('Description', 60, tableY + 5);
+  doc.text('Category', 300, tableY + 5);
+  doc.text('Amount (₹)', 480, tableY + 5, { align: 'right', width: 60 });
+
+  doc.fillColor('#0f172a').font('Helvetica');
+  doc.text(`Academic Fee Payment - ${data.category?.toUpperCase() || 'GENERAL'}`, 60, tableY + 30);
+  doc.text(data.category || 'Tuition', 300, tableY + 30);
+  doc.text(data.amount.toLocaleString(), 480, tableY + 30, { align: 'right', width: 60 });
+
+  doc.moveTo(50, tableY + 50).lineTo(550, tableY + 50).stroke('#e2e8f0');
+
+  // Calculation
+  const calcY = tableY + 70;
+  const subtotal = data.amount - (data.gstAmount || 0);
+  
+  doc.text('Subtotal:', 400, calcY);
+  doc.text(`₹ ${subtotal.toLocaleString()}`, 480, calcY, { align: 'right', width: 60 });
+
+  doc.text('GST (18%):', 400, calcY + 20);
+  doc.text(`₹ ${(data.gstAmount || 0).toLocaleString()}`, 480, calcY + 20, { align: 'right', width: 60 });
+
+  doc.rect(380, calcY + 40, 170, 25).fill('#f8fafc');
+  doc.fillColor('#1e293b').font('Helvetica-Bold');
+  doc.text('TOTAL PAID:', 400, calcY + 48);
+  doc.text(`₹ ${data.amount.toLocaleString()}`, 480, calcY + 48, { align: 'right', width: 60 });
+
+  // Footer
+  doc.moveDown(8);
+  doc.fontSize(8).fillColor('#94a3b8').text('This is a computer-generated receipt and does not require a physical signature.', { align: 'center' });
+  doc.text('Thank you for choosing EduNexus Pro.', { align: 'center' });
+
+  doc.end();
+};

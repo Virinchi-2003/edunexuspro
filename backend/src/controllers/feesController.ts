@@ -3,8 +3,17 @@ import { db } from '../config/database';
 import { fees, students, classes } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
+import { feeTransactions } from '../db/schema';
+import { generateFeeReceiptPDF } from '../utils/pdfGenerator';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_dummy',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
+});
 
 export const getFeesBySchool = asyncHandler(async (req: Request, res: Response) => {
   const schoolId = getSingleValue(req.params.schoolId);
@@ -192,4 +201,127 @@ export const sendFeeReminders = asyncHandler(async (req: Request, res: Response)
     message: `Successfully dispatched ${remindersSent.length} WhatsApp and Email reminders.`,
     data: remindersSent 
   });
+});
+
+export const getStudentFees = asyncHandler(async (req: Request, res: Response) => {
+  const studentId = getSingleValue(req.params.studentId);
+  
+  const studentFees = await db.query.fees.findMany({
+    where: eq(fees.studentId, studentId),
+    orderBy: [desc(fees.createdAt)]
+  });
+
+  const transactions = await db.query.feeTransactions.findMany({
+    where: and(eq(feeTransactions.studentId, studentId), eq(feeTransactions.status, 'success')),
+    orderBy: [desc(feeTransactions.createdAt)]
+  });
+
+  res.status(200).json({ 
+    status: 'success', 
+    data: {
+      fees: studentFees,
+      transactions
+    } 
+  });
+});
+
+export const downloadFeeReceipt = asyncHandler(async (req: Request, res: Response) => {
+  const transactionId = getSingleValue(req.params.transactionId);
+  
+  const transaction = await db.query.feeTransactions.findFirst({
+    where: eq(feeTransactions.id, transactionId),
+    with: {
+      student: {
+        with: {
+          school: true
+        }
+      }
+    }
+  });
+
+  if (!transaction) {
+    return res.status(404).json({ status: 'error', message: 'Transaction not found' });
+  }
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=receipt-${transactionId}.pdf`);
+  
+  generateFeeReceiptPDF(transaction, res);
+});
+
+export const createRazorpayOrder = asyncHandler(async (req: Request, res: Response) => {
+  const { amount, currency = 'INR', receipt } = req.body;
+
+  const options = {
+    amount: amount * 100, // Amount in paise
+    currency,
+    receipt,
+  };
+
+  try {
+    const order = await razorpay.orders.create(options);
+    res.status(200).json({ status: 'success', data: order });
+  } catch (error) {
+    console.error('Razorpay Error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to create Razorpay order' });
+  }
+});
+
+export const verifyPayment = asyncHandler(async (req: Request, res: Response) => {
+  const { 
+    razorpay_order_id, 
+    razorpay_payment_id, 
+    razorpay_signature,
+    studentId,
+    schoolId,
+    feeId,
+    amount,
+    category
+  } = req.body;
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || 'dummy_secret')
+    .update(body.toString())
+    .digest("hex");
+
+  if (expectedSignature === razorpay_signature) {
+    // Payment is authentic
+    const transactionId = uuidv4();
+    const gstAmount = amount * 0.18; // 18% GST
+
+    await db.insert(feeTransactions).values({
+      id: transactionId,
+      schoolId,
+      studentId,
+      amount,
+      category: category || 'tuition',
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      status: 'success',
+      gstAmount,
+      invoiceNumber: `INV-${transactionId.slice(0,8).toUpperCase()}`,
+      paymentMethod: 'razorpay'
+    });
+
+    // Update fee record status
+    if (feeId) {
+      await db.update(fees)
+        .set({ 
+          status: 'paid', 
+          paidAmount: amount, 
+          transactionId: razorpay_payment_id,
+          paymentDate: new Date().toISOString() 
+        })
+        .where(eq(fees.id, feeId));
+    }
+
+    res.status(200).json({ 
+      status: 'success', 
+      message: 'Payment verified successfully',
+      data: { transactionId }
+    });
+  } else {
+    res.status(400).json({ status: 'error', message: 'Invalid payment signature' });
+  }
 });

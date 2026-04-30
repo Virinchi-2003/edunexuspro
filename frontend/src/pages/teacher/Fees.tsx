@@ -48,10 +48,11 @@ const TeacherFees: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [profileRes, classRes, studentsRes] = await Promise.all([
+      const [profileRes, classRes, studentsRes, feesRes] = await Promise.all([
         api.get(`/staff/user/${user.uid}`),
         api.get(`/classes/school/${user.schoolId}`),
-        api.get(`/students/school/${user.schoolId}`)
+        api.get(`/students/school/${user.schoolId}`),
+        api.get(`/fees/school/${user.schoolId}`)
       ]);
 
       const profile = profileRes.data.data;
@@ -74,10 +75,22 @@ const TeacherFees: React.FC = () => {
       setAssignedClasses(matchedClasses);
       const classIds = matchedClasses.map((c: any) => c.id);
 
+      const fees = feesRes.data.data?.fees || [];
+
       // Filter students who belong to these assigned classes
       const filteredStudents = studentsRes.data.data.filter((s: any) => 
         classIds.includes(s.classId) || matchedClasses.some((c: any) => c.name === s.grade)
-      );
+      ).map((s: any) => {
+        const studentFees = fees.filter((f: any) => f.studentId === s.id);
+        const hasUnpaid = studentFees.length === 0 || studentFees.some((f: any) => f.status !== 'paid');
+        return {
+          ...s,
+          studentFees,
+          feeStatus: hasUnpaid ? 'pending' : 'paid',
+          totalFee: studentFees.reduce((acc: number, f: any) => acc + (f.amount + (f.lateFee || 0)), 0),
+          totalPaid: studentFees.reduce((acc: number, f: any) => acc + (f.paidAmount || 0), 0)
+        };
+      });
       
       setStudents(filteredStudents);
     } catch (error) {
@@ -95,7 +108,7 @@ const TeacherFees: React.FC = () => {
     const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          s.studentId.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const isPaid = s.status === 'active';
+    const isPaid = s.feeStatus === 'paid';
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'paid' && isPaid) || 
                          (statusFilter === 'pending' && !isPaid);
@@ -106,10 +119,11 @@ const TeacherFees: React.FC = () => {
   });
 
   const getFeeStatus = (student: any) => {
-    // Simulate fee logic for demonstration (in real app, this would come from a fee_payments table)
-    const isPaid = student.status === 'active'; // Simple mockup logic
-    if (isPaid) {
+    const isPaid = student.feeStatus === 'paid';
+    if (isPaid && student.studentFees.length > 0) {
       return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-3 py-1 font-bold">Full Paid</Badge>;
+    } else if (student.studentFees.length === 0) {
+      return <Badge className="bg-slate-100 text-slate-500 hover:bg-slate-100 border-none px-3 py-1 font-bold">No Records</Badge>;
     }
     return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-3 py-1 font-bold">Pending</Badge>;
   };
@@ -189,7 +203,7 @@ const TeacherFees: React.FC = () => {
               </div>
               <div>
                  <div className="text-2xl font-display font-bold text-slate-900">
-                   {students.filter(s => s.status === 'active').length}
+                   {students.filter(s => s.feeStatus === 'paid' && s.studentFees.length > 0).length}
                  </div>
                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Paid Students</div>
               </div>
@@ -203,7 +217,7 @@ const TeacherFees: React.FC = () => {
               </div>
               <div>
                  <div className="text-2xl font-display font-bold text-slate-900">
-                   {students.filter(s => s.status !== 'active').length}
+                   {students.filter(s => s.feeStatus !== 'paid' && s.studentFees.length > 0).length}
                  </div>
                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Defaulters</div>
               </div>
@@ -217,7 +231,11 @@ const TeacherFees: React.FC = () => {
                  <p className="text-slate-400 text-xs font-medium">Class-wise collection status for Term-1</p>
               </div>
               <div className="text-right">
-                 <div className="text-3xl font-display font-bold">84%</div>
+                 <div className="text-3xl font-display font-bold">
+                   {students.reduce((acc, s) => acc + s.totalFee, 0) > 0 
+                     ? Math.round((students.reduce((acc, s) => acc + s.totalPaid, 0) / students.reduce((acc, s) => acc + s.totalFee, 0)) * 100) 
+                     : 0}%
+                 </div>
                  <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Collected</div>
               </div>
            </div>
@@ -311,52 +329,47 @@ const TeacherFees: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Fee</div>
-                  <div className="text-xl font-display font-bold text-slate-900">₹45,000</div>
+                  <div className="text-xl font-display font-bold text-slate-900">₹{selectedStudent?.totalFee?.toLocaleString() || 0}</div>
                </div>
                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
                   <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Paid</div>
                   <div className="text-xl font-display font-bold text-emerald-700">
-                    {selectedStudent?.status === 'active' ? '₹45,000' : '₹25,000'}
+                    ₹{selectedStudent?.totalPaid?.toLocaleString() || 0}
                   </div>
                </div>
             </div>
 
-            <div className="space-y-3">
-               <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-indigo-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600"><CheckCircle2 className="w-4 h-4" /></div>
-                     <span className="font-bold text-slate-700">Term 1 Fees</span>
-                  </div>
-                  <Badge className="bg-emerald-100 text-emerald-700 border-none font-bold">Paid</Badge>
-               </div>
-               <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-indigo-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${selectedStudent?.status === 'active' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'}`}>
-                       {selectedStudent?.status === 'active' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                     </div>
-                     <span className="font-bold text-slate-700">Term 2 Fees</span>
-                  </div>
-                  {selectedStudent?.status === 'active' ? (
-                    <Badge className="bg-emerald-100 text-emerald-700 border-none font-bold">Paid</Badge>
-                  ) : (
-                    <Badge className="bg-rose-100 text-rose-700 border-none font-bold">Pending</Badge>
-                  )}
-               </div>
-               <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-indigo-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400"><TrendingUp className="w-4 h-4" /></div>
-                     <span className="font-bold text-slate-700">Exam & Library Fees</span>
-                  </div>
-                  <Badge variant="outline" className="text-slate-400 border-slate-200">Upcoming</Badge>
-               </div>
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+               {selectedStudent?.studentFees?.length > 0 ? (
+                 selectedStudent.studentFees.map((fee: any) => (
+                   <div key={fee.id} className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-indigo-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${fee.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                           {fee.status === 'paid' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                         </div>
+                         <div>
+                           <span className="font-bold text-slate-700">{fee.feeType}</span>
+                           <div className="text-xs text-slate-400">₹{fee.amount?.toLocaleString()} {fee.lateFee ? `(+₹${fee.lateFee} Late)` : ''}</div>
+                         </div>
+                      </div>
+                      {fee.status === 'paid' ? (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-none font-bold">Paid</Badge>
+                      ) : (
+                        <Badge className="bg-rose-100 text-rose-700 border-none font-bold">Pending</Badge>
+                      )}
+                   </div>
+                 ))
+               ) : (
+                 <div className="text-center py-6 text-slate-500 italic text-sm">No fee records found for this student.</div>
+               )}
             </div>
 
             <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 flex items-start gap-3">
-               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                <p className="text-xs text-amber-800 font-medium leading-relaxed">
-                 {selectedStudent?.status === 'active' 
+                 {selectedStudent?.feeStatus === 'paid' && selectedStudent?.studentFees?.length > 0
                    ? "All academic dues for the current term have been cleared. No further action required."
-                   : "Term 2 payment is currently overdue. Automated reminder has been sent to the parent portal."}
+                   : "There are pending payments or no records created yet. Please follow up if necessary."}
                </p>
             </div>
           </div>

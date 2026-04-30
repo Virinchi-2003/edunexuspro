@@ -9,8 +9,10 @@ import {
   getStudentAttendance,
   getStaffAttendance,
   getAttendanceByClass,
-  markAttendanceByQR
+  markAttendanceByQR,
+  getMonthlyAttendanceStats
 } from '../controllers/attendanceController';
+
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -19,6 +21,7 @@ router.get('/school/:schoolId', authenticate, authorize(['admin', 'principal', '
 router.get('/class/:schoolId/:classId', authenticate, authorize(['admin', 'principal', 'staff', 'teacher']), getAttendanceByClass);
 router.get('/student/:studentId', authenticate, getStudentAttendance);
 router.get('/staff/:staffId', authenticate, getStaffAttendance);
+router.get('/stats/:schoolId', authenticate, authorize(['admin', 'principal']), getMonthlyAttendanceStats);
 router.post('/mark', authenticate, authorize(['admin', 'principal', 'staff', 'teacher']), markAttendance);
 router.post('/qr', authenticate, authorize(['admin', 'principal', 'staff', 'teacher']), markAttendanceByQR);
 router.post('/send-alerts', authenticate, authorize(['admin', 'principal']), sendAlerts);

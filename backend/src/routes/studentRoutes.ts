@@ -12,6 +12,10 @@ import {
   getStudentLeaves,
   applyLeave
 } from '../controllers/studentController';
+import { 
+  getStudentHomeworkList, 
+  submitHomework 
+} from '../controllers/homeworkController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -25,6 +29,10 @@ router.get('/user/:userId', getStudentByUser);
 router.get('/homework/:classId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentHomework);
 router.get('/leave/:studentId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentLeaves);
 router.post('/leave', applyLeave);
+
+// Homework
+router.get('/homework-list/:classId', authorize(['student']), getStudentHomeworkList);
+router.post('/homework/submit', authorize(['student']), submitHomework);
 router.post('/', authorize(['admin', 'principal', 'staff', 'teacher']), createStudent);
 router.post('/bulk', authorize(['admin', 'principal', 'staff', 'teacher']), bulkCreateStudents);
 router.put('/:id', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), updateStudent);

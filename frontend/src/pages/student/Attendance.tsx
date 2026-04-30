@@ -24,7 +24,7 @@ const StudentAttendance: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const studentRes = await api.get(`/students/user/${user.id}`);
+      const studentRes = await api.get(`/students/user/${user.uid}`);
       const sData = studentRes.data.data;
       setStudent(sData);
 
@@ -40,8 +40,24 @@ const StudentAttendance: React.FC = () => {
   };
 
   useEffect(() => {
-    if (user?.id) fetchData();
+    if (user?.uid) fetchData();
   }, [user]);
+
+  const calculateStats = () => {
+    const monthStr = currentMonth.toISOString().slice(0, 7);
+    const monthRecords = attendance.filter(r => r.date.startsWith(monthStr));
+    
+    const present = monthRecords.filter(r => r.status === 'present').length;
+    const late = monthRecords.filter(r => r.status === 'late').length;
+    const absent = monthRecords.filter(r => r.status === 'absent').length;
+    const total = monthRecords.length;
+    
+    const percentage = total > 0 ? ((present + (late * 0.5)) / total * 100).toFixed(1) : '0.0';
+    
+    return { present, absent, late, total, percentage };
+  };
+
+  const stats = calculateStats();
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -131,15 +147,15 @@ const StudentAttendance: React.FC = () => {
              <div className="relative z-10">
                <TrendingUp className="w-8 h-8 text-emerald-400 mb-6" />
                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Monthly Average</p>
-               <h3 className="text-5xl font-display font-bold mt-2">94.5%</h3>
+               <h3 className="text-5xl font-display font-bold mt-2">{stats.percentage}%</h3>
                <div className="mt-8 pt-8 border-t border-white/10 grid grid-cols-2 gap-4">
                   <div>
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Present</div>
-                    <div className="text-2xl font-bold text-emerald-400">22</div>
+                    <div className="text-2xl font-bold text-emerald-400">{stats.present}</div>
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Absent</div>
-                    <div className="text-2xl font-bold text-rose-400">02</div>
+                    <div className="text-2xl font-bold text-rose-400">{stats.absent}</div>
                   </div>
                </div>
              </div>

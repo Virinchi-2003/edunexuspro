@@ -33,6 +33,8 @@ import TeacherGradebook from './pages/teacher/Gradebook';
 import TeacherFees from './pages/teacher/Fees';
 import TeacherTimetable from './pages/teacher/Timetable';
 import TeacherSettings from './pages/teacher/Settings';
+import TeacherLeave from './pages/teacher/Leave';
+import TeacherHomework from './pages/teacher/Homework';
 import AdmissionForm from './pages/AdmissionForm';
 import Login from './pages/Login';
 
@@ -116,6 +118,8 @@ const App: React.FC = () => {
                   <Route path="/exams" element={<TeacherExams />} />
                   <Route path="/gradebook" element={<TeacherGradebook />} />
                   <Route path="/fees" element={<TeacherFees />} />
+                  <Route path="/leave" element={<TeacherLeave />} />
+                  <Route path="/homework" element={<TeacherHomework />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
               </AdminLayout>
