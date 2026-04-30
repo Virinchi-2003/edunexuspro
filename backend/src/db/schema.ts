@@ -183,18 +183,6 @@ export const configs = sqliteTable('configs', {
 });
 
 
-export const feesRelations = relations(fees, ({ one }) => ({
-  student: one(students, {
-    fields: [fees.studentId],
-    references: [students.id],
-  }),
-  school: one(schools, {
-    fields: [fees.schoolId],
-    references: [schools.id],
-  }),
-}));
-
-
 
 export const schoolRelations = relations(schools, ({ many }) => ({
   students: many(students),
