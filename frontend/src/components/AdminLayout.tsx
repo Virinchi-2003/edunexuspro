@@ -71,10 +71,25 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: Settings, label: 'Settings', path: '/student/settings' },
   ];
 
+  const accountantNavItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/accountant' },
+    { icon: CreditCard, label: 'Fees Management', path: '/accountant/fees' },
+    { icon: Settings, label: 'Profile Settings', path: '/accountant/settings' },
+  ];
+
+  const coachNavItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/coach' },
+    { icon: Calendar, label: 'Sports Attendance', path: '/coach/attendance' },
+    { icon: Calendar, label: 'Training Timetable', path: '/coach/timetable' },
+    { icon: Settings, label: 'Profile Settings', path: '/coach/settings' },
+  ];
+
   const getNavItems = () => {
     switch (user?.role) {
       case 'admin': return adminNavItems;
       case 'principal': return principalNavItems;
+      case 'accountant': return accountantNavItems;
+      case 'coach': return coachNavItems;
       case 'staff':
       case 'teacher': return teacherNavItems;
       case 'student': return studentNavItems;
@@ -94,7 +109,13 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
         <div className="p-6">
-          <NavLink to={user?.role === 'admin' ? '/admin' : user?.role === 'principal' ? '/principal' : (user?.role === 'staff' || user?.role === 'teacher') ? '/teacher' : '/student'}>
+          <NavLink to={
+            user?.role === 'admin' ? '/admin' : 
+            user?.role === 'principal' ? '/principal' : 
+            user?.role === 'accountant' ? '/accountant' : 
+            user?.role === 'coach' ? '/coach' : 
+            (user?.role === 'staff' || user?.role === 'teacher') ? '/teacher' : '/student'
+          }>
             <h1 className="text-2xl font-display font-bold text-primary flex items-center gap-2">
               <School className="w-8 h-8" />
               EduNexus <span className="text-slate-400">Pro</span>

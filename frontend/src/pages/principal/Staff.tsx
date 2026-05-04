@@ -199,17 +199,23 @@ const StaffPage: React.FC = () => {
     });
   };
 
-  const filteredStaff = staffList.filter(s => 
-    (selectedDept ? s.department === selectedDept : true) &&
-    (s.name.toLowerCase().includes(search.toLowerCase()) ||
-     s.role.toLowerCase().includes(search.toLowerCase()) ||
-     s.email.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredStaff = staffList.filter(s => {
+    const isDeptMatch = selectedDept ? s.department === selectedDept : true;
+    const isSearchMatch = (s.name.toLowerCase().includes(search.toLowerCase()) ||
+                          s.role.toLowerCase().includes(search.toLowerCase()) ||
+                          s.email.toLowerCase().includes(search.toLowerCase()));
+    
+    if (selectedDept === 'non-teaching') {
+      return isDeptMatch && isSearchMatch && ['Accountant', 'Coach'].includes(s.role);
+    }
+    return isDeptMatch && isSearchMatch;
+  });
 
-  const stats = {
     teaching: staffList.filter(s => s.department === 'teaching').length,
-    nonTeaching: staffList.filter(s => s.department === 'non-teaching').length
+    nonTeaching: staffList.filter(s => s.department === 'non-teaching' && ['Accountant', 'Coach'].includes(s.role)).length
   };
+
+  const hasCoachAccess = ['Pro', 'Elite'].includes(user?.subscriptionPlan || '');
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -294,7 +300,7 @@ const StaffPage: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-slate-500 mb-6">Manage administrative staff, accountants, and campus support teams.</p>
+              <p className="text-slate-500 mb-6">Manage institutional accountants {hasCoachAccess ? 'and sports coaches' : ''}.</p>
               <div className="flex items-center text-amber-600 font-bold text-sm group-hover:gap-2 transition-all">
                 Access Department <ChevronRight className="w-4 h-4" />
               </div>
@@ -453,12 +459,24 @@ const StaffPage: React.FC = () => {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Designation / Role</label>
-              <Input 
-                value={formData.role}
-                onChange={e => setFormData({...formData, role: e.target.value})}
-                placeholder="e.g. Senior Teacher, Admin"
-                className="bg-slate-50 border-none"
-              />
+              {formData.department === 'non-teaching' ? (
+                <select 
+                  className="w-full h-10 px-3 rounded-lg bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 text-sm"
+                  value={formData.role}
+                  onChange={e => setFormData({...formData, role: e.target.value})}
+                >
+                  <option value="">Select Role</option>
+                  <option value="Accountant">Accountant</option>
+                  {hasCoachAccess && <option value="Coach">Coach</option>}
+                </select>
+              ) : (
+                <Input 
+                  value={formData.role}
+                  onChange={e => setFormData({...formData, role: e.target.value})}
+                  placeholder="e.g. Senior Teacher, Department Head"
+                  className="bg-slate-50 border-none"
+                />
+              )}
             </div>
             
             <div className="space-y-2">

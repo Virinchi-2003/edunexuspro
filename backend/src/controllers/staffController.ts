@@ -45,7 +45,7 @@ export const createStaff = asyncHandler(async (req: Request, res: Response) => {
   const id = uuidv4();
   const userId = uuidv4();
 
-  const userRole = 'staff'; // All staff use the staff portal role
+  const userRole = (role === 'Accountant' || role === 'Coach') ? role.toLowerCase() : 'staff';
 
   const newStaff = {
     id,
@@ -111,6 +111,7 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
     const userUpdate: any = {
       name: updateData.name || existingStaff.name,
       email: updateData.email || existingStaff.email,
+      role: (updateData.role === 'Accountant' || updateData.role === 'Coach') ? updateData.role.toLowerCase() : 'staff',
       updatedAt: new Date().toISOString()
     };
     if (updateData.password) {

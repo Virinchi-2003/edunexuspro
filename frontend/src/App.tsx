@@ -58,6 +58,8 @@ const HomeRedirect: React.FC = () => {
   if (!user) return <Navigate to="/login" />;
   if (user.role === 'admin') return <Navigate to="/admin" />;
   if (user.role === 'principal') return <Navigate to="/principal" />;
+  if (user.role === 'accountant') return <Navigate to="/accountant" />;
+  if (user.role === 'coach') return <Navigate to="/coach" />;
   if (user.role === 'staff' || user.role === 'teacher') return <Navigate to="/teacher" />;
   if (user.role === 'student') return <Navigate to="/student" />;
   return <Navigate to="/login" />;
@@ -123,6 +125,33 @@ const App: React.FC = () => {
                   <Route path="/leave" element={<TeacherLeave />} />
                   <Route path="/homework" element={<TeacherHomework />} />
                   <Route path="/messages" element={<TeacherMessaging />} />
+                  <Route path="/settings" element={<TeacherSettings />} />
+                </Routes>
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          {/* Accountant Routes */}
+          <Route path="/accountant/*" element={
+            <ProtectedRoute roles={['accountant']}>
+              <AdminLayout>
+                <Routes>
+                  <Route path="/" element={<div className="p-8 text-2xl font-bold">Accountant Dashboard - Coming Soon</div>} />
+                  <Route path="/fees" element={<PrincipalFees />} />
+                  <Route path="/settings" element={<TeacherSettings />} />
+                </Routes>
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          {/* Coach Routes */}
+          <Route path="/coach/*" element={
+            <ProtectedRoute roles={['coach']}>
+              <AdminLayout>
+                <Routes>
+                  <Route path="/" element={<div className="p-8 text-2xl font-bold">Coach Dashboard - Coming Soon</div>} />
+                  <Route path="/attendance" element={<TeacherAttendance />} />
+                  <Route path="/timetable" element={<TeacherTimetable />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
               </AdminLayout>
