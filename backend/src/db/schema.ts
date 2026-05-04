@@ -463,11 +463,93 @@ export const messages = sqliteTable('messages', {
 
 export const skillAssessments = sqliteTable('skill_assessments', {
   id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
   studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
-  skill: text('skill').notNull(), // Critical Thinking, Collaboration, Communication
+  sportId: text('sportId'), // Link to sport if applicable
+  skill: text('skill').notNull(), 
   score: integer('score').notNull(), // 1-5 scale
   assessedBy: text('assessedBy').references(() => staff.id),
+  comments: text('comments'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const sports = sqliteTable('sports', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(), // Football, Basketball
+  coachId: text('coachId').references(() => staff.id),
+  description: text('description'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const sportsEnrollments = sqliteTable('sports_enrollments', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  sportId: text('sportId').notNull().references(() => sports.id, { onDelete: 'cascade' }),
+  joinedAt: text('joinedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const trainingLogs = sqliteTable('training_logs', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  sportId: text('sportId').notNull().references(() => sports.id, { onDelete: 'cascade' }),
+  duration: integer('duration'), // minutes
+  intensity: integer('intensity'), // 1-10
+  loadScore: real('loadScore'),
+  notes: text('notes'),
+  date: text('date').notNull(),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const fixtures = sqliteTable('fixtures', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  sportId: text('sportId').notNull().references(() => sports.id, { onDelete: 'cascade' }),
+  opponentName: text('opponentName').notNull(),
+  venue: text('venue').notNull(),
+  locationUrl: text('locationUrl'), // Google Maps link
+  dateTime: text('dateTime').notNull(),
+  departureTime: text('departureTime'),
+  status: text('status').default('scheduled'), // scheduled, ongoing, completed
+  score: text('score'), // e.g., "2-1"
+  result: text('result'), // win, loss, draw
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const medicalRecords = sqliteTable('medical_records', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  bmi: real('bmi'),
+  staminaScore: integer('staminaScore'),
+  sprintTime: real('sprintTime'), // in seconds
+  medicalFlags: text('medicalFlags'), // JSON: ["asthma", "allergy"]
+  medications: text('medications'),
+  emergencyContact: text('emergencyContact'),
+  wearableData: text('wearableData'), // JSON for Garmin/Fitbit sync
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const inventory = sqliteTable('inventory', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  itemName: text('itemName').notNull(),
+  category: text('category').notNull(), // Kit, Equipment, Gear
+  totalQuantity: integer('totalQuantity').notNull(),
+  availableQuantity: integer('availableQuantity').notNull(),
+  lowStockAlert: integer('lowStockAlert').default(5),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const inventoryTransactions = sqliteTable('inventory_transactions', {
+  id: text('id').primaryKey(),
+  inventoryId: text('inventoryId').notNull().references(() => inventory.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').references(() => students.id),
+  type: text('type').notNull(), // checkout, checkin
+  quantity: integer('quantity').notNull(),
+  signature: text('signature'), // Base64 signature
+  status: text('status').default('active'), // active, returned, lost
+  fineAmount: integer('fineAmount').default(0),
+  transactionDate: text('transactionDate').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const aiFlags = sqliteTable('ai_flags', {

@@ -18,6 +18,7 @@ import attendanceRoutes from './routes/attendanceRoutes';
 import admissionRoutes from './routes/admissionRoutes';
 import timetableRoutes from './routes/timetableRoutes';
 import examRoutes from './routes/examRoutes';
+import coachRoutes from './routes/coachRoutes';
 import portalRoutes from './routes/portalRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -60,6 +61,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admissions', admissionRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/coach', coachRoutes);
 app.use('/api/portal', portalRoutes);
 
 // Global Error Handler (must be after routes)
