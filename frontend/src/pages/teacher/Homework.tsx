@@ -55,6 +55,7 @@ const TeacherHomework: React.FC = () => {
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [isGradeOpen, setIsGradeOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'manual' | 'pdf' | 'excel'>('manual');
   
   // Selection States
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
@@ -373,7 +374,7 @@ const TeacherHomework: React.FC = () => {
               <DialogDescription className="text-slate-400 font-medium mt-1">Create a new task for your students.</DialogDescription>
            </div>
             <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
-              <Tabs defaultValue="manual" onValueChange={(v) => setUploadMode(v as any)} className="w-full">
+              <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as any)} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 mb-6">
                   <TabsTrigger value="manual" className="rounded-xl font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
                     Manual
