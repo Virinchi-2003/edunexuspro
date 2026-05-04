@@ -68,16 +68,22 @@ const StaffPage: React.FC = () => {
     salary: ''
   });
 
+  const [currentPlan, setCurrentPlan] = useState<string>(user?.subscriptionPlan || 'Starter');
+
   const fetchData = async () => {
     if (!user?.schoolId) return;
     try {
       setLoading(true);
-      const [staffRes, classesRes] = await Promise.all([
+      const [staffRes, classesRes, schoolRes] = await Promise.all([
         api.get(`/staff/school/${user.schoolId}`),
-        api.get(`/classes/school/${user.schoolId}`)
+        api.get(`/classes/school/${user.schoolId}`),
+        api.get(`/schools/${user.schoolId}`)
       ]);
       setStaffList(staffRes.data.data || []);
       setClassList(classesRes.data.data || []);
+      if (schoolRes.data.data?.subscriptionPlan) {
+        setCurrentPlan(schoolRes.data.data.subscriptionPlan);
+      }
     } catch (error) {
       toast.error('Failed to load staff data');
     } finally {
@@ -216,7 +222,7 @@ const StaffPage: React.FC = () => {
     nonTeaching: staffList.filter(s => s.department === 'non-teaching' && ['Accountant', 'Coach'].includes(s.role)).length
   };
 
-  const hasCoachAccess = ['Pro', 'Elite'].includes(user?.subscriptionPlan || '');
+  const hasCoachAccess = ['pro', 'elite'].includes(currentPlan.toLowerCase());
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

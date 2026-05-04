@@ -210,7 +210,7 @@ export const getMonthlyAttendanceStats = asyncHandler(async (req: Request, res: 
 
 export const markAttendanceByQR = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, qrData, classId, date, status, remarks } = req.body;
-  console.log(`[QR SCAN] Received scan for school ${schoolId}. Data length: ${qrData?.length}`);
+  console.log(`[QR SCAN] Received scan for school ${schoolId}. Data: ${qrData?.substring(0, 30)}...`);
   
   const { verifyStudentQRToken } = await import('../services/qrService');
 
@@ -218,6 +218,7 @@ export const markAttendanceByQR = asyncHandler(async (req: Request, res: Respons
   
   // Try 1: Verify as secure JWT token
   studentId = verifyStudentQRToken(qrData);
+  console.log(`[QR SCAN] JWT Verification result: ${studentId ? 'SUCCESS: ' + studentId : 'FAILED'}`);
   
   const today = new Date().toISOString().split('T')[0];
   const recordDate = date || today;
@@ -239,15 +240,23 @@ export const markAttendanceByQR = asyncHandler(async (req: Request, res: Respons
     if (!student) {
       // Try 3: Check if qrData is the readable studentId (e.g. 2026-144)
       student = await db.query.students.findFirst({
-        where: and(eq(students.studentId, qrData), eq(students.schoolId, schoolId))
+        where: eq(students.studentId, qrData)
       });
     }
   }
 
+  // Verification: Ensure student belongs to this school
+  if (student && student.schoolId !== schoolId) {
+    console.error(`[QR SCAN ERROR] School mismatch! Student ${student.name} belongs to ${student.schoolId}, but scan was for ${schoolId}`);
+    return res.status(403).json({ status: 'error', message: 'Student belongs to a different institution' });
+  }
+
   if (!student) {
-    console.warn(`[QR SCAN ERROR] Student not found for data: ${qrData?.slice(0, 20)}... in school ${schoolId}`);
+    console.warn(`[QR SCAN ERROR] Student not found for data: ${qrData?.slice(0, 50)}... in school ${schoolId}. StudentId from JWT: ${studentId}`);
     return res.status(404).json({ status: 'error', message: 'Student not recognized in this school' });
   }
+
+  console.log(`[QR SCAN] Found student: ${student.name} (${student.id}) in class ${student.classId}`);
 
   // Use the resolved student's UUID for the attendance record
   const resolvedId = student.id;

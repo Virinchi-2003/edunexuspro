@@ -146,7 +146,7 @@ const StudentDashboard: React.FC = () => {
                <div className="space-y-3 flex flex-col items-center">
                   <div className="bg-white p-2 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-500">
                     <img 
-                      src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/students/${student.id}/qr?token=${localStorage.getItem('token')}`} 
+                      src={`${(import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')}/api/students/${student.id}/qr?token=${localStorage.getItem('token')}`} 
                       className="w-24 h-24 rounded-lg"
                       alt="Digital ID QR"
                       onError={(e) => {
