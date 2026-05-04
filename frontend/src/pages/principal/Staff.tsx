@@ -211,6 +211,7 @@ const StaffPage: React.FC = () => {
     return isDeptMatch && isSearchMatch;
   });
 
+  const stats = {
     teaching: staffList.filter(s => s.department === 'teaching').length,
     nonTeaching: staffList.filter(s => s.department === 'non-teaching' && ['Accountant', 'Coach'].includes(s.role)).length
   };
