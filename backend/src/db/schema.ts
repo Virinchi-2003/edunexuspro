@@ -3,7 +3,7 @@ import { sql, relations } from 'drizzle-orm';
 
 export const schools = sqliteTable('schools', {
   id: text('id').primaryKey(),
-  school_id: text('school_id').unique(), // Human-readable ID
+  school_id: text('school_id').unique('schools_sid_idx'), // Human-readable ID
   name: text('name').notNull(),
   address: text('address').notNull(),
   contactEmail: text('contactEmail').notNull(),
@@ -31,7 +31,7 @@ export const principals = sqliteTable('principals', {
   id: text('id').primaryKey(),
   schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
-  email: text('email').notNull().unique(),
+  email: text('email').notNull().unique('principals_email_idx'),
   password: text('password'),
   phone: text('phone').notNull(),
   userId: text('userId'),
@@ -179,7 +179,7 @@ export const attendance = sqliteTable('attendance', {
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
-  attendanceIdx: uniqueIndex('attendance_idx').on(table.schoolId, table.studentId, table.staffId, table.date),
+  attendanceUniqueIdx: uniqueIndex('attendance_uid_idx').on(table.schoolId, table.studentId, table.staffId, table.date),
 }));
 
 export const configs = sqliteTable('configs', {
@@ -376,6 +376,7 @@ export const homework = sqliteTable('homework', {
   teacherId: text('teacherId').references(() => staff.id),
   attachments: text('attachments'), // JSON string of URLs or base64
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const leaveRequests = sqliteTable('leave_requests', {
@@ -420,6 +421,7 @@ export const homeworkSubmissions = sqliteTable('homework_submissions', {
   status: text('status').default('submitted'), // submitted, late, reviewed
   teacherFeedback: text('teacherFeedback'),
   submittedAt: text('submittedAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
   homeworkStudentIndex: uniqueIndex('homework_student_idx').on(table.homeworkId, table.studentId),
 }));
@@ -514,6 +516,7 @@ export const fixtures = sqliteTable('fixtures', {
   score: text('score'), // e.g., "2-1"
   result: text('result'), // win, loss, draw
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const medicalRecords = sqliteTable('medical_records', {
@@ -538,6 +541,7 @@ export const inventory = sqliteTable('inventory', {
   availableQuantity: integer('availableQuantity').notNull(),
   lowStockAlert: integer('lowStockAlert').default(5),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const inventoryTransactions = sqliteTable('inventory_transactions', {

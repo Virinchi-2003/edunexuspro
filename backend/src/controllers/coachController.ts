@@ -97,8 +97,20 @@ export const getStudentMedicalRecord = asyncHandler(async (req: Request, res: Re
   
   if (!record) {
     const id = uuidv4();
-    record = { id, studentId, bmi: 0, staminaScore: 0, sprintTime: 0, medicalFlags: '[]', medications: '', emergencyContact: '', wearableData: '{}' };
-    await db.insert(medicalRecords).values(record);
+    const newRecord = { 
+      id, 
+      studentId, 
+      bmi: 0, 
+      staminaScore: 0, 
+      sprintTime: 0, 
+      medicalFlags: '[]', 
+      medications: '', 
+      emergencyContact: '', 
+      wearableData: '{}',
+      updatedAt: new Date().toISOString() 
+    };
+    await db.insert(medicalRecords).values(newRecord);
+    record = newRecord as any;
   }
   
   res.status(200).json({ status: 'success', data: record });
