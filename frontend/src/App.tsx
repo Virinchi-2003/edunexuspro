@@ -28,6 +28,7 @@ import StudentHomework from './pages/student/Homework';
 import StudentPerformance from './pages/student/Performance';
 import StudentFees from './pages/student/Fees';
 import StudentMessaging from './pages/student/Messaging';
+import StudentSettings from './pages/student/Settings';
 import TeacherExams from './pages/teacher/Exams';
 import TeacherGradebook from './pages/teacher/Gradebook';
 import TeacherFees from './pages/teacher/Fees';
@@ -35,6 +36,7 @@ import TeacherTimetable from './pages/teacher/Timetable';
 import TeacherSettings from './pages/teacher/Settings';
 import TeacherLeave from './pages/teacher/Leave';
 import TeacherHomework from './pages/teacher/Homework';
+import TeacherMessaging from './pages/teacher/Messaging';
 import AdmissionForm from './pages/AdmissionForm';
 import Login from './pages/Login';
 
@@ -120,6 +122,7 @@ const App: React.FC = () => {
                   <Route path="/fees" element={<TeacherFees />} />
                   <Route path="/leave" element={<TeacherLeave />} />
                   <Route path="/homework" element={<TeacherHomework />} />
+                  <Route path="/messages" element={<TeacherMessaging />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
               </AdminLayout>
@@ -138,7 +141,7 @@ const App: React.FC = () => {
                   <Route path="/performance" element={<StudentPerformance />} />
                   <Route path="/messages" element={<StudentMessaging />} />
                   <Route path="/fees" element={<StudentFees />} />
-                  <Route path="/settings" element={<PrincipalSettings />} />
+                  <Route path="/settings" element={<StudentSettings />} />
                 </Routes>
               </AdminLayout>
             </ProtectedRoute>

@@ -33,7 +33,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 type ViewMode = 'class-selection' | 'mark-attendance' | 'history';
 
@@ -50,7 +50,6 @@ const TeacherAttendance: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-  const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [markQueue, setMarkQueue] = useState<Record<string, 'present' | 'absent' | 'late' | undefined>>({});
   const [selfAttendance, setSelfAttendance] = useState<any>(null);
   const [teacherProfile, setTeacherProfile] = useState<any>(null);
@@ -217,62 +216,85 @@ const TeacherAttendance: React.FC = () => {
   };
 
   // QR Scanning Logic
+  const [scanSuccess, setScanSuccess] = useState<{name: string, id: string} | null>(null);
+  const lastScannedRef = React.useRef<string | null>(null);
+
   useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
-    let timeoutId: any = null;
+    let html5QrCode: Html5Qrcode | null = null;
 
     if (isQRModalOpen) {
-      // Small delay to ensure Dialog content is fully rendered
-      timeoutId = setTimeout(() => {
-        const qrElement = document.getElementById("qr-reader");
-        if (!qrElement) return;
-
-        scanner = new Html5QrcodeScanner(
-          "qr-reader", 
-          { 
-            fps: 10, 
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0
-          },
-          /* verbose= */ false
-        );
+      const startScanner = async () => {
+        await new Promise(resolve => setTimeout(resolve, 400));
         
-        scanner.render(async (decodedText) => {
-          setLastScanned(decodedText);
-          
-          // Match by ID or studentId
-          const student = students.find(s => s.id === decodedText || s.studentId === decodedText);
-          if (student) {
-            try {
-              await api.post('/attendance/qr', {
-                schoolId: user.schoolId,
-                studentId: student.id,
-                classId: selectedClass.id,
-                status: 'present',
-                date: selectedDate
-              });
-              toast.success(`${student.name} marked Present`);
-              fetchExistingRecords(selectedClass.id, selectedDate);
-              setMarkQueue(prev => ({ ...prev, [student.id]: 'present' }));
-            } catch (err) {
-              toast.error('Failed to mark via QR');
-            }
-          } else {
-            toast.error('Student not found in this class');
-          }
-        }, (_error) => {
-          // ignore scan errors
-        });
-      }, 500); // 500ms delay for dialog animation
+        try {
+          const qrElement = document.getElementById("qr-reader");
+          if (!qrElement) return;
+
+          html5QrCode = new Html5Qrcode("qr-reader");
+
+          await html5QrCode.start(
+            { facingMode: "environment" }, 
+            { 
+              fps: 20, // Increased FPS for faster detection
+              qrbox: { width: 280, height: 280 }, // Slightly larger box
+              aspectRatio: 1.0 
+            },
+            async (decodedText) => {
+              // Use Ref to avoid stale closure issues
+              if (lastScannedRef.current === decodedText) return;
+              
+              lastScannedRef.current = decodedText;
+              
+              try {
+                const res = await api.post('/attendance/qr', {
+                  schoolId: user.schoolId,
+                  qrData: decodedText,
+                  classId: selectedClass.id,
+                  status: 'present',
+                  date: selectedDate
+                });
+                
+                const student = res.data.data;
+                setScanSuccess({ name: student.name, id: student.studentId });
+                toast.success(`${student.name} marked Present`);
+                
+                setMarkQueue(prev => ({ ...prev, [student.id]: 'present' }));
+                fetchExistingRecords(selectedClass.id, selectedDate);
+
+                // Allow scanning the same person again after 5 seconds if needed
+                setTimeout(() => {
+                  if (lastScannedRef.current === decodedText) {
+                    lastScannedRef.current = null;
+                  }
+                }, 5000);
+                
+                // Clear success message after 3s
+                setTimeout(() => setScanSuccess(null), 3000);
+              } catch (err: any) {
+                toast.error(err.response?.data?.message || 'Failed to mark via QR');
+                lastScannedRef.current = null; // Reset on error to allow retry
+              }
+            },
+            () => {} 
+          );
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      startScanner();
     }
 
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      if (scanner) {
-        scanner.clear().catch(error => console.error("Failed to clear scanner", error));
+      if (html5QrCode) {
+        if (html5QrCode.isScanning) {
+          html5QrCode.stop().then(() => {
+            html5QrCode?.clear();
+          }).catch(console.error);
+        }
       }
+      lastScannedRef.current = null;
     };
-  }, [isQRModalOpen, students]);
+  }, [isQRModalOpen, selectedClass, selectedDate, user.schoolId]);
 
   const downloadHistory = () => {
     if (attendanceRecords.length === 0) {
@@ -633,7 +655,10 @@ const TeacherAttendance: React.FC = () => {
       {/* QR Scanner Modal */}
       <Dialog open={isQRModalOpen} onOpenChange={(open) => {
         setIsQRModalOpen(open);
-        if (!open) setLastScanned(null);
+        if (!open) {
+          setScanSuccess(null);
+          lastScannedRef.current = null;
+        }
       }}>
         <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
           <DialogHeader>
@@ -643,8 +668,8 @@ const TeacherAttendance: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="mt-6 aspect-square overflow-hidden rounded-[2rem] bg-slate-100 relative border-4 border-indigo-50">
-             <div id="qr-reader" className="w-full h-full" />
+          <div className="mt-6 aspect-square overflow-hidden rounded-[2rem] bg-slate-900 relative border-4 border-indigo-50 shadow-inner">
+             <div id="qr-reader" className="w-full h-full [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&_img]:hidden" />
              <div className="absolute inset-0 pointer-events-none border-[40px] border-black/20 z-10" />
              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-indigo-500 animate-pulse z-20" />
              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
@@ -654,14 +679,14 @@ const TeacherAttendance: React.FC = () => {
              </div>
           </div>
 
-          {lastScanned && (
+          {scanSuccess && (
             <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-4 animate-in fade-in zoom-in duration-300">
                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
                   <CheckCircle2 className="w-6 h-6" />
                </div>
                <div>
-                  <div className="text-emerald-800 font-bold">Successfully Marked!</div>
-                  <div className="text-emerald-600 text-xs font-medium">Scanned ID: {lastScanned}</div>
+                  <div className="text-emerald-800 font-bold">{scanSuccess.name}</div>
+                  <div className="text-emerald-600 text-xs font-medium">Marked Present (ID: {scanSuccess.id})</div>
                </div>
             </div>
           )}

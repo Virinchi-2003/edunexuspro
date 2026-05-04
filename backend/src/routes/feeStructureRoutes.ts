@@ -4,7 +4,7 @@ import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/school/:schoolId', authenticate, authorize(['admin', 'principal']), getFeeStructures);
+router.get('/school/:schoolId', authenticate, authorize(['admin', 'principal', 'teacher', 'student']), getFeeStructures);
 router.post('/', authenticate, authorize(['admin', 'principal']), createFeeStructure);
 router.put('/:id', authenticate, authorize(['admin', 'principal']), updateFeeStructure);
 router.delete('/:id', authenticate, authorize(['admin', 'principal']), deleteFeeStructure);

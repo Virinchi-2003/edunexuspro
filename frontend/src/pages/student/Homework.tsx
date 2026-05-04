@@ -8,7 +8,12 @@ import {
   ChevronRight,
   Send,
   FileText,
-  MessageSquare
+  FileSpreadsheet,
+  MessageSquare,
+  FileDown,
+  Download,
+  Trash2,
+  Upload
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,6 +66,28 @@ const StudentHomework: React.FC = () => {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event: any) => {
+      const base64Data = event.target.result;
+      const attachmentObj = JSON.stringify({
+        name: file.name,
+        type: file.type,
+        data: base64Data
+      });
+
+      setSubmissionData(prev => ({
+        ...prev,
+        attachments: attachmentObj
+      }));
+      toast.success('File attached successfully');
+    };
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     if (user?.uid) fetchData();
   }, [user]);
@@ -102,6 +129,51 @@ const StudentHomework: React.FC = () => {
     }
   };
 
+  const handleDownload = (attachmentStr: string) => {
+    try {
+      const attachment = JSON.parse(attachmentStr);
+      if (attachment.data && attachment.name) {
+        const link = document.createElement('a');
+        link.href = attachment.data;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success(`Downloading: ${attachment.name}`);
+      } else {
+        toast.error('Attachment data is corrupted');
+      }
+    } catch (e) {
+      // Legacy support: Create a mock file so the download action still works
+      const isPdf = attachmentStr.toLowerCase().endsWith('.pdf');
+      const blob = new Blob([`Mock content for ${attachmentStr}`], { type: isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachmentStr;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success(`Downloading legacy file: ${attachmentStr}`);
+    }
+  };
+
+  const getAttachmentInfo = (attachmentStr: string) => {
+    try {
+      const attachment = JSON.parse(attachmentStr);
+      return {
+        name: attachment.name,
+        isPdf: attachment.name?.toLowerCase().endsWith('.pdf')
+      };
+    } catch (e) {
+      return {
+        name: attachmentStr,
+        isPdf: attachmentStr?.toLowerCase().endsWith('.pdf')
+      };
+    }
+  };
+
   const filteredHomework = homeworks.filter(h => 
     h.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
     h.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -138,25 +210,49 @@ const StudentHomework: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-           {filteredHomework.map((hw) => (
-             <Card key={hw.id} className="group border-none shadow-xl hover:shadow-2xl transition-all duration-500 rounded-[2.5rem] bg-white overflow-hidden flex flex-col border border-slate-50">
-                <div className="p-8 flex-1">
-                   <div className="flex justify-between items-start mb-6">
-                      <Badge className="bg-indigo-50 text-indigo-600 border-none px-4 py-1.5 rounded-full font-bold text-[9px] uppercase tracking-widest">
-                        {hw.subject}
-                      </Badge>
-                      <div className="text-right">
-                         <div className="flex items-center gap-2 text-slate-400 mb-1">
-                            <Clock className="w-4 h-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Due: {hw.dueDate}</span>
+           {filteredHomework.map((hw) => {
+             const attachInfo = getAttachmentInfo(hw.attachments);
+             return (
+              <Card key={hw.id} className="group border-none shadow-xl hover:shadow-2xl transition-all duration-500 rounded-[2.5rem] bg-white overflow-hidden flex flex-col border border-slate-50">
+                 <div className="p-8 flex-1">
+                    <div className="flex justify-between items-start mb-6">
+                       <Badge className="bg-indigo-50 text-indigo-600 border-none px-4 py-1.5 rounded-full font-bold text-[9px] uppercase tracking-widest">
+                         {hw.subject}
+                       </Badge>
+                       <div className="text-right">
+                          <div className="flex items-center gap-2 text-slate-400 mb-1">
+                             <Clock className="w-4 h-4" />
+                             <span className="text-[10px] font-bold uppercase tracking-widest">Due: {hw.dueDate}</span>
+                          </div>
+                          {getStatusBadge(hw.submissionStatus)}
+                       </div>
+                    </div>
+                    <h3 className="text-2xl font-display font-bold text-slate-900 mb-3 group-hover:text-indigo-600 transition-colors">{hw.title}</h3>
+                     <p className="text-slate-500 font-medium leading-relaxed line-clamp-3 mb-6">
+                       {hw.description || 'No detailed instructions provided.'}
+                     </p>
+
+                     {hw.attachments && (
+                       <div 
+                        onClick={() => handleDownload(hw.attachments)}
+                        className="flex items-center gap-2 mb-6 p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 hover:border-indigo-200 transition-all group/attach"
+                       >
+                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${attachInfo.isPdf ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                           {attachInfo.isPdf ? <FileText className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
                          </div>
-                         {getStatusBadge(hw.submissionStatus)}
-                      </div>
-                   </div>
-                   <h3 className="text-2xl font-display font-bold text-slate-900 mb-3 group-hover:text-indigo-600 transition-colors">{hw.title}</h3>
-                   <p className="text-slate-500 font-medium leading-relaxed line-clamp-3 mb-6">
-                     {hw.description || 'No detailed instructions provided.'}
-                   </p>
+                         <div className="flex-1 min-w-0">
+                           <p className="text-[10px] font-bold text-slate-900 truncate">{attachInfo.name}</p>
+                           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Teacher's Attachment</p>
+                         </div>
+                         <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-slate-400 group-hover/attach:text-indigo-600 transition-colors"
+                         >
+                           <Download className="w-4 h-4" />
+                         </Button>
+                       </div>
+                     )}
 
                    {hw.feedback && (
                      <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border-l-4 border-emerald-400">
@@ -192,7 +288,8 @@ const StudentHomework: React.FC = () => {
                    </Button>
                 </div>
              </Card>
-           ))}
+            );
+           })}
         </div>
       )}
 
@@ -213,6 +310,49 @@ const StudentHomework: React.FC = () => {
                     onChange={(e) => setSubmissionData({...submissionData, content: e.target.value})}
                  />
               </div>
+
+               <div className="space-y-3">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Upload Work (Optional)</label>
+                  {!submissionData.attachments ? (
+                    <div className="group relative h-24 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col items-center justify-center gap-1 cursor-pointer overflow-hidden">
+                      <input 
+                        type="file" 
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                      />
+                      <Upload className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attach PDF or Image</p>
+                    </div>
+                  ) : (
+                    <div className="h-16 rounded-2xl bg-indigo-50 border border-indigo-100 px-4 flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-indigo-600 shadow-sm">
+                             <FileText className="w-4 h-4" />
+                          </div>
+                           <div>
+                             <p className="text-[10px] font-bold text-indigo-600 truncate max-w-[150px]">
+                               {(() => {
+                                 try {
+                                   return JSON.parse(submissionData.attachments).name;
+                                 } catch(e) {
+                                   return submissionData.attachments;
+                                 }
+                               })()}
+                             </p>
+                             <p className="text-[8px] font-bold text-indigo-400 uppercase tracking-tighter">Ready to upload</p>
+                           </div>
+                       </div>
+                       <Button 
+                         variant="ghost" 
+                         size="icon" 
+                         className="h-8 w-8 text-rose-500 hover:bg-rose-50 rounded-full"
+                         onClick={() => setSubmissionData({...submissionData, attachments: ''})}
+                       >
+                         <Trash2 className="w-3.5 h-3.5" />
+                       </Button>
+                    </div>
+                  )}
+               </div>
               
               <div className="p-4 bg-blue-50 rounded-2xl flex gap-3">
                  <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />

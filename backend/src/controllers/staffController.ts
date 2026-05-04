@@ -14,6 +14,17 @@ export const getStaffBySchool = asyncHandler(async (req: Request, res: Response)
   res.status(200).json({ status: 'success', data: result });
 });
 
+export const getTeachersBySchool = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  const result = await db.query.staff.findMany({
+    where: and(
+      eq(staff.schoolId, schoolId),
+      eq(staff.department, 'teaching')
+    )
+  });
+  res.status(200).json({ status: 'success', data: result });
+});
+
 export const getStaffByUserId = asyncHandler(async (req: Request, res: Response) => {
   const userId = getSingleValue(req.params.userId);
   const result = await db.query.staff.findFirst({

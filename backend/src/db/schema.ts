@@ -154,7 +154,13 @@ export const feeStructures = sqliteTable('fee_structures', {
   id: text('id').primaryKey(),
   schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
   grade: text('grade').notNull(),
-  amount: integer('amount').notNull(),
+  tuitionFees: integer('tuitionFees').default(0),
+  transportFees: integer('transportFees').default(0),
+  libraryFees: integer('libraryFees').default(0),
+  examFees: integer('examFees').default(0),
+  activityFees: integer('activityFees').default(0),
+  otherFees: integer('otherFees').default(0),
+  amount: integer('amount').notNull(), // Total Amount
   description: text('description'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
@@ -368,6 +374,7 @@ export const homework = sqliteTable('homework', {
   description: text('description'),
   dueDate: text('dueDate'),
   teacherId: text('teacherId').references(() => staff.id),
+  attachments: text('attachments'), // JSON string of URLs or base64
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -430,6 +437,7 @@ export const feeTransactions = sqliteTable('fee_transactions', {
   gstAmount: real('gstAmount').default(0),
   invoiceNumber: text('invoiceNumber'),
   paymentMethod: text('paymentMethod'),
+  breakdown: text('breakdown'), // JSON string: { tuition: 5000, transport: 2000 }
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -447,6 +455,8 @@ export const messages = sqliteTable('messages', {
   conversationId: text('conversationId').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
   senderId: text('senderId').notNull().references(() => users.uid),
   content: text('content').notNull(),
+  fileUrl: text('fileUrl'),
+  fileType: text('fileType'), // 'image', 'video', 'audio', 'document'
   isRead: integer('isRead', { mode: 'boolean' }).default(false),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
 });

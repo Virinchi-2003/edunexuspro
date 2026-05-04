@@ -12,11 +12,12 @@ import {
   aiFlags,
   students,
   attendance,
-  marks
+  marks,
+  users
 } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and, desc, sql, count } from 'drizzle-orm';
+import { eq, and, or, desc, sql, count } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
 
 // --- B1. LIVE DASHBOARD & NOTIFICATIONS ---
@@ -107,20 +108,99 @@ export const getFeeHistory = asyncHandler(async (req: Request, res: Response) =>
 
 export const getConversations = asyncHandler(async (req: Request, res: Response) => {
   const userId = getSingleValue(req.params.userId);
-  const result = await db.query.conversations.findMany({
-    where: sql`${conversations.participant1} = ${userId} OR ${conversations.participant2} = ${userId}`,
+  
+  // Fetch conversations where user is a participant
+  const userConversations = await db.query.conversations.findMany({
+    where: or(
+      eq(conversations.participant1, userId),
+      eq(conversations.participant2, userId)
+    ),
     orderBy: [desc(conversations.updatedAt)]
   });
-  res.status(200).json({ status: 'success', data: result });
+
+  // Enrich with participant details
+  const enrichedConversations = await Promise.all(userConversations.map(async (conv) => {
+    const otherParticipantId = conv.participant1 === userId ? conv.participant2 : conv.participant1;
+    const otherUser = await db.query.users.findFirst({
+      where: eq(users.uid, otherParticipantId)
+    });
+    
+    return {
+      ...conv,
+      otherParticipant: {
+        id: otherParticipantId,
+        name: otherUser?.name || 'Unknown User',
+        role: otherUser?.role || 'User',
+        photoURL: otherUser?.photoURL
+      }
+    };
+  }));
+
+  res.status(200).json({ status: 'success', data: enrichedConversations });
+});
+
+export const getMessages = asyncHandler(async (req: Request, res: Response) => {
+  const conversationId = getSingleValue(req.params.conversationId);
+  const result = await db.query.messages.findMany({
+    where: eq(messages.conversationId, conversationId),
+    orderBy: [desc(messages.createdAt)],
+    limit: 50
+  });
+  // Return in chronological order
+  res.status(200).json({ status: 'success', data: result.reverse() });
+});
+
+export const startConversation = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, participant1, participant2 } = req.body;
+
+  // Check if conversation already exists
+  const existing = await db.query.conversations.findFirst({
+    where: or(
+      and(eq(conversations.participant1, participant1), eq(conversations.participant2, participant2)),
+      and(eq(conversations.participant1, participant2), eq(conversations.participant2, participant1))
+    )
+  });
+
+  if (existing) {
+    return res.status(200).json({ status: 'success', data: existing });
+  }
+
+  const id = uuidv4();
+  const newConv = {
+    id,
+    schoolId,
+    participant1,
+    participant2,
+    updatedAt: new Date().toISOString()
+  };
+
+  await db.insert(conversations).values(newConv);
+  res.status(201).json({ status: 'success', data: newConv });
 });
 
 export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
-  const { conversationId, senderId, content } = req.body;
+  const { conversationId, senderId, content, fileUrl, fileType } = req.body;
   const id = uuidv4();
-  const newMessage = { id, conversationId, senderId, content };
+  const now = new Date().toISOString();
+  
+  const newMessage = { 
+    id, 
+    conversationId, 
+    senderId, 
+    content, 
+    fileUrl, 
+    fileType,
+    createdAt: now 
+  };
+  
   await db.insert(messages).values(newMessage);
+  
   await db.update(conversations)
-    .set({ lastMessage: content, updatedAt: new Date().toISOString() })
+    .set({ 
+      lastMessage: fileUrl ? `Shared a ${fileType}` : content, 
+      updatedAt: now 
+    })
     .where(eq(conversations.id, conversationId));
+    
   res.status(201).json({ status: 'success', data: newMessage });
 });

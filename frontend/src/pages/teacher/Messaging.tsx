@@ -8,12 +8,10 @@ import {
   Loader2,
   Paperclip,
   UserPlus,
-  FileText,
-  Play,
-  Download,
-  Image as ImageIcon,
   File as FileIcon,
-  Film
+  Download,
+  Film,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,14 +22,14 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-const StudentMessaging: React.FC = () => {
+const TeacherMessaging: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedConv, setSelectedConv] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [teachers, setTeachers] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -69,10 +67,10 @@ const StudentMessaging: React.FC = () => {
     }
   };
 
-  const fetchTeachers = async () => {
+  const fetchStudents = async () => {
     try {
-      const res = await api.get(`/portal/teachers/${user.schoolId}`);
-      setTeachers(res.data.data || []);
+      const res = await api.get(`/portal/students-list/${user.schoolId}`);
+      setStudents(res.data.data || []);
     } catch (error) {
       console.error(error);
     }
@@ -93,7 +91,7 @@ const StudentMessaging: React.FC = () => {
   useEffect(() => {
     if (user?.uid) {
       fetchConversations();
-      fetchTeachers();
+      fetchStudents();
       const convInterval = setInterval(() => fetchConversations(true), 4000);
       return () => clearInterval(convInterval);
     }
@@ -115,7 +113,6 @@ const StudentMessaging: React.FC = () => {
     const content = fileData ? `Shared a ${fileData.type}` : newMessage;
     if (!fileData) setNewMessage('');
     
-    // Optimistic update
     const tempMsg = {
       id: Date.now().toString(),
       conversationId: selectedConv.id,
@@ -166,12 +163,16 @@ const StudentMessaging: React.FC = () => {
     }
   };
 
-  const startChat = async (teacherUserId: string) => {
+  const startChat = async (studentUserId: string) => {
+    if (!studentUserId) {
+        toast.error("This student does not have a user account linked.");
+        return;
+    }
     try {
       const res = await api.post('/portal/conversations/start', {
         schoolId: user.schoolId,
         participant1: user.uid,
-        participant2: teacherUserId
+        participant2: studentUserId
       });
       setIsNewChatOpen(false);
       await fetchConversations();
@@ -234,14 +235,14 @@ const StudentMessaging: React.FC = () => {
   if (loading && conversations.length === 0) return (
     <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
       <Loader2 className="w-12 h-12 animate-spin text-primary" />
-      <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Connecting Secure Chat...</p>
+      <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Accessing Secure Messaging...</p>
     </div>
   );
 
   return (
     <div className="h-[calc(100vh-180px)] flex gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-      
+
       {/* Sidebar - Conversation List */}
       <Card className="w-96 border-none shadow-2xl rounded-[2.5rem] bg-white flex flex-col overflow-hidden">
         <div className="p-6 border-b border-slate-50">
@@ -255,27 +256,27 @@ const StudentMessaging: React.FC = () => {
                 </DialogTrigger>
                 <DialogContent className="rounded-[2rem] max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="font-display font-bold text-xl">Start New Chat</DialogTitle>
+                    <DialogTitle className="font-display font-bold text-xl">Message a Student</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 pt-4">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <Input placeholder="Search teachers..." className="pl-10 rounded-xl bg-slate-50 border-none h-11" />
+                      <Input placeholder="Search students..." className="pl-10 rounded-xl bg-slate-50 border-none h-11" />
                     </div>
                     <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                      {teachers.map(t => (
+                      {students.map(s => (
                         <div 
-                          key={t.id} 
-                          onClick={() => startChat(t.userId)}
+                          key={s.id} 
+                          onClick={() => startChat(s.userId)}
                           className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 cursor-pointer transition-colors"
                         >
                           <Avatar>
-                            <AvatarImage src={t.photoURL} />
-                            <AvatarFallback className="bg-primary/10 text-primary">{t.name[0]}</AvatarFallback>
+                            <AvatarImage src={s.photoURL} />
+                            <AvatarFallback className="bg-primary/10 text-primary">{s.name[0]}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-bold text-sm">{t.name}</p>
-                            <p className="text-xs text-slate-400 uppercase tracking-wider">{t.role}</p>
+                            <p className="font-bold text-sm">{s.name}</p>
+                            <p className="text-xs text-slate-400 uppercase tracking-wider">Class {s.grade}-{s.section}</p>
                           </div>
                         </div>
                       ))}
@@ -309,7 +310,7 @@ const StudentMessaging: React.FC = () => {
                   <Avatar className="w-12 h-12 border-2 border-white shadow-sm">
                      <AvatarImage src={conv.otherParticipant?.photoURL} />
                      <AvatarFallback className={selectedConv?.id === conv.id ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'}>
-                        {conv.otherParticipant?.name?.[0] || 'T'}
+                        {conv.otherParticipant?.name?.[0] || 'S'}
                      </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 overflow-hidden">
@@ -343,7 +344,7 @@ const StudentMessaging: React.FC = () => {
                      <h4 className="font-display font-bold text-slate-900">{selectedConv.otherParticipant?.name}</h4>
                      <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Now</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Online</span>
                      </div>
                   </div>
                </div>
@@ -371,7 +372,7 @@ const StudentMessaging: React.FC = () => {
                            {renderMessageContent(m)}
                            <div className="flex items-center justify-end gap-1 mt-2">
                               <span className={`text-[10px] ${isMe ? 'text-white/60' : 'text-slate-400'}`}>
-                                {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                 {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                               {isMe && (
                                 m.optimistic ? <Loader2 className="w-3 h-3 animate-spin text-white/40" /> : <CheckCheck className="w-3 h-3 text-white/60" />
@@ -415,8 +416,8 @@ const StudentMessaging: React.FC = () => {
              <div className="w-24 h-24 rounded-[2.5rem] bg-slate-50 flex items-center justify-center text-slate-200 mb-8 border-2 border-dashed border-slate-200">
                 <MessageSquare className="w-12 h-12" />
              </div>
-             <h3 className="text-2xl font-display font-bold text-slate-900 mb-2">Your Conversations</h3>
-             <p className="text-slate-400 font-medium max-w-sm">Select a teacher or administrative staff member to start a secure communication thread.</p>
+             <h3 className="text-2xl font-display font-bold text-slate-900 mb-2">Classroom Messaging</h3>
+             <p className="text-slate-400 font-medium max-w-sm">Select a student or parent to start a secure communication thread.</p>
           </div>
         )}
       </Card>
@@ -424,4 +425,4 @@ const StudentMessaging: React.FC = () => {
   );
 };
 
-export default StudentMessaging;
+export default TeacherMessaging;

@@ -278,3 +278,32 @@ export const applyLeave = asyncHandler(async (req: Request, res: Response) => {
   await db.insert(leaveRequests).values(newLeave);
   res.status(201).json({ status: 'success', data: newLeave });
 });
+export const getStudentQR = asyncHandler(async (req: Request, res: Response) => {
+  const studentId = getSingleValue(req.params.studentId);
+  const { generateStudentQRToken, generateQRCodeDataURL } = await import('../services/qrService');
+
+  // Verify student exists
+  const student = await db.query.students.findFirst({
+    where: eq(students.id, studentId)
+  });
+
+  if (!student) {
+    return res.status(404).json({ status: 'error', message: 'Student not found' });
+  }
+
+  // Generate secure token (JWT)
+  const token = generateStudentQRToken(student.id);
+  
+  // Generate QR Image (Base64)
+  const qrCodeDataURL = await generateQRCodeDataURL(token);
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      studentId: student.id,
+      name: student.name,
+      qrCode: qrCodeDataURL,
+      token
+    }
+  });
+});

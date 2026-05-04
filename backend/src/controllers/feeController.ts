@@ -15,14 +15,31 @@ export const getFeeStructures = asyncHandler(async (req: Request, res: Response)
 });
 
 export const createFeeStructure = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId, grade, amount, description } = req.body;
+  const { 
+    schoolId, 
+    grade, 
+    amount, 
+    tuitionFees,
+    transportFees,
+    libraryFees,
+    examFees,
+    activityFees,
+    otherFees,
+    description 
+  } = req.body;
   const id = uuidv4();
 
   const newFee = {
     id,
     schoolId,
     grade,
-    amount: parseInt(amount),
+    amount: parseInt(amount) || 0,
+    tuitionFees: parseInt(tuitionFees) || 0,
+    transportFees: parseInt(transportFees) || 0,
+    libraryFees: parseInt(libraryFees) || 0,
+    examFees: parseInt(examFees) || 0,
+    activityFees: parseInt(activityFees) || 0,
+    otherFees: parseInt(otherFees) || 0,
     description,
   };
 
@@ -32,12 +49,28 @@ export const createFeeStructure = asyncHandler(async (req: Request, res: Respons
 
 export const updateFeeStructure = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
-  const { grade, amount, description } = req.body;
+  const { 
+    grade, 
+    amount, 
+    tuitionFees,
+    transportFees,
+    libraryFees,
+    examFees,
+    activityFees,
+    otherFees,
+    description 
+  } = req.body;
 
   await db.update(feeStructures)
     .set({ 
       grade, 
-      amount: parseInt(amount), 
+      amount: parseInt(amount) || 0, 
+      tuitionFees: parseInt(tuitionFees) || 0,
+      transportFees: parseInt(transportFees) || 0,
+      libraryFees: parseInt(libraryFees) || 0,
+      examFees: parseInt(examFees) || 0,
+      activityFees: parseInt(activityFees) || 0,
+      otherFees: parseInt(otherFees) || 0,
       description,
       updatedAt: new Date().toISOString()
     })

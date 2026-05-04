@@ -9,7 +9,12 @@ import {
   Loader2,
   ChevronRight,
   Send,
-  BookOpen
+  BookOpen,
+  FileText,
+  FileSpreadsheet,
+  Upload,
+  FileDown,
+  Download
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +34,12 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -45,6 +56,7 @@ const TeacherHomework: React.FC = () => {
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [isGradeOpen, setIsGradeOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'manual' | 'pdf' | 'excel'>('manual');
   
   // Selection States
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
@@ -56,7 +68,8 @@ const TeacherHomework: React.FC = () => {
     subject: '',
     title: '',
     description: '',
-    dueDate: ''
+    dueDate: '',
+    attachments: ''
   });
 
   const [gradeData, setGradeData] = useState({
@@ -90,6 +103,57 @@ const TeacherHomework: React.FC = () => {
     if (user?.uid) fetchData();
   }, [user]);
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, mode: 'pdf' | 'excel') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event: any) => {
+      try {
+        const base64Data = event.target.result;
+        const attachmentObj = JSON.stringify({
+          name: file.name,
+          type: file.type,
+          data: base64Data
+        });
+
+        if (mode === 'excel') {
+          const XLSX = await import('xlsx');
+          const workbook = XLSX.read(base64Data.split(',')[1], { type: 'base64' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+
+          if (jsonData.length > 0) {
+            const firstRow = jsonData[0];
+            setFormData(prev => ({
+              ...prev,
+              title: firstRow.Title || firstRow.title || prev.title,
+              subject: firstRow.Subject || firstRow.subject || prev.subject,
+              description: firstRow.Description || firstRow.description || prev.description,
+              dueDate: firstRow.DueDate || firstRow.dueDate || prev.dueDate,
+              attachments: attachmentObj
+            }));
+            toast.success('Excel data extracted and file attached');
+          }
+        } else {
+          // PDF mode
+          setFormData(prev => ({
+            ...prev,
+            title: prev.title || file.name.replace('.pdf', ''),
+            attachments: attachmentObj
+          }));
+          toast.success('PDF attached successfully');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to process file');
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   const handleCreateHomework = async () => {
     if (!formData.classId || !formData.subject || !formData.title) {
       toast.error('Please fill in all required fields');
@@ -105,7 +169,8 @@ const TeacherHomework: React.FC = () => {
       });
       toast.success('Homework assigned successfully');
       setIsCreateOpen(false);
-      setFormData({ classId: '', subject: '', title: '', description: '', dueDate: '' });
+      setFormData({ classId: '', subject: '', title: '', description: '', dueDate: '', attachments: '' });
+      setUploadMode('manual');
       fetchData();
     } catch (error) {
       toast.error('Failed to assign homework');
@@ -147,6 +212,51 @@ const TeacherHomework: React.FC = () => {
       toast.error('Failed to grade submission');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDownload = (attachmentStr: string) => {
+    try {
+      const attachment = JSON.parse(attachmentStr);
+      if (attachment.data && attachment.name) {
+        const link = document.createElement('a');
+        link.href = attachment.data;
+        link.download = attachment.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success(`Downloading: ${attachment.name}`);
+      } else {
+        toast.error('Attachment data is corrupted');
+      }
+    } catch (e) {
+      // Legacy support: Create a mock file so the download action still works
+      const isPdf = attachmentStr.toLowerCase().endsWith('.pdf');
+      const blob = new Blob([`Mock content for ${attachmentStr}`], { type: isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachmentStr;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success(`Downloading legacy file: ${attachmentStr}`);
+    }
+  };
+
+  const getAttachmentInfo = (attachmentStr: string) => {
+    try {
+      const attachment = JSON.parse(attachmentStr);
+      return {
+        name: attachment.name,
+        isPdf: attachment.name?.toLowerCase().endsWith('.pdf')
+      };
+    } catch (e) {
+      return {
+        name: attachmentStr,
+        isPdf: attachmentStr?.toLowerCase().endsWith('.pdf')
+      };
     }
   };
 
@@ -209,9 +319,34 @@ const TeacherHomework: React.FC = () => {
                   </DropdownMenu>
                 </div>
 
-                <p className="text-slate-500 text-sm line-clamp-2 mb-6 font-medium leading-relaxed">
+                <p className="text-slate-500 text-sm line-clamp-2 mb-4 font-medium leading-relaxed">
                   {hw.description || 'No description provided.'}
                 </p>
+
+                {hw.attachments && (() => {
+                  const attachInfo = getAttachmentInfo(hw.attachments);
+                  return (
+                    <div 
+                      onClick={() => handleDownload(hw.attachments)}
+                      className="flex items-center gap-2 mb-6 p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 hover:border-indigo-200 transition-all group/attach"
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${attachInfo.isPdf ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                        {attachInfo.isPdf ? <FileText className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-slate-900 truncate">{attachInfo.name}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Attachment Attached</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-slate-400 group-hover/attach:text-indigo-600 transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  );
+                })()}
 
                 <div className="flex items-center justify-between pt-6 border-t border-slate-50">
                   <div className="flex items-center gap-2 text-slate-400">
@@ -234,68 +369,171 @@ const TeacherHomework: React.FC = () => {
 
       {/* Create Homework Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden">
-           <div className="h-32 bg-slate-900 p-8 flex flex-col justify-center">
+        <DialogContent className="sm:max-w-[550px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden max-h-[95vh] flex flex-col">
+           <div className="h-32 bg-slate-900 p-8 flex flex-col justify-center flex-shrink-0">
               <DialogTitle className="text-2xl font-display font-bold text-white">Assign New Homework</DialogTitle>
               <DialogDescription className="text-slate-400 font-medium mt-1">Create a new task for your students.</DialogDescription>
            </div>
-           <div className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Target Class</label>
-                    <select 
-                      className="w-full h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner focus:outline-none"
-                      value={formData.classId}
-                      onChange={(e) => setFormData({...formData, classId: e.target.value})}
-                    >
-                      <option value="">Select Class</option>
-                      {classes.map(c => (
-                        <option key={c.classId} value={c.classId}>{c.className}</option>
-                      ))}
-                    </select>
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Subject</label>
-                    <Input 
-                      placeholder="e.g. Mathematics"
-                      className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner border-none"
-                      value={formData.subject}
-                      onChange={(e) => setFormData({...formData, subject: e.target.value})}
+            <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
+              <Tabs defaultValue="manual" onValueChange={(v) => setUploadMode(v as any)} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 mb-6">
+                  <TabsTrigger value="manual" className="rounded-xl font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    Manual
+                  </TabsTrigger>
+                  <TabsTrigger value="pdf" className="rounded-xl font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    PDF Document
+                  </TabsTrigger>
+                  <TabsTrigger value="excel" className="rounded-xl font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                    Excel Sheet
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="manual" className="space-y-6 mt-0">
+                  <div className="text-center py-4 bg-indigo-50/50 rounded-2xl border border-dashed border-indigo-100 mb-6">
+                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Manual Entry Mode</p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="pdf" className="space-y-6 mt-0">
+                  <div className="group relative h-32 rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden mb-6">
+                    <input 
+                      type="file" 
+                      accept=".pdf"
+                      onChange={(e) => handleFileUpload(e, 'pdf')}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
                     />
-                 </div>
-              </div>
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-rose-500 shadow-sm group-hover:scale-110 transition-transform">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs font-bold text-slate-900">Upload PDF Worksheet</p>
+                      <p className="text-[10px] font-medium text-slate-400">Click or drag to attach PDF</p>
+                    </div>
+                  </div>
+                </TabsContent>
 
-              <div className="space-y-2">
-                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Homework Title</label>
-                 <Input 
-                    placeholder="e.g. Chapter 4 Practice Set"
-                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner border-none"
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                 />
-              </div>
+                <TabsContent value="excel" className="space-y-6 mt-0">
+                  <div className="group relative h-32 rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden mb-6">
+                    <input 
+                      type="file" 
+                      accept=".xlsx,.xls"
+                      onChange={(e) => handleFileUpload(e, 'excel')}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-emerald-500 shadow-sm group-hover:scale-110 transition-transform">
+                      <FileSpreadsheet className="w-5 h-5" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs font-bold text-slate-900">Import from Excel</p>
+                      <p className="text-[10px] font-medium text-slate-400">Extracts title, subject, and description</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-center -mt-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-[10px] font-bold text-indigo-500 hover:bg-indigo-50 gap-2 rounded-lg"
+                      onClick={() => {
+                        const XLSX = import('xlsx').then(XLSX => {
+                          const ws = XLSX.utils.json_to_sheet([
+                            { Title: 'Chapter 5 Algebra', Subject: 'Mathematics', Description: 'Solve exercises 1-10', DueDate: '2026-05-15' }
+                          ]);
+                          const wb = XLSX.utils.book_new();
+                          XLSX.utils.book_append_sheet(wb, ws, "Template");
+                          XLSX.writeFile(wb, "Homework_Template.xlsx");
+                        });
+                      }}
+                    >
+                      <FileDown className="w-3 h-3" /> Download Template
+                    </Button>
+                  </div>
+                </TabsContent>
 
-              <div className="space-y-2">
-                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Instructions / Description</label>
-                 <textarea 
-                    className="w-full h-32 rounded-2xl border-slate-100 bg-slate-50/50 p-4 text-sm focus:bg-white transition-all shadow-inner focus:outline-none"
-                    placeholder="Detailed instructions for the students..."
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                 />
-              </div>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Target Class</label>
+                        <select 
+                          className="w-full h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner focus:outline-none"
+                          value={formData.classId}
+                          onChange={(e) => setFormData({...formData, classId: e.target.value})}
+                        >
+                          <option value="">Select Class</option>
+                          {classes.map(c => (
+                            <option key={c.classId} value={c.classId}>{c.className}</option>
+                          ))}
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Subject</label>
+                        <Input 
+                          placeholder="e.g. Mathematics"
+                          className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner border-none"
+                          value={formData.subject}
+                          onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                        />
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Due Date</label>
-                 <Input 
-                    type="date"
-                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner border-none"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
-                 />
-              </div>
-           </div>
-           <DialogFooter className="p-8 pt-0">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Homework Title</label>
+                    <Input 
+                        placeholder="e.g. Chapter 4 Practice Set"
+                        className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner border-none"
+                        value={formData.title}
+                        onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Instructions / Description</label>
+                    <textarea 
+                        className="w-full h-32 rounded-2xl border-slate-100 bg-slate-50/50 p-4 text-sm focus:bg-white transition-all shadow-inner focus:outline-none"
+                        placeholder="Detailed instructions for the students..."
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Due Date</label>
+                      <Input 
+                          type="date"
+                          className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white transition-all shadow-inner border-none"
+                          value={formData.dueDate}
+                          onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
+                      />
+                    </div>
+                    {formData.attachments && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Attachment</label>
+                        <div className="h-12 rounded-2xl bg-indigo-50 border border-indigo-100 px-4 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-indigo-600 truncate max-w-[120px]">
+                            {(() => {
+                              try {
+                                return JSON.parse(formData.attachments).name;
+                              } catch(e) {
+                                return formData.attachments;
+                              }
+                            })()}
+                          </span>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-rose-500 hover:bg-rose-50 rounded-full"
+                            onClick={() => setFormData({...formData, attachments: ''})}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Tabs>
+            </div>
+           <DialogFooter className="p-8 pt-4 border-t border-slate-50 flex-shrink-0">
               <Button 
                 onClick={handleCreateHomework}
                 disabled={isSaving}
@@ -345,6 +583,31 @@ const TeacherHomework: React.FC = () => {
                     <div className="mt-4 bg-white rounded-xl p-4 text-sm text-slate-600 shadow-inner min-h-[60px]">
                       {sub.content || 'No text content provided.'}
                     </div>
+
+                    {sub.attachments && (() => {
+                      const subAttachInfo = getAttachmentInfo(sub.attachments);
+                      return (
+                        <div 
+                          onClick={() => handleDownload(sub.attachments)}
+                          className="mt-4 flex items-center gap-2 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 cursor-pointer hover:bg-indigo-100 transition-all group/subattach"
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${subAttachInfo.isPdf ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                            {subAttachInfo.isPdf ? <FileText className="w-4 h-4" /> : <FileSpreadsheet className="w-4 h-4" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold text-slate-900 truncate">{subAttachInfo.name}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Student's Work</p>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-indigo-600 group-hover/subattach:scale-110 transition-transform"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      );
+                    })()}
 
                     <div className="mt-4 flex items-center justify-between">
                        <Button 

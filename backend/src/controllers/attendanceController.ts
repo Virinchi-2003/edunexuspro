@@ -209,25 +209,52 @@ export const getMonthlyAttendanceStats = asyncHandler(async (req: Request, res: 
 });
 
 export const markAttendanceByQR = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId, studentId, classId, date, status, remarks } = req.body;
+  const { schoolId, qrData, classId, date, status, remarks } = req.body;
+  const { verifyStudentQRToken } = await import('../services/qrService');
+
+  let studentId: string | null = null;
+  
+  // Try 1: Verify as secure JWT token
+  studentId = verifyStudentQRToken(qrData);
+  
   const today = new Date().toISOString().split('T')[0];
   const recordDate = date || today;
 
-  // 1. Validate student exists
-  const student = await db.query.students.findFirst({
-    where: and(eq(students.id, studentId), eq(students.schoolId, schoolId))
-  });
+  // 2. Resolve Student (Try UUID first, then studentId)
+  let student: any = null;
+  
+  if (studentId) {
+    // If JWT was valid, we have the UUID
+    student = await db.query.students.findFirst({
+      where: and(eq(students.id, studentId), eq(students.schoolId, schoolId))
+    });
+  } else {
+    // Try 2: Check if qrData is a raw UUID
+    student = await db.query.students.findFirst({
+      where: and(eq(students.id, qrData), eq(students.schoolId, schoolId))
+    });
 
-  if (!student) {
-    return res.status(404).json({ status: 'error', message: 'Student not found in this school' });
+    if (!student) {
+      // Try 3: Check if qrData is the readable studentId (e.g. 2026-144)
+      student = await db.query.students.findFirst({
+        where: and(eq(students.studentId, qrData), eq(students.schoolId, schoolId))
+      });
+    }
   }
 
-  // 2. Check if already marked for today
+  if (!student) {
+    return res.status(404).json({ status: 'error', message: 'Student not recognized in this school' });
+  }
+
+  // Use the resolved student's UUID for the attendance record
+  const resolvedId = student.id;
+
+  // 3. Check if already marked for today
   const existing = await db.query.attendance.findFirst({
     where: and(
       eq(attendance.schoolId, schoolId),
       eq(attendance.date, recordDate),
-      eq(attendance.studentId, studentId)
+      eq(attendance.studentId, resolvedId)
     )
   });
 
@@ -251,7 +278,7 @@ export const markAttendanceByQR = asyncHandler(async (req: Request, res: Respons
   await db.insert(attendance).values({
     id: uuidv4(),
     schoolId,
-    studentId,
+    studentId: resolvedId,
     classId: classId || student.classId,
     status: status || 'present',
     date: recordDate,

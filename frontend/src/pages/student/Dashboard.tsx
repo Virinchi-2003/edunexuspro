@@ -6,7 +6,8 @@ import {
   Clock,
   Trophy,
   FileText,
-  Send
+  Send,
+  Loader2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,21 +46,19 @@ const StudentDashboard: React.FC = () => {
       }
       setStudent(sData);
 
-      // 2. Fetch all portal data in parallel only if we have IDs
-      const fetchers = [];
-      if (sData.id) fetchers.push(api.get(`/portal/dashboard/${sData.id}`));
-      if (sData.classId) fetchers.push(api.get(`/students/homework/${sData.classId}`));
-      if (sData.id) fetchers.push(api.get(`/students/leave/${sData.id}`));
-      if (sData.id) fetchers.push(api.get(`/exams/marks/student/${sData.id}`));
-
-      const results = await Promise.all(fetchers);
+      // 2. Fetch all portal data in parallel with resilience (don't break all if one fails)
+      const results = await Promise.all([
+        sData.id ? api.get(`/portal/dashboard/${sData.id}`).catch(() => ({ data: { data: null } })) : null,
+        sData.classId ? api.get(`/students/homework/${sData.classId}`).catch(() => ({ data: { data: [] } })) : null,
+        sData.id ? api.get(`/students/leave/${sData.id}`).catch(() => ({ data: { data: [] } })) : null,
+        sData.id ? api.get(`/exams/marks/student/${sData.id}`).catch(() => ({ data: { data: [] } })) : null,
+      ]);
       
       // Map results back to state
-      let resIdx = 0;
-      if (sData.id) setStats(results[resIdx++].data.data);
-      if (sData.classId) setHomeworkList(results[resIdx++].data.data || []);
-      if (sData.id) setLeaves(results[resIdx++].data.data || []);
-      if (sData.id) setPerformance(results[resIdx++].data.data || []);
+      setStats(results[0]?.data.data || null);
+      setHomeworkList(results[1]?.data.data || []);
+      setLeaves(results[2]?.data.data || []);
+      setPerformance(results[3]?.data.data || []);
 
     } catch (error) {
       console.error('Error fetching student data:', error);
@@ -139,11 +138,54 @@ const StudentDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-xl rounded-[2rem] bg-indigo-500 text-white p-2">
-          <CardContent className="p-6">
-            <div className="bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center mb-4"><Clock className="w-5 h-5" /></div>
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-100">ID Number</p>
-            <h3 className="text-3xl font-bold mt-1">{student?.studentId}</h3>
+        {/* QR Code Identification Card */}
+        <Card className="border-none shadow-xl rounded-[2rem] bg-slate-900 text-white overflow-hidden relative group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:bg-indigo-500/20 transition-all" />
+          <CardContent className="p-6 flex flex-col items-center justify-center relative z-10">
+             {student?.id ? (
+               <div className="space-y-3 flex flex-col items-center">
+                  <div className="bg-white p-2 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-500">
+                    <img 
+                      src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/students/${student.id}/qr?token=${localStorage.getItem('token')}`} 
+                      className="w-24 h-24 rounded-lg"
+                      alt="Digital ID QR"
+                      onError={(e) => {
+                        // Fallback logic if direct URL doesn't work with auth
+                        const img = e.target as HTMLImageElement;
+                        api.get(`/students/${student.id}/qr`).then(res => {
+                          img.src = res.data.data.qrCode;
+                        });
+                      }}
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Institutional Digital ID</p>
+                    <h4 className="text-sm font-bold text-white mt-0.5">{student?.studentId}</h4>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const res = await api.get(`/students/${student.id}/qr`);
+                          const link = document.createElement('a');
+                          link.href = res.data.data.qrCode;
+                          link.download = `QR_ID_${student.studentId}.png`;
+                          link.click();
+                          toast.success('QR ID downloaded');
+                        } catch (e) {
+                          toast.error('Failed to download QR');
+                        }
+                      }}
+                      className="mt-2 text-[8px] font-bold uppercase tracking-tighter text-indigo-400 hover:text-white transition-colors"
+                    >
+                      Download For Print
+                    </button>
+                  </div>
+               </div>
+             ) : (
+               <div className="flex flex-col items-center gap-2">
+                 <Loader2 className="w-8 h-8 animate-spin text-slate-700" />
+                 <p className="text-[10px] font-bold text-slate-500">Generating ID...</p>
+               </div>
+             )}
           </CardContent>
         </Card>
       </div>

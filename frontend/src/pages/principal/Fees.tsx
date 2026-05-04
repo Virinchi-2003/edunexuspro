@@ -62,7 +62,17 @@ const FeesPage: React.FC = () => {
   const [feeStructures, setFeeStructures] = useState<any[]>([]);
   const [isStructureDialogOpen, setIsStructureDialogOpen] = useState(false);
   const [selectedStructure, setSelectedStructure] = useState<any>(null);
-  const [structureData, setStructureData] = useState({ grade: '', amount: '', description: '' });
+  const [structureData, setStructureData] = useState({ 
+    grade: '', 
+    amount: '', 
+    description: '',
+    tuitionFees: '',
+    transportFees: '',
+    libraryFees: '',
+    examFees: '',
+    activityFees: '',
+    otherFees: ''
+  });
 
   const downloadTemplate = () => {
     const template = [
@@ -270,6 +280,17 @@ const FeesPage: React.FC = () => {
     // Find fee record
     const feeRecord = fees.find(f => f.studentId === selectedStudent.id && f.feeType === paymentData.feeType);
     
+    // Find matching structure for breakdown
+    const structure = feeStructures.find(s => s.grade === selectedStudent.grade);
+    const breakdown = structure ? {
+      tuition: structure.tuitionFees,
+      transport: structure.transportFees,
+      library: structure.libraryFees,
+      exam: structure.examFees,
+      activity: structure.activityFees,
+      other: structure.otherFees
+    } : null;
+
     try {
       setIsSaving(true);
       if (feeRecord) {
@@ -277,7 +298,8 @@ const FeesPage: React.FC = () => {
           status: paymentData.status,
           paidAmount: paymentData.status === 'paid' ? paymentData.amount : 0,
           transactionId: paymentData.transactionId,
-          amount: paymentData.amount // Allow editing amount too
+          amount: paymentData.amount,
+          breakdown: breakdown ? JSON.stringify(breakdown) : undefined
         });
         toast.success('Fee record updated');
       } else {
@@ -286,7 +308,8 @@ const FeesPage: React.FC = () => {
           studentId: selectedStudent.id,
           amount: paymentData.amount,
           dueDate: paymentData.dueDate || new Date().toISOString(),
-          feeType: paymentData.feeType
+          feeType: paymentData.feeType,
+          breakdown: breakdown ? JSON.stringify(breakdown) : undefined
         });
         toast.success('New fee record created');
       }
@@ -314,6 +337,17 @@ const FeesPage: React.FC = () => {
   const handleBulkFeeCreate = async () => {
     if (!paymentData.amount || !currentClassData) return;
     
+    // Find matching structure for breakdown
+    const structure = feeStructures.find(s => s.grade === currentClassData.name);
+    const breakdown = structure ? {
+      tuition: structure.tuitionFees,
+      transport: structure.transportFees,
+      library: structure.libraryFees,
+      exam: structure.examFees,
+      activity: structure.activityFees,
+      other: structure.otherFees
+    } : null;
+
     try {
       setIsSaving(true);
       const studentIds = currentClassData.studentList.map((s: any) => s.id);
@@ -322,7 +356,8 @@ const FeesPage: React.FC = () => {
         studentIds,
         amount: paymentData.amount,
         dueDate: paymentData.dueDate || new Date().toISOString(),
-        feeType: paymentData.feeType
+        feeType: paymentData.feeType,
+        breakdown: breakdown ? JSON.stringify(breakdown) : undefined
       });
       toast.success(`Fee records created for all ${studentIds.length} students`);
       setIsAddFeeDialogOpen(false);
@@ -743,7 +778,17 @@ const FeesPage: React.FC = () => {
             </div>
             <Button className="gap-2" onClick={() => {
               setSelectedStructure(null);
-              setStructureData({ grade: '', amount: '', description: '' });
+              setStructureData({ 
+                grade: '', 
+                amount: '', 
+                description: '',
+                tuitionFees: '',
+                transportFees: '',
+                libraryFees: '',
+                examFees: '',
+                activityFees: '',
+                otherFees: ''
+              });
               setIsStructureDialogOpen(true);
             }}>
               <Plus className="w-4 h-4" /> Add Structure
@@ -760,7 +805,17 @@ const FeesPage: React.FC = () => {
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                       setSelectedStructure(struct);
-                      setStructureData({ grade: struct.grade, amount: struct.amount.toString(), description: struct.description || '' });
+                      setStructureData({ 
+                        grade: struct.grade, 
+                        amount: struct.amount.toString(), 
+                        description: struct.description || '',
+                        tuitionFees: struct.tuitionFees?.toString() || '',
+                        transportFees: struct.transportFees?.toString() || '',
+                        libraryFees: struct.libraryFees?.toString() || '',
+                        examFees: struct.examFees?.toString() || '',
+                        activityFees: struct.activityFees?.toString() || '',
+                        otherFees: struct.otherFees?.toString() || ''
+                      });
                       setIsStructureDialogOpen(true);
                     }}>
                       <Pencil className="w-4 h-4 text-slate-400" />
@@ -771,8 +826,28 @@ const FeesPage: React.FC = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-slate-900 mb-1">₹{struct.amount.toLocaleString()}</div>
-                  <p className="text-sm text-slate-500 line-clamp-2">{struct.description || 'No description provided'}</p>
+                  <div className="text-2xl font-bold text-slate-900 mb-4">₹{struct.amount.toLocaleString()}</div>
+                  
+                  <div className="space-y-2 mb-4">
+                    {[
+                      { label: 'Tuition', val: struct.tuitionFees },
+                      { label: 'Transport', val: struct.transportFees },
+                      { label: 'Library', val: struct.libraryFees },
+                      { label: 'Exams', val: struct.examFees },
+                      { label: 'Activities', val: struct.activityFees },
+                    ].map((item, idx) => (
+                      item.val > 0 && (
+                        <div key={idx} className="flex justify-between text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                          <span>{item.label}</span>
+                          <span className="text-slate-600">₹{item.val.toLocaleString()}</span>
+                        </div>
+                      )
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-slate-500 line-clamp-2 border-t pt-3 border-slate-50 italic">
+                    {struct.description || 'No additional notes provided'}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -1014,36 +1089,73 @@ const FeesPage: React.FC = () => {
             </DialogHeader>
           </div>
           
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Grade / Class</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Grade / Class</label>
                   <Input 
                     value={structureData.grade}
                     onChange={e => setStructureData({...structureData, grade: e.target.value})}
-                    className="bg-slate-50 border-none h-11 rounded-xl"
+                    className="bg-slate-50 border-none h-11 rounded-xl font-bold"
                     placeholder="e.g. 10"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Amount (₹)</label>
-                  <Input 
-                    type="number"
-                    value={structureData.amount}
-                    onChange={e => setStructureData({...structureData, amount: e.target.value})}
-                    className="bg-slate-50 border-none h-11 rounded-xl"
-                    placeholder="50000"
-                  />
+                  <label className="text-xs font-bold uppercase tracking-widest text-primary">Total Amount (Auto)</label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-primary" />
+                    <Input 
+                      type="number"
+                      value={structureData.amount}
+                      readOnly
+                      className="pl-9 bg-primary/5 border-primary/20 h-11 rounded-xl font-bold text-primary"
+                    />
+                  </div>
                 </div>
              </div>
 
-             <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Description</label>
+             <div className="grid grid-cols-2 gap-4 pt-2">
+                {[
+                  { id: 'tuitionFees', label: 'Tuition Fees' },
+                  { id: 'transportFees', label: 'Transport Fees' },
+                  { id: 'libraryFees', label: 'Library Fees' },
+                  { id: 'examFees', label: 'Exam Fees' },
+                  { id: 'activityFees', label: 'Activity Fees' },
+                  { id: 'otherFees', label: 'Other Fees' },
+                ].map((fee) => (
+                  <div key={fee.id} className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 ml-1">{fee.label}</label>
+                    <Input 
+                      type="number"
+                      value={(structureData as any)[fee.id]}
+                      onChange={e => {
+                        const newData = { ...structureData, [fee.id]: e.target.value };
+                        // Calculate new total
+                        const total = [
+                          newData.tuitionFees,
+                          newData.transportFees,
+                          newData.libraryFees,
+                          newData.examFees,
+                          newData.activityFees,
+                          newData.otherFees
+                        ].reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+                        
+                        setStructureData({ ...newData, amount: total.toString() });
+                      }}
+                      className="bg-slate-50 border-none h-10 rounded-xl text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+             </div>
+
+             <div className="space-y-2 pt-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Structure Description</label>
                 <Input 
                   value={structureData.description}
                   onChange={e => setStructureData({...structureData, description: e.target.value})}
                   className="bg-slate-50 border-none h-11 rounded-xl"
-                  placeholder="Annual Tuition Fee"
+                  placeholder="e.g. Annual Academic Fee for Grade 10"
                 />
              </div>
           </div>

@@ -51,6 +51,7 @@ app.use('/api/management', managementRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
+app.use('/api/student', studentRoutes); // Alias for legacy/singular calls
 app.use('/api/classes', classRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/fees', feesRoutes);

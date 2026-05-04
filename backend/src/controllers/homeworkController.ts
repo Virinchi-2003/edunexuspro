@@ -9,7 +9,7 @@ import { getSingleValue } from '../utils/queryHelper';
 // TEACHER OPERATIONS
 
 export const createHomework = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId, classId, subject, title, description, dueDate, teacherId } = req.body;
+  const { schoolId, classId, subject, title, description, dueDate, teacherId, attachments } = req.body;
   
   const id = uuidv4();
   const newHomework = {
@@ -21,6 +21,7 @@ export const createHomework = asyncHandler(async (req: Request, res: Response) =
     description,
     dueDate,
     teacherId,
+    attachments, // JSON string or base64
     createdAt: new Date().toISOString()
   };
 

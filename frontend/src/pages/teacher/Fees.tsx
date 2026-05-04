@@ -32,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TeacherFees: React.FC = () => {
   const { user } = useAuth();
@@ -43,15 +44,17 @@ const TeacherFees: React.FC = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
   const [classFilter, setClassFilter] = useState<string>('all');
+  const [feeStructures, setFeeStructures] = useState<any[]>([]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [profileRes, classRes, studentsRes, feesRes] = await Promise.all([
+      const [profileRes, classRes, studentsRes, feesRes, structRes] = await Promise.all([
         api.get(`/staff/user/${user.uid}`),
         api.get(`/classes/school/${user.schoolId}`),
         api.get(`/students/school/${user.schoolId}`),
-        api.get(`/fees/school/${user.schoolId}`)
+        api.get(`/fees/school/${user.schoolId}`),
+        api.get(`/fee-structures/school/${user.schoolId}`)
       ]);
 
       const profile = profileRes.data.data;
@@ -75,6 +78,8 @@ const TeacherFees: React.FC = () => {
       const classIds = matchedClasses.map((c: any) => c.id);
 
       const fees = feesRes.data.data?.fees || [];
+      const structures = structRes.data.data || [];
+      setFeeStructures(structures);
 
       // Filter students who belong to these assigned classes
       const filteredStudents = studentsRes.data.data.filter((s: any) => 
@@ -129,69 +134,54 @@ const TeacherFees: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Student Fees</h2>
-          <p className="text-slate-500 font-medium mt-1">Monitor fee payment status for your assigned class students.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-             <Input 
-               placeholder="Find student by name..." 
-               className="pl-10 w-64 rounded-xl border-slate-200 bg-white"
-               value={searchQuery}
-               onChange={(e) => setSearchQuery(e.target.value)}
-             />
+      <Tabs defaultValue="payments" className="w-full">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div>
+            <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Fee Management</h2>
+            <p className="text-slate-500 font-medium mt-1">Track payments and view billing structures for your classes.</p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className={`rounded-xl gap-2 border-slate-200 bg-white shadow-sm ${statusFilter !== 'all' || classFilter !== 'all' ? 'border-indigo-500 text-indigo-600' : ''}`}>
-                <Filter className="w-4 h-4" /> Filter
-                {(statusFilter !== 'all' || classFilter !== 'all') && (
-                  <Badge className="ml-1 px-1.5 h-4 bg-indigo-600 text-white border-none">!</Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 rounded-2xl p-2 shadow-2xl border-none bg-white/95 backdrop-blur-xl">
-              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-slate-400 p-2">Payment Status</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                <DropdownMenuRadioItem value="all" className="rounded-xl">All Payments</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="paid" className="rounded-xl">Full Paid</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="pending" className="rounded-xl">Pending Dues</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              
-              <DropdownMenuSeparator className="bg-slate-50" />
-              
-              <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-slate-400 p-2">Assigned Classes</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={classFilter} onValueChange={setClassFilter}>
-                <DropdownMenuRadioItem value="all" className="rounded-xl">All Classes</DropdownMenuRadioItem>
-                {assignedClasses.map(c => (
-                  <DropdownMenuRadioItem key={c.id} value={c.id} className="rounded-xl">
-                    {c.name}-{c.section}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-
-              {(statusFilter !== 'all' || classFilter !== 'all') && (
-                <>
-                  <DropdownMenuSeparator className="bg-slate-50" />
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start text-rose-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl mt-1 h-9 text-xs font-bold"
-                    onClick={() => {
-                      setStatusFilter('all');
-                      setClassFilter('all');
-                    }}
-                  >
-                    Clear All Filters
-                  </Button>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          
+          <TabsList className="bg-slate-100 p-1 rounded-2xl h-14 w-full md:w-auto">
+            <TabsTrigger value="payments" className="rounded-xl px-8 h-12 data-[state=active]:bg-white data-[state=active]:shadow-lg font-bold">Student Payments</TabsTrigger>
+            <TabsTrigger value="structures" className="rounded-xl px-8 h-12 data-[state=active]:bg-white data-[state=active]:shadow-lg font-bold">Class Structures</TabsTrigger>
+          </TabsList>
         </div>
-      </div>
+
+        <TabsContent value="payments" className="space-y-8 outline-none">
+          <div className="flex flex-col md:flex-row md:items-center justify-end gap-3">
+            <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+               <Input 
+                 placeholder="Find student..." 
+                 className="pl-10 w-64 rounded-xl border-slate-200 bg-white"
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+               />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className={`rounded-xl gap-2 border-slate-200 bg-white shadow-sm ${statusFilter !== 'all' || classFilter !== 'all' ? 'border-indigo-500 text-indigo-600' : ''}`}>
+                  <Filter className="w-4 h-4" /> Filter
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 rounded-2xl p-2 shadow-2xl border-none bg-white/95 backdrop-blur-xl">
+                <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-slate-400 p-2">Status</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <DropdownMenuRadioItem value="all" className="rounded-xl text-xs font-bold">All</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="paid" className="rounded-xl text-xs font-bold text-emerald-600">Paid</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="pending" className="rounded-xl text-xs font-bold text-rose-600">Pending</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator className="bg-slate-50" />
+                <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-slate-400 p-2">Classes</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={classFilter} onValueChange={setClassFilter}>
+                  <DropdownMenuRadioItem value="all" className="rounded-xl text-xs font-bold">All Classes</DropdownMenuRadioItem>
+                  {assignedClasses.map(c => (
+                    <DropdownMenuRadioItem key={c.id} value={c.id} className="rounded-xl text-xs font-bold">{c.name}-{c.section}</DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="border-none shadow-xl bg-white rounded-[2rem] p-6 relative overflow-hidden">
@@ -256,6 +246,8 @@ const TeacherFees: React.FC = () => {
                     <th className="px-10 py-6 text-left">Student Profile</th>
                     <th className="px-10 py-6 text-center">Class / Section</th>
                     <th className="px-10 py-6 text-center">Payment Status</th>
+                    <th className="px-10 py-6 text-right">Paid Amount</th>
+                    <th className="px-10 py-6 text-right">Outstanding Amount</th>
                     <th className="px-10 py-6 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -278,6 +270,12 @@ const TeacherFees: React.FC = () => {
                       </td>
                       <td className="px-10 py-6 text-center">
                         {getFeeStatus(student)}
+                      </td>
+                      <td className="px-10 py-6 text-right font-display font-bold text-emerald-600">
+                        ₹{student.totalPaid.toLocaleString()}
+                      </td>
+                      <td className="px-10 py-6 text-right font-display font-bold text-slate-900">
+                        ₹{(student.totalFee - student.totalPaid).toLocaleString()}
                       </td>
                       <td className="px-10 py-6 text-right">
                          <Button 
@@ -308,6 +306,59 @@ const TeacherFees: React.FC = () => {
           )}
         </CardContent>
       </Card>
+    </TabsContent>
+
+        <TabsContent value="structures" className="outline-none">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {assignedClasses.map(c => {
+                const cleanClassName = c.name.toLowerCase().replace(/(\d+)(st|nd|rd|th)/i, '$1').trim();
+                const struct = feeStructures.find(s => 
+                  s.grade.toLowerCase().trim() === cleanClassName || 
+                  s.grade.toLowerCase().trim() === c.name.toLowerCase().trim()
+                );
+                return (
+                  <Card key={c.id} className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden group hover:scale-[1.02] transition-all">
+                    <div className="bg-indigo-600 p-6 text-white relative">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12 blur-2xl" />
+                      <div className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Class Structure</div>
+                      <h3 className="text-2xl font-display font-bold">{c.name}-{c.section}</h3>
+                    </div>
+                    <CardContent className="p-6 space-y-4">
+                      {struct ? (
+                        <>
+                          {[
+                            { label: 'Tuition', val: struct.tuitionFees },
+                            { label: 'Transport', val: struct.transportFees },
+                            { label: 'Library', val: struct.libraryFees },
+                            { label: 'Exams', val: struct.examFees },
+                            { label: 'Activity', val: struct.activityFees },
+                            { label: 'Other', val: struct.otherFees },
+                          ].map((item, i) => (
+                            item.val > 0 && (
+                              <div key={i} className="flex justify-between items-center text-xs font-bold">
+                                <span className="text-slate-400 uppercase tracking-widest">{item.label}</span>
+                                <span className="text-slate-900">₹{item.val.toLocaleString()}</span>
+                              </div>
+                            )
+                          ))}
+                          <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
+                            <span className="text-sm font-bold text-indigo-600 uppercase tracking-widest">Total Annual</span>
+                            <span className="text-xl font-display font-bold text-slate-900">₹{struct.amount.toLocaleString()}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="py-10 text-center">
+                          <AlertTriangle className="w-8 h-8 text-amber-300 mx-auto mb-2" />
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No structure defined</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+           </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Fee Details Modal */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
@@ -338,26 +389,49 @@ const TeacherFees: React.FC = () => {
                </div>
             </div>
 
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                {selectedStudent?.studentFees?.length > 0 ? (
-                 selectedStudent.studentFees.map((fee: any) => (
-                   <div key={fee.id} className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-100 hover:border-indigo-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${fee.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                           {fee.status === 'paid' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                         </div>
-                         <div>
-                           <span className="font-bold text-slate-700">{fee.feeType}</span>
-                           <div className="text-xs text-slate-400">₹{fee.amount?.toLocaleString()} {fee.lateFee ? `(+₹${fee.lateFee} Late)` : ''}</div>
-                         </div>
-                      </div>
-                      {fee.status === 'paid' ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-none font-bold">Paid</Badge>
-                      ) : (
-                        <Badge className="bg-rose-100 text-rose-700 border-none font-bold">Pending</Badge>
-                      )}
-                   </div>
-                 ))
+                 selectedStudent.studentFees.map((fee: any) => {
+                   let breakdown: any = {};
+                   try { breakdown = fee.breakdown ? JSON.parse(fee.breakdown) : {}; } catch(e) {}
+                   
+                   return (
+                     <div key={fee.id} className="p-5 rounded-3xl bg-white border border-slate-100 hover:border-indigo-100 transition-all shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${fee.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                {fee.status === 'paid' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900">{fee.feeType}</span>
+                                <div className="text-[10px] text-slate-400 font-mono">Invoice: {fee.challanNumber || 'Pending'}</div>
+                              </div>
+                           </div>
+                           <Badge className={`${fee.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-700'} border-none font-bold`}>
+                             {fee.status.toUpperCase()}
+                           </Badge>
+                        </div>
+                        
+                        {Object.keys(breakdown).length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 bg-slate-50/50 p-3 rounded-2xl border border-slate-50">
+                             {Object.entries(breakdown).map(([k, v]: any) => (
+                               Number(v) > 0 && (
+                                 <div key={k} className="flex justify-between items-center text-[10px] font-bold">
+                                   <span className="text-slate-400 uppercase tracking-widest">{k}</span>
+                                   <span className="text-slate-600 font-mono">₹{v.toLocaleString()}</span>
+                                 </div>
+                               )
+                             ))}
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-50">
+                          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total with Late Fee</span>
+                          <span className="text-sm font-bold text-slate-900">₹{(fee.amount + (fee.lateFee || 0)).toLocaleString()}</span>
+                        </div>
+                     </div>
+                   );
+                 })
                ) : (
                  <div className="text-center py-6 text-slate-500 italic text-sm">No fee records found for this student.</div>
                )}

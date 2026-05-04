@@ -10,7 +10,7 @@ router.get('/public', getPublicSchools);
 router.post('/', authenticate, authorize(['admin']), createSchool);
 router.post('/sync', authenticate, authorize(['admin']), syncLeadsToSchools);
 router.get('/', authenticate, authorize(['admin']), getSchools);
-router.get('/:id', authenticate, authorize(['admin', 'principal', 'staff', 'teacher']), getSchoolById);
+router.get('/:id', authenticate, authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getSchoolById);
 router.put('/:id/status', authenticate, authorize(['admin']), updateSchoolStatus);
 router.put('/:id', authenticate, authorize(['admin']), updateSchool);
 router.delete('/:id', authenticate, authorize(['admin']), deleteSchool);

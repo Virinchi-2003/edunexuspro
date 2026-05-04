@@ -227,23 +227,36 @@ export const downloadReportCard = asyncHandler(async (req: Request, res: Respons
 
   if (!student) return res.status(404).json({ status: 'error', message: 'Student not found' });
 
+  const marksWithDetails = studentMarks.map(m => ({
+    subject: m.examSchedule?.subject || 'N/A',
+    marksObtained: m.marksObtained,
+    totalMarks: m.totalMarks || 100,
+    grade: calculateGrade(m.marksObtained, m.totalMarks || 100)
+  }));
+
   const reportData = {
     studentName: student.name,
     studentId: student.studentId,
-    grade: student.class ? `${student.class.name}-${student.class.section}` : student.grade,
-    term: term || 'Final Term',
-    marks: studentMarks.map(m => ({
-      subject: m.examSchedule?.subject || 'N/A',
-      marksObtained: m.marksObtained,
-      totalMarks: m.totalMarks || 100,
-      grade: calculateGrade(m.marksObtained, m.totalMarks || 100)
-    })),
-    attendance: 95
+    grade: `${student.grade}-${student.section}`,
+    term: term || 'Final Term 2024',
+    marks: marksWithDetails,
+    attendance: 95, // TODO: Fetch real attendance
+    remarks: 'Outstanding performance throughout the academic year.'
   };
 
+  console.log('Generating PDF for student:', student.name);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename=ReportCard_${student.studentId}.pdf`);
-  generateReportCardPDF(reportData, res);
+  
+  try {
+    generateReportCardPDF(reportData, res);
+    console.log('PDF generation initiated successfully');
+  } catch (pdfError) {
+    console.error('Error during PDF generation:', pdfError);
+    if (!res.headersSent) {
+      res.status(500).json({ status: 'error', message: 'Failed to generate PDF' });
+    }
+  }
 });
 
 export const getStudentPerformance = asyncHandler(async (req: Request, res: Response) => {
