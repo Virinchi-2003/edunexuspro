@@ -351,39 +351,6 @@ export const createRazorpayOrder = asyncHandler(async (req: Request, res: Respon
   }
 });
 
-export const downloadFeeReceipt = asyncHandler(async (req: Request, res: Response) => {
-  const txId = getSingleValue(req.params.transactionId);
-  
-  const tx = await db.query.feeTransactions.findFirst({
-    where: eq(feeTransactions.id, txId),
-  });
-
-  if (!tx) {
-    return res.status(404).json({ status: 'error', message: 'Transaction not found' });
-  }
-
-  const student = await db.query.students.findFirst({
-    where: eq(students.id, tx.studentId),
-  });
-
-  const school = await db.query.schools.findFirst({
-    where: eq(schools.id, tx.schoolId),
-  });
-
-  const data = {
-    ...tx,
-    student: {
-      ...student,
-      school
-    }
-  };
-
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename=Receipt_${txId.slice(0,8)}.pdf`);
-  
-  generateFeeReceiptPDF(data, res);
-});
-
 export const verifyPayment = asyncHandler(async (req: Request, res: Response) => {
   const { 
     razorpay_order_id, 
