@@ -210,6 +210,8 @@ export const getMonthlyAttendanceStats = asyncHandler(async (req: Request, res: 
 
 export const markAttendanceByQR = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, qrData, classId, date, status, remarks } = req.body;
+  console.log(`[QR SCAN] Received scan for school ${schoolId}. Data length: ${qrData?.length}`);
+  
   const { verifyStudentQRToken } = await import('../services/qrService');
 
   let studentId: string | null = null;
@@ -243,6 +245,7 @@ export const markAttendanceByQR = asyncHandler(async (req: Request, res: Respons
   }
 
   if (!student) {
+    console.warn(`[QR SCAN ERROR] Student not found for data: ${qrData?.slice(0, 20)}... in school ${schoolId}`);
     return res.status(404).json({ status: 'error', message: 'Student not recognized in this school' });
   }
 
