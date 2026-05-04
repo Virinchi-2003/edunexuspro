@@ -31,7 +31,7 @@ router.use(authenticate);
  */
 router.get(
   '/dashboard/:studentId', 
-  authorize(['admin', 'principal', 'staff', 'teacher', 'student']), 
+  authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), 
   getStudentDashboardStats
 );
 

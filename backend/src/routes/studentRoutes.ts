@@ -23,14 +23,14 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/school/:schoolId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentsBySchool);
-router.get('/class/:classId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentsByClass);
-router.post('/multiple-classes', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentsByMultipleClasses);
+router.get('/school/:schoolId', authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), getStudentsBySchool);
+router.get('/class/:classId', authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), getStudentsByClass);
+router.post('/multiple-classes', authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), getStudentsByMultipleClasses);
 router.get('/user/:userId', getStudentByUser);
 router.get('/homework/:classId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentHomework);
-router.get('/leave/:studentId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentLeaves);
+router.get('/leave/:studentId', authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), getStudentLeaves);
 router.post('/leave', applyLeave);
-router.get('/:studentId/qr', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentQR);
+router.get('/:studentId/qr', authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), getStudentQR);
 
 // Homework
 router.get('/homework-list/:classId', authorize(['student']), getStudentHomeworkList);

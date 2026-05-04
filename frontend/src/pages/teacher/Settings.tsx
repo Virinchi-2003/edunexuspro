@@ -107,7 +107,7 @@ const TeacherSettings: React.FC = () => {
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Teacher Profile</h2>
+        <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight capitalize">{user?.role} Profile</h2>
         <p className="text-slate-500 font-medium mt-1">Manage your professional information and account security.</p>
       </div>
 

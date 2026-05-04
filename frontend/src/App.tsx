@@ -39,6 +39,9 @@ import TeacherHomework from './pages/teacher/Homework';
 import TeacherMessaging from './pages/teacher/Messaging';
 import AdmissionForm from './pages/AdmissionForm';
 import Login from './pages/Login';
+import CoachDashboard from './pages/coach/Dashboard';
+import CoachClipboard from './pages/coach/modules/Clipboard';
+import CoachFixtures from './pages/coach/modules/Fixtures';
 
 import { Toaster } from 'sonner';
 
@@ -149,8 +152,8 @@ const App: React.FC = () => {
             <ProtectedRoute roles={['coach']}>
               <AdminLayout>
                 <Routes>
-                  <Route path="/" element={<div className="p-8 text-2xl font-bold">Coach Dashboard - Coming Soon</div>} />
-                  <Route path="/attendance" element={<TeacherAttendance />} />
+                  <Route path="/" element={<CoachDashboard />} />
+                  <Route path="/attendance" element={<CoachClipboard />} />
                   <Route path="/timetable" element={<TeacherTimetable />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
