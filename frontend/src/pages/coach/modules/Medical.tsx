@@ -1,22 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Heart, 
-  Activity, 
   ShieldAlert, 
-  Smartphone, 
   Loader2, 
-  Scale, 
-  Timer, 
-  Zap, 
   Phone, 
-  MoreVertical,
   CheckCircle2,
   Watch
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';

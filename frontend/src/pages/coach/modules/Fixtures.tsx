@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Trophy, 
-  Calendar, 
   MapPin, 
-  Clock, 
   Smartphone, 
   Plus, 
   Loader2, 
   Map, 
   Navigation,
-  ChevronRight,
-  MoreVertical,
-  CheckCircle2
+  MoreVertical
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';

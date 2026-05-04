@@ -3,7 +3,6 @@ import {
   Trophy, 
   Users, 
   Calendar, 
-  Activity, 
   ClipboardCheck, 
   ShieldAlert, 
   Package, 
@@ -12,27 +11,22 @@ import {
   Heart,
   Clock,
   MapPin,
-  Smartphone,
-  Info
+  Smartphone
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
-import { toast } from 'sonner';
 
 import CoachClipboard from './modules/Clipboard';
 import CoachFixtures from './modules/Fixtures';
-import CoachMedical from './modules/Medical';
 import CoachInventory from './modules/Inventory';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>({
     activePlayers: 0,
     upcomingMatches: 0,
@@ -45,9 +39,8 @@ const CoachDashboard: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        setLoading(true);
         // In a real app, we'd fetch these from our new endpoints
-        const [sportsRes, fixturesRes, inventoryRes] = await Promise.all([
+        const [, fixturesRes, inventoryRes] = await Promise.all([
           api.get(`/coach/sports/${user.schoolId}`),
           api.get(`/coach/fixtures/${user.schoolId}`),
           api.get(`/coach/inventory/${user.schoolId}`)
@@ -65,8 +58,6 @@ const CoachDashboard: React.FC = () => {
 
       } catch (error) {
         console.error(error);
-      } finally {
-        setLoading(false);
       }
     };
     fetchDashboardData();
@@ -184,7 +175,7 @@ const CoachDashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-2xl font-display font-bold">Skill Progression</CardTitle>
-                  <CardDescription>Average performance across all sports</CardDescription>
+                  <p className="text-sm text-slate-500 font-medium">Average performance across all sports</p>
                 </div>
                 <Button variant="ghost" size="sm" className="rounded-xl text-indigo-600 font-bold">View Reports <ChevronRight className="w-4 h-4" /></Button>
               </div>
@@ -317,7 +308,7 @@ const CoachDashboard: React.FC = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
+      <Tabs defaultValue="overview" className="w-full">
         <TabsList className="bg-white p-1 rounded-[2rem] shadow-sm border border-slate-100 mb-10 h-16 w-full max-w-2xl">
           <TabsTrigger value="overview" className="flex-1 rounded-[1.5rem] font-bold data-[state=active]:bg-slate-900 data-[state=active]:text-white h-14 transition-all">Overview</TabsTrigger>
           <TabsTrigger value="clipboard" className="flex-1 rounded-[1.5rem] font-bold data-[state=active]:bg-slate-900 data-[state=active]:text-white h-14 transition-all">Clipboard</TabsTrigger>

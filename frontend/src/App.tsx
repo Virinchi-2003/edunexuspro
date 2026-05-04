@@ -41,7 +41,6 @@ import AdmissionForm from './pages/AdmissionForm';
 import Login from './pages/Login';
 import CoachDashboard from './pages/coach/Dashboard';
 import CoachClipboard from './pages/coach/modules/Clipboard';
-import CoachFixtures from './pages/coach/modules/Fixtures';
 
 import { Toaster } from 'sonner';
 

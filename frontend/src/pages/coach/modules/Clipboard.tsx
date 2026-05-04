@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ClipboardCheck, 
-  Users, 
-  TrendingUp, 
   Activity, 
   CheckCircle2, 
   XCircle, 
   Save, 
   Loader2,
-  ChevronRight,
-  Plus
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
