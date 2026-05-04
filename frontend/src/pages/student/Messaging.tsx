@@ -8,10 +8,7 @@ import {
   Loader2,
   Paperclip,
   UserPlus,
-  FileText,
-  Play,
   Download,
-  Image as ImageIcon,
   File as FileIcon,
   Film
 } from 'lucide-react';
@@ -36,7 +33,7 @@ const StudentMessaging: React.FC = () => {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {

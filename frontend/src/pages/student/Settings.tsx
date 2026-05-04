@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Building, 
   User, 
   Shield, 
   Key, 
@@ -12,7 +11,6 @@ import {
   Save,
   LogOut,
   MapPin,
-  School,
   CheckCircle2,
   Camera,
   GraduationCap

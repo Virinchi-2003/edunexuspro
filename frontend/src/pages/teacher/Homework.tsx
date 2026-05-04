@@ -12,7 +12,6 @@ import {
   BookOpen,
   FileText,
   FileSpreadsheet,
-  Upload,
   FileDown,
   Download
 } from 'lucide-react';
@@ -56,7 +55,6 @@ const TeacherHomework: React.FC = () => {
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [isGradeOpen, setIsGradeOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [uploadMode, setUploadMode] = useState<'manual' | 'pdf' | 'excel'>('manual');
   
   // Selection States
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
@@ -434,7 +432,7 @@ const TeacherHomework: React.FC = () => {
                       size="sm" 
                       className="text-[10px] font-bold text-indigo-500 hover:bg-indigo-50 gap-2 rounded-lg"
                       onClick={() => {
-                        const XLSX = import('xlsx').then(XLSX => {
+                        import('xlsx').then(XLSX => {
                           const ws = XLSX.utils.json_to_sheet([
                             { Title: 'Chapter 5 Algebra', Subject: 'Mathematics', Description: 'Solve exercises 1-10', DueDate: '2026-05-15' }
                           ]);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,7 @@ import {
   PieChart,
   ShieldCheck,
   ArrowRight,
-  TrendingUp,
-  History
+  TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";

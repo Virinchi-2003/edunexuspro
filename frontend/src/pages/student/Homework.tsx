@@ -10,7 +10,6 @@ import {
   FileText,
   FileSpreadsheet,
   MessageSquare,
-  FileDown,
   Download,
   Trash2,
   Upload

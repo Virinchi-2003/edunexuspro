@@ -10,8 +10,7 @@ import {
   UserPlus,
   File as FileIcon,
   Download,
-  Film,
-  Image as ImageIcon
+  Film
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +33,7 @@ const TeacherMessaging: React.FC = () => {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
