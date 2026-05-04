@@ -108,12 +108,20 @@ export const updateStaff = asyncHandler(async (req: Request, res: Response) => {
 
   // Sync with users table
   if (existingStaff.userId) {
+    let userRole = undefined;
+    if (updateData.role) {
+      userRole = (updateData.role === 'Accountant' || updateData.role === 'Coach') ? updateData.role.toLowerCase() : 'staff';
+    }
+
     const userUpdate: any = {
       name: updateData.name || existingStaff.name,
       email: updateData.email || existingStaff.email,
-      role: (updateData.role === 'Accountant' || updateData.role === 'Coach') ? updateData.role.toLowerCase() : 'staff',
       updatedAt: new Date().toISOString()
     };
+
+    if (userRole) {
+      userUpdate.role = userRole;
+    }
     if (updateData.password) {
       userUpdate.password = updateData.password;
     }
