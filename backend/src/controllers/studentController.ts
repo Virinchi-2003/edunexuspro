@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { students, users, schools, homework, leaveRequests } from '../db/schema';
+import { students, users, schools, homework, leaveRequests, supportTickets } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
@@ -306,4 +306,23 @@ export const getStudentQR = asyncHandler(async (req: Request, res: Response) => 
       token
     }
   });
+});
+
+export const createSupportTicket = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, studentId, subject, message, category, priority } = req.body;
+  const id = uuidv4();
+  
+  const newTicket = { 
+    id, 
+    schoolId, 
+    studentId, 
+    subject, 
+    message, 
+    category: category || 'technical', 
+    priority: priority || 'medium', 
+    status: 'open' 
+  };
+  
+  await db.insert(supportTickets).values(newTicket);
+  res.status(201).json({ status: 'success', data: newTicket });
 });

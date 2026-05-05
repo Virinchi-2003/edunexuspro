@@ -18,7 +18,9 @@ import {
   PieChart,
   ShieldCheck,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  MessageSquare,
+  Send
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -33,6 +35,9 @@ const StudentFees = () => {
   const [paying, setPaying] = useState(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
   const [advanceData, setAdvanceData] = useState({ amount: '', type: 'Activity Fee' });
+  const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
+  const [supportData, setSupportData] = useState({ subject: 'Fee Query', message: '', category: 'fee_issue', priority: 'medium' });
+  const [submittingTicket, setSubmittingTicket] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -81,6 +86,25 @@ const StudentFees = () => {
       toast.error('Failed to load financial records');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateTicket = async () => {
+    if (!supportData.message) return toast.error('Please enter your query');
+    try {
+      setSubmittingTicket(true);
+      await api.post('/students/support-ticket', {
+        ...supportData,
+        schoolId: studentProfile.schoolId,
+        studentId: studentProfile.id
+      });
+      toast.success('Your query has been sent to the Accounts Office');
+      setIsSupportDialogOpen(false);
+      setSupportData({ ...supportData, message: '' });
+    } catch (error) {
+      toast.error('Failed to send query');
+    } finally {
+      setSubmittingTicket(false);
     }
   };
 
@@ -375,7 +399,11 @@ const StudentFees = () => {
                 </div>
               </div>
               <div className="mt-8">
-                <Button variant="outline" className="w-full rounded-xl border-indigo-200 text-indigo-600 font-bold group">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsSupportDialogOpen(true)}
+                  className="w-full rounded-xl border-indigo-200 text-indigo-600 font-bold group"
+                >
                   Contact Accounts Office <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </div>
@@ -628,7 +656,60 @@ const StudentFees = () => {
               </Button>
            </div>
         </DialogContent>
-      </Dialog>
+       </Dialog>
+       
+       {/* Support Ticket Dialog */}
+       <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
+         <DialogContent className="sm:max-w-[500px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden">
+            <div className="h-32 bg-slate-900 p-8 flex flex-col justify-center">
+               <DialogTitle className="text-2xl font-display font-bold text-white flex items-center gap-3">
+                  <MessageSquare className="w-6 h-6 text-indigo-400" /> Support Ticket
+               </DialogTitle>
+               <DialogDescription className="text-slate-400 font-medium mt-1">Submit your fee-related queries to the Accounts Office.</DialogDescription>
+            </div>
+            <div className="p-8 space-y-6">
+               <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Issue Category</label>
+                  <select 
+                     className="w-full h-14 rounded-2xl border-slate-100 bg-slate-50 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                     value={supportData.category}
+                     onChange={(e) => setSupportData({...supportData, category: e.target.value})}
+                  >
+                     <option value="fee_issue">Fee Payment Issue</option>
+                     <option value="scholarship">Scholarship Query</option>
+                     <option value="technical">Technical Glitch</option>
+                     <option value="complaint">Complaint</option>
+                  </select>
+               </div>
+               <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Subject</label>
+                  <Input 
+                    placeholder="Brief summary of issue" 
+                    className="h-14 rounded-2xl border-slate-100 bg-slate-50 text-sm font-bold focus:bg-white transition-all shadow-inner"
+                    value={supportData.subject}
+                    onChange={(e) => setSupportData({...supportData, subject: e.target.value})}
+                  />
+               </div>
+               <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Message / Detail</label>
+                  <textarea 
+                    placeholder="Describe your issue in detail..." 
+                    className="w-full min-h-[120px] p-4 rounded-2xl border-slate-100 bg-slate-50 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-inner resize-none"
+                    value={supportData.message}
+                    onChange={(e) => setSupportData({...supportData, message: e.target.value})}
+                  />
+               </div>
+               <Button 
+                 onClick={handleCreateTicket}
+                 disabled={submittingTicket}
+                 className="w-full h-16 rounded-2xl bg-indigo-600 hover:bg-slate-900 text-white font-bold text-lg shadow-xl shadow-indigo-100 mt-4 transition-all gap-3"
+               >
+                 {submittingTicket ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-5 h-5" />}
+                 Submit Request
+               </Button>
+            </div>
+         </DialogContent>
+       </Dialog>
     </div>
   );
 };

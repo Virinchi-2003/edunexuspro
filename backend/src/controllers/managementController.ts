@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { principals, subscriptions, schools, students, leads, users, configs, staff, fees, attendance } from '../db/schema';
+import { principals, subscriptions, schools, students, leads, users, configs, staff, fees, attendance, requisitions } from '../db/schema';
 import { principalSchema } from '../models/principalModel';
 import { subscriptionSchema } from '../models/subscriptionModel';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -104,6 +104,14 @@ export const getSchoolStats = asyncHandler(async (req: Request, res: Response) =
     ? ((presentCount.value / studentCount.value) * 100).toFixed(1) 
     : "0.0";
 
+  // 5. Total Salary Liability
+  const staffMembers = await db.select({ salary: staff.salary }).from(staff).where(eq(staff.schoolId, schoolId));
+  const totalSalaries = staffMembers.reduce((acc, s) => acc + (s.salary || 0), 0);
+
+  // 6. Procurement Stats
+  const allReqs = await db.query.requisitions.findMany({ where: eq(requisitions.schoolId, schoolId) });
+  const pendingReqs = allReqs.filter(r => r.status === 'pending').length;
+
   res.status(200).json({
     status: 'success',
     data: {
@@ -111,6 +119,8 @@ export const getSchoolStats = asyncHandler(async (req: Request, res: Response) =
       staff: staffCount.value,
       feesCollected: totalCollected,
       totalFeesExpected: totalExpected,
+      totalSalaries,
+      pendingRequisitions: pendingReqs,
       todayAttendance: attendanceRate,
       academicYear
     }

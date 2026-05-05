@@ -53,6 +53,7 @@ export const updateSlot = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // 2. Conflict Detection
+  // Check if teacher/coach is busy
   const teacherConflict = await db.query.timetableSlots.findFirst({
     where: and(
       eq(timetableSlots.dayOfWeek, dayOfWeek),
@@ -62,7 +63,22 @@ export const updateSlot = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (teacherConflict) {
-    return res.status(400).json({ status: 'error', message: `Teacher is already busy during this time (${startTime})` });
+    return res.status(400).json({ status: 'error', message: `You are already busy during this time (${startTime})` });
+  }
+
+  // Check if class is already busy
+  const classConflict = await db.query.timetableSlots.findFirst({
+    where: and(
+      eq(timetableSlots.timetableId, timetableId!),
+      eq(timetableSlots.dayOfWeek, dayOfWeek),
+      eq(timetableSlots.startTime, startTime)
+    )
+  });
+
+  if (classConflict) {
+    // For now, let's allow coaches/admins to overwrite class slots if they are the ones assigning
+    // Or we can return an error. Let's return an error to be safe, they can delete the existing one first.
+    return res.status(400).json({ status: 'error', message: `Class is already assigned to another session during this time` });
   }
 
   const id = uuidv4();
@@ -70,6 +86,12 @@ export const updateSlot = asyncHandler(async (req: Request, res: Response) => {
   await db.insert(timetableSlots).values(newSlot);
 
   res.status(201).json({ status: 'success', data: newSlot });
+});
+
+export const deleteSlot = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  await db.delete(timetableSlots).where(eq(timetableSlots.id, id));
+  res.status(200).json({ status: 'success', message: 'Slot deleted' });
 });
 
 export const getRooms = asyncHandler(async (req: Request, res: Response) => {

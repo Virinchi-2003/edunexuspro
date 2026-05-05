@@ -63,11 +63,17 @@ export const getFeesBySchool = asyncHandler(async (req: Request, res: Response) 
 
   const updatedFees = await calculateLateFees(allFees, schoolId);
 
+  const allTransactions = await db.query.feeTransactions.findMany({
+    where: eq(feeTransactions.schoolId, schoolId),
+    orderBy: [desc(feeTransactions.createdAt)]
+  });
+
   res.status(200).json({ 
     status: 'success', 
     data: {
       fees: updatedFees,
-      students: allStudents
+      students: allStudents,
+      transactions: allTransactions
     } 
   });
 });

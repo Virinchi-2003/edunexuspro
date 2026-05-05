@@ -11,7 +11,8 @@ import {
   getStudentHomework,
   getStudentLeaves,
   applyLeave,
-  getStudentQR
+  getStudentQR,
+  createSupportTicket
 } from '../controllers/studentController';
 import { 
   getStudentHomeworkList, 
@@ -30,6 +31,7 @@ router.get('/user/:userId', getStudentByUser);
 router.get('/homework/:classId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentHomework);
 router.get('/leave/:studentId', authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), getStudentLeaves);
 router.post('/leave', applyLeave);
+router.post('/support-ticket', authorize(['student']), createSupportTicket);
 router.get('/:studentId/qr', authorize(['admin', 'principal', 'staff', 'teacher', 'student', 'coach']), getStudentQR);
 
 // Homework

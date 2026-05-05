@@ -15,7 +15,11 @@ import {
   GraduationCap,
   Trophy,
   FileText,
-  BookOpen
+  BookOpen,
+  DollarSign,
+  Wallet,
+  Package,
+  ShoppingBag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -73,8 +77,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const accountantNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/accountant' },
-    { icon: CreditCard, label: 'Fees Management', path: '/accountant/fees' },
-    { icon: Settings, label: 'Profile Settings', path: '/accountant/settings' },
+    { icon: DollarSign, label: 'Student Fees', path: '/accountant/fees' },
+    { icon: Wallet, label: 'Staff Salaries', path: '/accountant/salaries' },
+    { icon: ShoppingBag, label: 'Procurement', path: '/accountant/procurement' },
+    { icon: MessageSquare, label: 'Support Tickets', path: '/accountant/support' },
+    { icon: Settings, label: 'Settings', path: '/accountant/settings' },
   ];
 
   const coachNavItems = [

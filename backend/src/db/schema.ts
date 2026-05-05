@@ -3,7 +3,7 @@ import { sql, relations } from 'drizzle-orm';
 
 export const schools = sqliteTable('schools', {
   id: text('id').primaryKey(),
-  school_id: text('school_id').unique('schools_sid_idx'), // Human-readable ID
+  school_id: text('school_id').unique(), // Human-readable ID
   name: text('name').notNull(),
   address: text('address').notNull(),
   contactEmail: text('contactEmail').notNull(),
@@ -31,7 +31,7 @@ export const principals = sqliteTable('principals', {
   id: text('id').primaryKey(),
   schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
-  email: text('email').notNull().unique('principals_email_idx'),
+  email: text('email').notNull().unique(),
   password: text('password'),
   phone: text('phone').notNull(),
   userId: text('userId'),
@@ -179,7 +179,7 @@ export const attendance = sqliteTable('attendance', {
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
-  attendanceUniqueIdx: uniqueIndex('attendance_uid_idx').on(table.schoolId, table.studentId, table.staffId, table.date),
+  attendanceUniqueIdx: uniqueIndex('attendance_composite_idx').on(table.schoolId, table.studentId, table.staffId, table.date),
 }));
 
 export const configs = sqliteTable('configs', {
@@ -566,6 +566,59 @@ export const aiFlags = sqliteTable('ai_flags', {
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const trophies = sqliteTable('trophies', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id),
+  sportId: text('sportId').references(() => sports.id),
+  tournamentName: text('tournamentName').notNull(),
+  awardTitle: text('awardTitle').notNull(),
+  year: text('year').notNull(),
+  photoURL: text('photoURL'),
+  description: text('description'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const requisitions = sqliteTable('requisitions', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  itemName: text('itemName').notNull(),
+  quantity: integer('quantity').notNull(),
+  priority: text('priority').default('medium'), // low, medium, high
+  reason: text('reason'),
+  status: text('status').default('pending'), // pending, approved, rejected, ordered
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const supportTickets = sqliteTable('support_tickets', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').references(() => students.id, { onDelete: 'cascade' }),
+  staffId: text('staffId').references(() => staff.id, { onDelete: 'cascade' }),
+  subject: text('subject').notNull(),
+  message: text('message').notNull(),
+  category: text('category').notNull(), // fee_issue, scholarship, technical, complaint
+  priority: text('priority').default('medium'), // low, medium, high
+  status: text('status').default('open'), // open, in_progress, resolved, closed
+  assignedTo: text('assignedTo').references(() => users.uid),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const salaryPayments = sqliteTable('salary_payments', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  staffId: text('staffId').notNull().references(() => staff.id, { onDelete: 'cascade' }),
+  amount: integer('amount').notNull(),
+  bonus: integer('bonus').default(0),
+  deductions: integer('deductions').default(0),
+  month: text('month').notNull(), // e.g., "October 2026"
+  paymentDate: text('paymentDate').default(sql`CURRENT_TIMESTAMP`),
+  status: text('status').default('paid'), // paid, pending, failed
+  transactionId: text('transactionId'),
+  notes: text('notes'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
 // --- Relations ---
 
 export const timetableRelations = relations(timetable, ({ many, one }) => ({
@@ -708,5 +761,121 @@ export const feeTransactionsRelations = relations(feeTransactions, ({ one }) => 
   school: one(schools, {
     fields: [feeTransactions.schoolId],
     references: [schools.id],
+  }),
+}));
+
+export const sportsRelations = relations(sports, ({ one, many }) => ({
+  school: one(schools, {
+    fields: [sports.schoolId],
+    references: [schools.id],
+  }),
+  coach: one(staff, {
+    fields: [sports.coachId],
+    references: [staff.id],
+  }),
+  enrollments: many(sportsEnrollments),
+  fixtures: many(fixtures),
+}));
+
+export const sportsEnrollmentsRelations = relations(sportsEnrollments, ({ one }) => ({
+  student: one(students, {
+    fields: [sportsEnrollments.studentId],
+    references: [students.id],
+  }),
+  sport: one(sports, {
+    fields: [sportsEnrollments.sportId],
+    references: [sports.id],
+  }),
+}));
+
+export const skillAssessmentsRelations = relations(skillAssessments, ({ one }) => ({
+  student: one(students, {
+    fields: [skillAssessments.studentId],
+    references: [students.id],
+  }),
+  sport: one(sports, {
+    fields: [skillAssessments.sportId],
+    references: [sports.id],
+  }),
+  assessor: one(staff, {
+    fields: [skillAssessments.assessedBy],
+    references: [staff.id],
+  }),
+}));
+
+export const trainingLogsRelations = relations(trainingLogs, ({ one }) => ({
+  student: one(students, {
+    fields: [trainingLogs.studentId],
+    references: [students.id],
+  }),
+  sport: one(sports, {
+    fields: [trainingLogs.sportId],
+    references: [sports.id],
+  }),
+}));
+
+export const fixturesRelations = relations(fixtures, ({ one }) => ({
+  school: one(schools, {
+    fields: [fixtures.schoolId],
+    references: [schools.id],
+  }),
+  sport: one(sports, {
+    fields: [fixtures.sportId],
+    references: [sports.id],
+  }),
+}));
+
+export const medicalRecordsRelations = relations(medicalRecords, ({ one }) => ({
+  student: one(students, {
+    fields: [medicalRecords.studentId],
+    references: [students.id],
+  }),
+}));
+
+export const supportTicketRelations = relations(supportTickets, ({ one }) => ({
+  student: one(students, {
+    fields: [supportTickets.studentId],
+    references: [students.id],
+  }),
+  staff: one(staff, {
+    fields: [supportTickets.staffId],
+    references: [staff.id],
+  }),
+}));
+
+export const salaryPaymentRelations = relations(salaryPayments, ({ one }) => ({
+  staff: one(staff, {
+    fields: [salaryPayments.staffId],
+    references: [staff.id],
+  }),
+}));
+
+export const inventoryRelations = relations(inventory, ({ one, many }) => ({
+  school: one(schools, {
+    fields: [inventory.schoolId],
+    references: [schools.id],
+  }),
+  transactions: many(inventoryTransactions),
+}));
+
+export const inventoryTransactionsRelations = relations(inventoryTransactions, ({ one }) => ({
+  inventoryItem: one(inventory, {
+    fields: [inventoryTransactions.inventoryId],
+    references: [inventory.id],
+  }),
+  student: one(students, {
+    fields: [inventoryTransactions.studentId],
+    references: [students.id],
+  }),
+}));
+
+export const trophiesRelations = relations(trophies, ({ one }) => ({
+  school: one(schools, {
+    fields: [trophies.schoolId],
+    references: [schools.id],
+  }),
+  sport: one(sports, {
+    fields: [trophies.sportId],
+    references: [sports.id],
   }),
 }));

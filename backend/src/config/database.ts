@@ -20,6 +20,21 @@ export const initDb = async () => {
     // For "autosync", drizzle-kit push is used during development.
     // Here we just ensure the client is connected.
     await client.execute('SELECT 1');
+    
+    // Self-healing: Ensure requisitions table exists
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS requisitions (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        itemName TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        priority TEXT DEFAULT 'medium',
+        reason TEXT,
+        status TEXT DEFAULT 'pending',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('✅ Turso Database Connected & Ready.');
   } catch (error) {
     console.error('❌ Failed to connect to Turso Database:', error);

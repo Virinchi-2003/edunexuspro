@@ -18,6 +18,7 @@ const StudentPerformance: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<any>(null);
   const [marks, setMarks] = useState<any[]>([]);
+  const [skillAssessments, setSkillAssessments] = useState<any[]>([]);
 
   const fetchData = async () => {
     if (!user?.uid) return;
@@ -37,6 +38,9 @@ const StudentPerformance: React.FC = () => {
       if (sData.id) {
         const res = await api.get(`/exams/marks/student/${sData.id}`);
         setMarks(res.data.data || []);
+
+        const skillRes = await api.get(`/coach/assessment/history/${sData.id}`);
+        setSkillAssessments(skillRes.data.data || []);
       }
     } catch (error) {
       console.error('Error fetching performance data:', error);
@@ -179,6 +183,50 @@ const StudentPerformance: React.FC = () => {
                    <p className="text-slate-400 mt-2 font-medium text-center px-8">Examination results are currently being processed by the administration.</p>
                 </Card>
               )}
+           </div>
+
+           {/* Sports & Skill Assessments */}
+           <div className="space-y-6 mt-12">
+              <div className="flex items-center gap-3 mb-2">
+                 <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <Trophy className="w-5 h-5" />
+                 </div>
+                 <h3 className="text-2xl font-display font-bold text-slate-900">Coaching Feedback</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {skillAssessments.length > 0 ? (
+                    skillAssessments.map((sa) => (
+                       <Card key={sa.id} className="border-none shadow-xl rounded-[2rem] bg-white p-6 hover:shadow-2xl transition-all border-l-4 border-l-indigo-500">
+                          <div className="flex justify-between items-start mb-4">
+                             <div>
+                                <h4 className="font-bold text-slate-900">{sa.skill}</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sa.sport?.name || 'Sport Activity'}</p>
+                             </div>
+                             <Badge className="bg-indigo-50 text-indigo-600 border-none font-bold">
+                                Rating: {sa.score}/5
+                             </Badge>
+                          </div>
+                          <p className="text-sm text-slate-600 italic line-clamp-3 mb-4">
+                             "{sa.comments}"
+                          </p>
+                          <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                {new Date(sa.createdAt).toLocaleDateString()}
+                             </span>
+                             <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                                Coach Assessment
+                             </span>
+                          </div>
+                       </Card>
+                    ))
+                 ) : (
+                    <div className="col-span-full py-12 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                       <Award className="w-10 h-10 mb-3 opacity-20" />
+                       <p className="font-medium">No coaching feedback recorded yet.</p>
+                    </div>
+                 )}
+              </div>
            </div>
         </div>
 

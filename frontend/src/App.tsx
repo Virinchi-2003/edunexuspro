@@ -41,6 +41,8 @@ import AdmissionForm from './pages/AdmissionForm';
 import Login from './pages/Login';
 import CoachDashboard from './pages/coach/Dashboard';
 import CoachClipboard from './pages/coach/modules/Clipboard';
+import CoachTimetable from './pages/coach/modules/Timetable';
+import AccountantDashboard from './pages/accountant/Dashboard';
 
 import { Toaster } from 'sonner';
 
@@ -138,8 +140,11 @@ const App: React.FC = () => {
             <ProtectedRoute roles={['accountant']}>
               <AdminLayout>
                 <Routes>
-                  <Route path="/" element={<div className="p-8 text-2xl font-bold">Accountant Dashboard - Coming Soon</div>} />
-                  <Route path="/fees" element={<PrincipalFees />} />
+                  <Route path="/" element={<AccountantDashboard />} />
+                  <Route path="/fees" element={<AccountantDashboard defaultTab="fees" />} />
+                  <Route path="/salaries" element={<AccountantDashboard defaultTab="salaries" />} />
+                  <Route path="/procurement" element={<AccountantDashboard defaultTab="procurement" />} />
+                  <Route path="/support" element={<AccountantDashboard defaultTab="support" />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
               </AdminLayout>
@@ -153,7 +158,7 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<CoachDashboard />} />
                   <Route path="/attendance" element={<CoachClipboard />} />
-                  <Route path="/timetable" element={<TeacherTimetable />} />
+                  <Route path="/timetable" element={<CoachTimetable />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
               </AdminLayout>
