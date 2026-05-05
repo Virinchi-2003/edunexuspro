@@ -107,7 +107,8 @@ export const enrollExistingStudent = asyncHandler(async (req: Request, res: Resp
 });
 
 export const unenrollStudent = asyncHandler(async (req: Request, res: Response) => {
-  const { studentId, sportId } = req.params;
+  const studentId = getSingleValue(req.params.studentId);
+  const sportId = getSingleValue(req.params.sportId);
   await db.delete(sportsEnrollments).where(and(eq(sportsEnrollments.studentId, studentId), eq(sportsEnrollments.sportId, sportId)));
   res.status(200).json({ status: 'success', message: 'Student unenrolled' });
 });
@@ -206,7 +207,7 @@ export const getTrainingLoadAnalysis = asyncHandler(async (req: Request, res: Re
     limit: 50
   });
 
-  const totalIntensity = logs.reduce((acc, log) => acc + log.intensity, 0);
+  const totalIntensity = logs.reduce((acc, log) => acc + (log.intensity || 0), 0);
   const avgIntensity = logs.length > 0 ? (totalIntensity / logs.length).toFixed(1) : 0;
   
   const flaggedStudents = logs
@@ -341,7 +342,8 @@ export const inventoryCheckout = asyncHandler(async (req: Request, res: Response
   const item = await db.query.inventory.findFirst({ where: eq(inventory.id, inventoryId) });
   
   if (!item || item.availableQuantity < quantity) {
-    return res.status(400).json({ status: 'error', message: 'Insufficient stock' });
+    res.status(400).json({ status: 'error', message: 'Insufficient stock' });
+    return;
   }
 
   const id = uuidv4();
@@ -360,7 +362,10 @@ export const inventoryCheckin = asyncHandler(async (req: Request, res: Response)
   const { transactionId, status, fineAmount } = req.body;
   const transaction = await db.query.inventoryTransactions.findFirst({ where: eq(inventoryTransactions.id, transactionId) });
   
-  if (!transaction) return res.status(404).json({ status: 'error', message: 'Transaction not found' });
+  if (!transaction) {
+    res.status(404).json({ status: 'error', message: 'Transaction not found' });
+    return;
+  }
 
   await db.update(inventoryTransactions)
     .set({ status: status || 'returned', fineAmount: fineAmount || 0 })
@@ -386,7 +391,7 @@ export const getStudentMedicalRecord = asyncHandler(async (req: Request, res: Re
 });
 
 export const updateMedicalRecord = asyncHandler(async (req: Request, res: Response) => {
-  const { studentId } = req.params;
+  const studentId = getSingleValue(req.params.studentId);
   const data = req.body;
   const existing = await db.query.medicalRecords.findFirst({ where: eq(medicalRecords.studentId, studentId) });
   
