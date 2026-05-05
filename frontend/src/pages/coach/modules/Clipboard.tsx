@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Activity, 
-  CheckCircle2, 
   XCircle, 
   Save, 
   Loader2,

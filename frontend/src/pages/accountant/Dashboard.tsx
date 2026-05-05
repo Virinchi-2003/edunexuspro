@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   DollarSign, 
   TrendingUp, 
-  CreditCard, 
-  Clock, 
-  CheckCircle2, 
   Package,
   RefreshCw,
   PieChart,
@@ -13,7 +10,6 @@ import {
   MessageSquare,
   ShoppingBag,
   ArrowUpRight,
-  ChevronRight,
   Scale
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';

@@ -1,32 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Package, 
   Search, 
   ShoppingBag, 
   Truck, 
   CheckCircle2, 
-  XCircle, 
-  Clock, 
-  AlertCircle,
-  MoreVertical,
-  Loader2,
-  Plus,
-  ArrowUpRight,
-  ShieldAlert,
-  Archive
+  ShieldAlert
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -39,8 +22,6 @@ const AccountantProcurement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   
-  const [selectedReq, setSelectedReq] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -63,7 +44,6 @@ const AccountantProcurement: React.FC = () => {
       setSaving(true);
       await api.put(`/accountant/requisitions/${id}`, { status });
       toast.success(`Request marked as ${status}`);
-      setIsModalOpen(false);
       fetchData();
     } catch (error) {
       toast.error('Action failed');

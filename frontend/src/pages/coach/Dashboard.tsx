@@ -7,7 +7,6 @@ import {
   Package, 
   ChevronRight,
   TrendingUp,
-  Heart,
   Clock,
   MapPin,
   Smartphone,

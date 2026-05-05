@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
   Plus, 
   Search, 
   Edit2, 
   Trash2, 
   Loader2, 
   UserPlus,
-  RefreshCw,
-  Trophy,
-  Filter
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -143,7 +140,8 @@ const CoachStudents: React.FC = () => {
       studentId: '',
       grade: '',
       section: '',
-      sportId: sports.length > 0 ? sports[0].id : ''
+      sportId: sports.length > 0 ? sports[0].id : '',
+      manualSportName: ''
     });
     setSelectedStudent(null);
   };
@@ -264,7 +262,8 @@ const CoachStudents: React.FC = () => {
                                 studentId: item.student.studentId,
                                 grade: item.student.grade,
                                 section: item.student.section,
-                                sportId: item.sportId
+                                sportId: item.sportId,
+                                manualSportName: ''
                               });
                               setIsEditModalOpen(true);
                             }}

@@ -18,7 +18,6 @@ import {
   BookOpen,
   DollarSign,
   Wallet,
-  Package,
   ShoppingBag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

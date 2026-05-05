@@ -8,18 +8,14 @@ import {
   ArrowRightLeft,
   PenTool,
   History,
-  Info,
   Trash2,
-  Search,
   CheckCircle2,
-  XCircle,
   Clock,
   ClipboardList
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { 
   Dialog, 

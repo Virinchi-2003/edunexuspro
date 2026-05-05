@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Trophy, 
   MapPin, 
-  Smartphone, 
   Plus, 
   Loader2, 
-  Map, 
   Navigation,
   MoreVertical,
   Calendar,
@@ -13,8 +11,7 @@ import {
   Trash2,
   CheckCircle2,
   Activity,
-  Upload,
-  Image as ImageIcon
+  Upload
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

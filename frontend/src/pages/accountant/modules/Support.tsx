@@ -3,19 +3,12 @@ import {
   MessageSquare, 
   Search, 
   User, 
-  Tag, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle,
-  MoreVertical,
-  Loader2,
-  Mail,
-  Phone,
-  ShieldCheck,
-  ChevronRight,
-  Filter
+  Mail, 
+  Phone, 
+  ShieldCheck, 
+  ChevronRight
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -24,7 +17,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogDescription,
   DialogFooter
 } from '@/components/ui/dialog';
 import { useAuth } from '@/context/AuthContext';

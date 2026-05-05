@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { 
-  User as UserIcon,
-  Users,
   Loader2,
-  BookOpen,
   Calendar,
   Clock,
   Plus,
-  Trash2,
-  Check,
-  X
+  Trash2
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -34,13 +29,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const TIMES = [
-  '08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', 
-  '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-  '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM',
-  '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM',
-  '04:00 PM'
-];
 
 const CoachTimetable: React.FC = () => {
   const { user } = useAuth();
@@ -95,7 +83,7 @@ const CoachTimetable: React.FC = () => {
       const coachSlots = processedSlots.filter((s: any) => s.teacherId === prof.id);
       
       // Sort slots by time for each day
-      const sortedSlots = coachSlots.sort((a, b) => {
+      const sortedSlots = coachSlots.sort((a: any, b: any) => {
         const timeA = timeToMinutes(a.startTime);
         const timeB = timeToMinutes(b.startTime);
         return timeA - timeB;

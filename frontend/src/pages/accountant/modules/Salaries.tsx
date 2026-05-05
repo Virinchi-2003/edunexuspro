@@ -1,19 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
   Search, 
   Wallet, 
   History, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle,
-  MoreVertical,
-  Loader2,
-  Calendar,
-  IndianRupee,
-  Receipt
+  Loader2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
