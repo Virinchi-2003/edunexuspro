@@ -7,13 +7,9 @@ import {
   Ruler, 
   History, 
   TrendingUp, 
-  Calendar,
   User,
   MoreVertical,
   Trash2,
-  Pencil,
-  ChevronRight,
-  Filter,
   ArrowRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +19,6 @@ import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";

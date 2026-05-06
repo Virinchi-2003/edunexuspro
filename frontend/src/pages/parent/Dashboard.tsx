@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   User, 
   Calendar,
   CreditCard,
-  Bell,
-  CheckCircle2,
-  AlertCircle,
-  Clock
+  Clock,
+  CheckCircle2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
@@ -113,7 +111,7 @@ const ParentDashboard: React.FC = () => {
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-2 text-xs text-amber-600 font-bold">
-                <AlertCircle className="w-3 h-3" /> Due in 5 days
+                Due in 5 days
               </div>
             </CardContent>
           </Card>

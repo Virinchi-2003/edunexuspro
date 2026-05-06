@@ -8,9 +8,7 @@ import {
   FileText, 
   Trash2, 
   ExternalLink,
-  PlusCircle,
-  AlertCircle,
-  Download
+  PlusCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';

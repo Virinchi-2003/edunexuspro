@@ -10,7 +10,6 @@ import {
   Clock,
   ChevronRight,
   Download,
-  Filter,
   ChevronLeft,
   Loader2
 } from 'lucide-react';
