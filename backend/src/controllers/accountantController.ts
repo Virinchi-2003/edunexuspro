@@ -7,12 +7,16 @@ import {
   requisitions, 
   salaryPayments, 
   supportTickets,
-  feeTransactions
+  feeTransactions,
+  payrollApprovals,
+  principals,
+  schools
 } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
+import { generateSalaryReportPDF } from '../utils/pdfGenerator';
 
 export const getFinancialStats = asyncHandler(async (req: Request, res: Response) => {
   const schoolId = getSingleValue(req.params.schoolId);
@@ -74,8 +78,20 @@ export const getSalaryRecords = asyncHandler(async (req: Request, res: Response)
 
 export const processSalaryPayment = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, staffId, amount, month, bonus, deductions, notes } = req.body;
-  const id = uuidv4();
+  
+  // Security Check: Verify if payroll is approved for this month
+  const approval = await db.query.payrollApprovals.findFirst({
+    where: and(eq(payrollApprovals.schoolId, schoolId), eq(payrollApprovals.month, month))
+  });
 
+  if (!approval || approval.status !== 'approved') {
+    return res.status(403).json({ 
+      status: 'error', 
+      message: `Payroll for ${month} has not been authorized by the Principal.` 
+    });
+  }
+
+  const id = uuidv4();
   await db.insert(salaryPayments).values({
     id,
     schoolId,
@@ -101,6 +117,105 @@ export const getSalaryHistory = asyncHandler(async (req: Request, res: Response)
     orderBy: [desc(salaryPayments.paymentDate)]
   });
   res.status(200).json({ status: 'success', data: result });
+});
+
+// --- Payroll Authorization ---
+export const getPayrollApprovalStatus = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  const month = getSingleValue(req.query.month);
+
+  if (!month) return res.status(400).json({ status: 'error', message: 'Month is required' });
+
+  const result = await db.query.payrollApprovals.findFirst({
+    where: and(eq(payrollApprovals.schoolId, schoolId), eq(payrollApprovals.month, month))
+  });
+
+  res.status(200).json({ status: 'success', data: result || { status: 'pending', month } });
+});
+
+export const authorizePayroll = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, month, principalId } = req.body;
+  
+  if (!month) return res.status(400).json({ status: 'error', message: 'Month is required' });
+
+  // Resolve the actual principal.id from the users.uid passed from frontend
+  const principal = await db.query.principals.findFirst({
+    where: eq(principals.userId, principalId)
+  });
+
+  const finalPrincipalId = principal ? principal.id : principalId;
+
+  const existing = await db.query.payrollApprovals.findFirst({
+    where: and(eq(payrollApprovals.schoolId, schoolId), eq(payrollApprovals.month, month))
+  });
+
+  if (existing) {
+    await db.update(payrollApprovals)
+      .set({ 
+        status: 'approved', 
+        approvedBy: finalPrincipalId, 
+        approvedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(payrollApprovals.id, existing.id));
+  } else {
+    await db.insert(payrollApprovals).values({
+      id: uuidv4(),
+      schoolId,
+      month,
+      status: 'approved',
+      approvedBy: finalPrincipalId,
+      approvedAt: new Date().toISOString()
+    });
+  }
+
+  res.status(200).json({ status: 'success', message: `Payroll for ${month} has been authorized.` });
+});
+
+export const getSalaryOverview = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  
+  // Total Monthly Liability
+  const staffRecords = await db.select({
+    department: staff.department,
+    salary: sql<number>`SUM(${staff.salary})`,
+    count: sql<number>`COUNT(*)`
+  })
+  .from(staff)
+  .where(eq(staff.schoolId, schoolId))
+  .groupBy(staff.department);
+
+  // Recent Payments
+  const recentPayments = await db.query.salaryPayments.findMany({
+    where: eq(salaryPayments.schoolId, schoolId),
+    with: { staff: true },
+    orderBy: [desc(salaryPayments.paymentDate)],
+    limit: 10
+  });
+
+  // Authorization Status for current and previous month
+  const today = new Date();
+  const currentMonth = today.toLocaleString('default', { month: 'long', year: 'numeric' });
+  today.setMonth(today.getMonth() - 1);
+  const prevMonth = today.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const approvals = await db.query.payrollApprovals.findMany({
+    where: and(
+      eq(payrollApprovals.schoolId, schoolId),
+      inArray(payrollApprovals.month, [currentMonth, prevMonth])
+    )
+  });
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      stats: staffRecords,
+      recentPayments,
+      approvals,
+      currentMonth,
+      prevMonth
+    }
+  });
 });
 
 // --- Support / Contact Management ---
@@ -167,4 +282,55 @@ export const sendCustomFeeReminder = asyncHandler(async (req: Request, res: Resp
     status: 'success', 
     message: `Reminder successfully sent to ${recipients.length} recipients.` 
   });
+});
+
+export const getSalaryReport = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  const month = getSingleValue(req.query.month);
+
+  if (!month) return res.status(400).json({ status: 'error', message: 'Month is required' });
+
+  const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
+  const staffList = await db.query.staff.findMany({ where: eq(staff.schoolId, schoolId) });
+  const payments = await db.query.salaryPayments.findMany({ 
+    where: and(eq(salaryPayments.schoolId, schoolId), eq(salaryPayments.month, month)) 
+  });
+
+  const totalLiability = staffList.reduce((acc, s) => acc + (s.salary || 0), 0);
+
+  const records = staffList.map(s => {
+    const payment = payments.find(p => p.staffId === s.id);
+    return {
+      name: s.name,
+      department: s.department,
+      salary: s.salary || 0,
+      paidAmount: payment ? payment.amount : 0,
+      date: payment ? payment.paymentDate : null
+    };
+  });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=Payroll_Report_${month.replace(' ', '_')}.pdf`);
+
+  generateSalaryReportPDF({
+    school,
+    month,
+    totalLiability,
+    headcount: staffList.length,
+    records
+  }, res);
+});
+
+export const getMonthlySalaryReminders = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  const month = getSingleValue(req.query.month);
+
+  const staffList = await db.query.staff.findMany({ where: eq(staff.schoolId, schoolId) });
+  const paidStaffIds = (await db.query.salaryPayments.findMany({
+    where: and(eq(salaryPayments.schoolId, schoolId), eq(salaryPayments.month, month || ''))
+  })).map(p => p.staffId);
+
+  const pendingStaff = staffList.filter(s => !paidStaffIds.includes(s.id));
+
+  res.status(200).json({ status: 'success', data: pendingStaff });
 });

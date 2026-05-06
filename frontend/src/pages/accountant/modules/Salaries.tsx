@@ -3,7 +3,9 @@ import {
   Search, 
   Wallet, 
   History, 
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,8 @@ const AccountantSalaries: React.FC = () => {
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [view, setView] = useState<'roster' | 'history'>('roster');
+  const [isApproved, setIsApproved] = useState<boolean>(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
   
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
@@ -44,12 +48,14 @@ const AccountantSalaries: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [rosterRes, historyRes] = await Promise.all([
+      const [rosterRes, historyRes, approvalRes] = await Promise.all([
         api.get(`/accountant/salaries/records/${user.schoolId}`),
-        api.get(`/accountant/salaries/history/${user.schoolId}`)
+        api.get(`/accountant/salaries/history/${user.schoolId}`),
+        api.get(`/accountant/salaries/approval-status/${user.schoolId}?month=${selectedMonth}`)
       ]);
       setStaffList(rosterRes.data.data);
       setPaymentHistory(historyRes.data.data);
+      setIsApproved(approvalRes.data.data?.status === 'approved');
     } catch (error) {
       toast.error('Failed to load payroll data');
     } finally {
@@ -59,7 +65,21 @@ const AccountantSalaries: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    const interval = setInterval(fetchData, 15000); // Poll every 15s
+    return () => clearInterval(interval);
+  }, [selectedMonth]);
+
+  const handlePrevMonth = () => {
+    const date = new Date(selectedMonth);
+    date.setMonth(date.getMonth() - 1);
+    setSelectedMonth(date.toLocaleString('default', { month: 'long', year: 'numeric' }));
+  };
+
+  const handleNextMonth = () => {
+    const date = new Date(selectedMonth);
+    date.setMonth(date.getMonth() + 1);
+    setSelectedMonth(date.toLocaleString('default', { month: 'long', year: 'numeric' }));
+  };
 
   const handleProcessPayment = async () => {
     if (!payFormData.month) return toast.error('Please select payment month');
@@ -102,21 +122,35 @@ const AccountantSalaries: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 bg-white p-1.5 rounded-[1.5rem] shadow-xl border border-slate-50">
-           <Button 
-             variant={view === 'roster' ? 'default' : 'ghost'}
-             className={`rounded-xl px-6 font-bold ${view === 'roster' ? 'bg-violet-600 text-white' : 'text-slate-500'}`}
-             onClick={() => setView('roster')}
-           >
-             Payroll Roster
-           </Button>
-           <Button 
-             variant={view === 'history' ? 'default' : 'ghost'}
-             className={`rounded-xl px-6 font-bold ${view === 'history' ? 'bg-violet-600 text-white' : 'text-slate-500'}`}
-             onClick={() => setView('history')}
-           >
-             Payment History
-           </Button>
+        <div className="flex items-center gap-4">
+           <div className="flex items-center gap-4 bg-white p-1.5 rounded-[1.5rem] shadow-xl border border-slate-50 mr-4">
+              <div className="flex items-center gap-2 px-3 border-r border-slate-100">
+                <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full" onClick={handlePrevMonth}><ChevronLeft className="w-4 h-4" /></Button>
+                <span className="text-sm font-black text-slate-700 min-w-[100px] text-center">{selectedMonth}</span>
+                <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full" onClick={handleNextMonth}><ChevronRight className="w-4 h-4" /></Button>
+              </div>
+              {!isApproved && view === 'roster' && (
+                <Badge className="bg-amber-50 text-amber-600 border-none px-4 py-1.5 rounded-xl animate-pulse font-bold text-[10px]">
+                  Approval Pending
+                </Badge>
+              )}
+           </div>
+           <div className="flex gap-2 bg-white p-1.5 rounded-[1.5rem] shadow-xl border border-slate-50">
+              <Button 
+                variant={view === 'roster' ? 'default' : 'ghost'}
+                className={`rounded-xl px-6 font-bold ${view === 'roster' ? 'bg-violet-600 text-white' : 'text-slate-500'}`}
+                onClick={() => setView('roster')}
+              >
+                Payroll Roster
+              </Button>
+              <Button 
+                variant={view === 'history' ? 'default' : 'ghost'}
+                className={`rounded-xl px-6 font-bold ${view === 'history' ? 'bg-violet-600 text-white' : 'text-slate-500'}`}
+                onClick={() => setView('history')}
+              >
+                Payment History
+              </Button>
+           </div>
         </div>
       </div>
 
@@ -162,12 +196,14 @@ const AccountantSalaries: React.FC = () => {
                      </td>
                      <td className="px-10 py-8 text-right">
                         <Button 
-                          className="rounded-2xl h-12 px-6 bg-violet-600 hover:bg-violet-700 text-white font-bold shadow-lg shadow-violet-100 gap-2"
+                          className={`rounded-2xl h-12 px-6 ${isApproved ? 'bg-violet-600 hover:bg-violet-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'} text-white font-bold shadow-lg gap-2`}
+                          disabled={!isApproved}
                           onClick={() => {
+                            if (!isApproved) return;
                             setSelectedStaff(s);
                             setPayFormData({
                               amount: s.salary || 0,
-                              month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
+                              month: selectedMonth,
                               bonus: 0,
                               deductions: 0,
                               notes: ''
@@ -175,7 +211,7 @@ const AccountantSalaries: React.FC = () => {
                             setIsPayModalOpen(true);
                           }}
                         >
-                          <Wallet className="w-4 h-4" /> Pay
+                          <Wallet className="w-4 h-4" /> {isApproved ? 'Pay' : 'Locked'}
                         </Button>
                      </td>
                    </tr>

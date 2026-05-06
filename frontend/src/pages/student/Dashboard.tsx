@@ -16,6 +16,8 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import AnnouncementBoard from '@/components/AnnouncementBoard';
+import QRCode from 'qrcode';
 
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +27,7 @@ const StudentDashboard: React.FC = () => {
   const [leaves, setLeaves] = useState<any[]>([]);
   const [performance, setPerformance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [qrDataURL, setQrDataURL] = useState<string>('');
   
   // Leave Form State
   const [leaveForm, setLeaveForm] = useState({
@@ -68,6 +71,33 @@ const StudentDashboard: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (student) {
+      const generateQR = async () => {
+        try {
+          const payload = JSON.stringify({
+            type: 'student',
+            studentId: student.studentId,
+            class: `${student.grade}-${student.section}`,
+            schoolId: student.schoolId
+          });
+          const url = await QRCode.toDataURL(payload, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: '#0f172a',
+              light: '#ffffff'
+            }
+          });
+          setQrDataURL(url);
+        } catch (err) {
+          console.error('QR Generation Error:', err);
+        }
+      };
+      generateQR();
+    }
+  }, [student]);
 
   useEffect(() => {
     if (user?.uid) {
@@ -145,34 +175,29 @@ const StudentDashboard: React.FC = () => {
              {student?.id ? (
                <div className="space-y-3 flex flex-col items-center">
                   <div className="bg-white p-2 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-500">
-                    <img 
-                      src={`${(import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '')}/api/students/${student.id}/qr?token=${localStorage.getItem('token')}`} 
-                      className="w-24 h-24 rounded-lg"
-                      alt="Digital ID QR"
-                      onError={(e) => {
-                        // Fallback logic if direct URL doesn't work with auth
-                        const img = e.target as HTMLImageElement;
-                        api.get(`/students/${student.id}/qr`).then(res => {
-                          img.src = res.data.data.qrCode;
-                        });
-                      }}
-                    />
+                    {qrDataURL ? (
+                      <img 
+                        src={qrDataURL} 
+                        className="w-24 h-24 rounded-lg"
+                        alt="Digital ID QR"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                      </div>
+                    )}
                   </div>
                   <div className="text-center">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Institutional Digital ID</p>
                     <h4 className="text-sm font-bold text-white mt-0.5">{student?.studentId}</h4>
                     <button 
                       onClick={async () => {
-                        try {
-                          const res = await api.get(`/students/${student.id}/qr`);
-                          const link = document.createElement('a');
-                          link.href = res.data.data.qrCode;
-                          link.download = `QR_ID_${student.studentId}.png`;
-                          link.click();
-                          toast.success('QR ID downloaded');
-                        } catch (e) {
-                          toast.error('Failed to download QR');
-                        }
+                        if (!qrDataURL) return;
+                        const link = document.createElement('a');
+                        link.href = qrDataURL;
+                        link.download = `QR_ID_${student.studentId}.png`;
+                        link.click();
+                        toast.success('QR ID downloaded');
                       }}
                       className="mt-2 text-[8px] font-bold uppercase tracking-tighter text-indigo-400 hover:text-white transition-colors"
                     >
@@ -188,6 +213,11 @@ const StudentDashboard: React.FC = () => {
              )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Announcement Section */}
+      <div className="grid grid-cols-1 gap-6">
+        <AnnouncementBoard limit={3} />
       </div>
 
       <Tabs defaultValue="homework" className="w-full">

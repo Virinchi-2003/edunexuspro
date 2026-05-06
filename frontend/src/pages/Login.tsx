@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { School, ArrowRight, Loader2, Phone, Mail, Building, CheckCircle2, CreditCard } from 'lucide-react';
+import { School, ArrowRight, Loader2, Phone, Mail, Building, CheckCircle2, CreditCard, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { 
   Dialog, 
@@ -20,7 +20,14 @@ import { toast } from 'sonner';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [schoolId, setSchoolId] = useState('');
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,6 +117,51 @@ const Login: React.FC = () => {
     setLeadForm({ schoolName: '', adminName: '', email: '', phone: '', message: '', plan: 'Starter' });
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      const res = await api.post('/auth/forgot-password', { email: resetEmail });
+      if (res.data.status === 'success') {
+        toast.success('Reset code sent to your email.');
+        setForgotPasswordStep(2);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to send reset code.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      const res = await api.post('/auth/reset-password', { 
+        email: resetEmail, 
+        token: resetToken, 
+        newPassword 
+      });
+      if (res.data.status === 'success') {
+        toast.success('Password reset successfully!');
+        setIsForgotPasswordOpen(false);
+        setForgotPasswordStep(1);
+        setResetEmail('');
+        setResetToken('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to reset password.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -173,16 +225,34 @@ const Login: React.FC = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-slate-700">Password</label>
-                <a href="#" className="text-xs text-primary hover:underline">Forgot password?</a>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPasswordOpen(true);
+                    setForgotPasswordStep(1);
+                  }}
+                  className="text-xs text-primary hover:underline bg-transparent border-none p-0 cursor-pointer"
+                >
+                  Forgot password?
+                </button>
               </div>
-              <Input 
-                type="password" 
-                placeholder="••••••••" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-slate-50 border-slate-200 focus:bg-white transition-all"
-              />
+              <div className="relative">
+                <Input 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="bg-slate-50 border-slate-200 focus:bg-white transition-all pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" className="w-full h-11 text-lg gap-2 mt-6">
               Sign In <ArrowRight className="w-5 h-5" />
@@ -366,6 +436,82 @@ const Login: React.FC = () => {
               </div>
               <Button onClick={resetDialog} className="w-full h-11">Back to Login</Button>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={isForgotPasswordOpen} onOpenChange={setIsForgotPasswordOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              {forgotPasswordStep === 1 ? 'Forgot Password' : 'Reset Password'}
+            </DialogTitle>
+            <DialogDescription>
+              {forgotPasswordStep === 1 
+                ? "Enter your email address and we'll send you a code to reset your password."
+                : "Enter the code sent to your email and your new password."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {forgotPasswordStep === 1 ? (
+            <form onSubmit={handleForgotPassword} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email Address</label>
+                <Input 
+                  type="email"
+                  placeholder="admin@edunexus.pro"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting} className="w-full">
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Send Reset Code
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reset Code</label>
+                <Input 
+                  placeholder="Enter 6-digit code"
+                  value={resetToken}
+                  onChange={(e) => setResetToken(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New Password</label>
+                <Input 
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Confirm Password</label>
+                <Input 
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting} className="w-full">
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Reset Password
+                </Button>
+              </DialogFooter>
+            </form>
           )}
         </DialogContent>
       </Dialog>

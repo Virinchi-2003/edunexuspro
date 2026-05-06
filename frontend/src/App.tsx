@@ -18,6 +18,7 @@ import PrincipalAdmissions from './pages/principal/Admissions';
 import PrincipalTimetable from './pages/principal/Timetable';
 import PrincipalExams from './pages/principal/Exams';
 import PrincipalGradebook from './pages/principal/Gradebook';
+import PrincipalSalaries from './pages/principal/Salaries';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import TeacherStudents from './pages/teacher/Students';
 import TeacherAttendance from './pages/teacher/Attendance';
@@ -42,6 +43,7 @@ import Login from './pages/Login';
 import CoachDashboard from './pages/coach/Dashboard';
 import CoachClipboard from './pages/coach/modules/Clipboard';
 import CoachTimetable from './pages/coach/modules/Timetable';
+import CoachMeasurements from './pages/coach/modules/Measurements';
 import AccountantDashboard from './pages/accountant/Dashboard';
 
 import { Toaster } from 'sonner';
@@ -108,6 +110,7 @@ const App: React.FC = () => {
                   <Route path="/timetable" element={<PrincipalTimetable />} />
                   <Route path="/exams" element={<PrincipalExams />} />
                   <Route path="/gradebook" element={<PrincipalGradebook />} />
+                  <Route path="/salaries" element={<PrincipalSalaries />} />
                   <Route path="/settings" element={<PrincipalSettings />} />
                 </Routes>
               </AdminLayout>
@@ -158,6 +161,8 @@ const App: React.FC = () => {
                 <Routes>
                   <Route path="/" element={<CoachDashboard />} />
                   <Route path="/attendance" element={<CoachClipboard />} />
+                  <Route path="/measurements" element={<CoachMeasurements />} />
+                  <Route path="/messages" element={<TeacherMessaging />} />
                   <Route path="/timetable" element={<CoachTimetable />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>

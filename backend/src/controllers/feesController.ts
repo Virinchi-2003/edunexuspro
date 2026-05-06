@@ -127,22 +127,38 @@ export const updateFeeStatus = asyncHandler(async (req: Request, res: Response) 
 
 export const createFeeRecord = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, studentId, amount, dueDate, feeType, breakdown } = req.body;
+  
+  if (!schoolId || !studentId) {
+    return res.status(400).json({ status: 'error', message: 'schoolId and studentId are required' });
+  }
+
   const id = uuidv4();
+  const timestamp = new Date().toISOString();
 
   const newFee = {
     id,
     schoolId,
     studentId,
-    amount: parseInt(amount.toString()),
+    amount: parseInt(amount?.toString() || '0'),
     paidAmount: 0,
     status: 'unpaid' as const,
-    dueDate,
+    dueDate: dueDate || timestamp,
     feeType: feeType || 'Tuition Fee',
     breakdown: breakdown ? (typeof breakdown === 'string' ? breakdown : JSON.stringify(breakdown)) : null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    academicYear: '2026-27' // Defaulting to current year
   };
 
-  await db.insert(fees).values(newFee);
-  res.status(201).json({ status: 'success', data: newFee });
+  console.log(`[FEES] Creating new fee record for student ${studentId} in school ${schoolId}`);
+  
+  try {
+    await db.insert(fees).values(newFee);
+    res.status(201).json({ status: 'success', data: newFee });
+  } catch (error) {
+    console.error('[FEES] Database error creating fee record:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to save fee record to database' });
+  }
 });
 
 export const importBulkFees = asyncHandler(async (req: Request, res: Response) => {

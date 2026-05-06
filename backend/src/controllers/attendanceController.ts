@@ -210,39 +210,59 @@ export const getMonthlyAttendanceStats = asyncHandler(async (req: Request, res: 
 
 export const markAttendanceByQR = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, qrData, classId, date, status, remarks } = req.body;
-  console.log(`[QR SCAN] Received scan for school ${schoolId}. Data: ${qrData?.substring(0, 30)}...`);
+  console.log(`[QR SCAN] Received scan for school ${schoolId}. Data: ${qrData?.substring(0, 100)}...`);
   
   const { verifyStudentQRToken } = await import('../services/qrService');
 
-  let studentId: string | null = null;
-  
-  // Try 1: Verify as secure JWT token
-  studentId = verifyStudentQRToken(qrData);
-  console.log(`[QR SCAN] JWT Verification result: ${studentId ? 'SUCCESS: ' + studentId : 'FAILED'}`);
-  
+  let resolvedStudentId: string | null = null;
+  let qrPayload: any = null;
+
+  // Try parsing as JSON first
+  try {
+    qrPayload = JSON.parse(qrData);
+    if (qrPayload && qrPayload.type === 'student' && qrPayload.studentId) {
+      console.log(`[QR SCAN] Detected JSON payload for studentId: ${qrPayload.studentId}`);
+      resolvedStudentId = qrPayload.studentId;
+    }
+  } catch (e) {
+    // Not JSON, continue with other methods
+  }
+
   const today = new Date().toISOString().split('T')[0];
   const recordDate = date || today;
 
-  // 2. Resolve Student (Try UUID first, then studentId)
+  // 2. Resolve Student
   let student: any = null;
   
-  if (studentId) {
-    // If JWT was valid, we have the UUID
+  if (resolvedStudentId) {
+    // Try resolving by readable studentId from JSON
     student = await db.query.students.findFirst({
-      where: and(eq(students.id, studentId), eq(students.schoolId, schoolId))
+      where: and(eq(students.studentId, resolvedStudentId), eq(students.schoolId, schoolId))
     });
-  } else {
+  }
+
+  if (!student) {
+    // Try 1: Verify as secure JWT token
+    const jwtStudentUuid = verifyStudentQRToken(qrData);
+    if (jwtStudentUuid) {
+      student = await db.query.students.findFirst({
+        where: and(eq(students.id, jwtStudentUuid), eq(students.schoolId, schoolId))
+      });
+    }
+  }
+
+  if (!student) {
     // Try 2: Check if qrData is a raw UUID
     student = await db.query.students.findFirst({
       where: and(eq(students.id, qrData), eq(students.schoolId, schoolId))
     });
+  }
 
-    if (!student) {
-      // Try 3: Check if qrData is the readable studentId (e.g. 2026-144)
-      student = await db.query.students.findFirst({
-        where: eq(students.studentId, qrData)
-      });
-    }
+  if (!student) {
+     // Try 3: Check if qrData itself is the readable studentId
+     student = await db.query.students.findFirst({
+       where: and(eq(students.studentId, qrData), eq(students.schoolId, schoolId))
+     });
   }
 
   // Verification: Ensure student belongs to this school
@@ -252,11 +272,11 @@ export const markAttendanceByQR = asyncHandler(async (req: Request, res: Respons
   }
 
   if (!student) {
-    console.warn(`[QR SCAN ERROR] Student not found for data: ${qrData?.slice(0, 50)}... in school ${schoolId}. StudentId from JWT: ${studentId}`);
+    console.warn(`[QR SCAN ERROR] Student not found for data: ${qrData?.slice(0, 50)}... in school ${schoolId}`);
     return res.status(404).json({ status: 'error', message: 'Student not recognized in this school' });
   }
 
-  console.log(`[QR SCAN] Found student: ${student.name} (${student.id}) in class ${student.classId}`);
+  console.log(`[QR SCAN] Final Resolution - Student UUID: ${student.id}, Class ID: ${classId || student.classId}, Date: ${recordDate}`);
 
   // Use the resolved student's UUID for the attendance record
   const resolvedId = student.id;

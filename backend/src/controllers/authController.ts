@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { users, schools, staff } from '../db/schema';
+import { users, schools, staff, principals, students } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { eq, and } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
@@ -112,4 +112,84 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
   }
 
   res.status(200).json({ status: 'success', message: 'Profile updated successfully' });
+});
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ status: 'error', message: 'Email is required' });
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, email)
+  });
+
+  if (!user) {
+    return res.status(404).json({ status: 'error', message: 'User not found' });
+  }
+
+  // Generate a random 6-digit code
+  const token = Math.floor(100000 + Math.random() * 900000).toString();
+  const expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
+
+  await db.update(users)
+    .set({ resetPasswordToken: token, resetPasswordExpires: expires })
+    .where(eq(users.email, email));
+
+  // In a real app, send email here. For now, we'll just log it.
+  console.log(`Reset code for ${email}: ${token}`);
+
+  res.status(200).json({ status: 'success', message: 'Reset code sent to email' });
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email, token, newPassword } = req.body;
+
+  if (!email || !token || !newPassword) {
+    return res.status(400).json({ status: 'error', message: 'All fields are required' });
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(users.email, email)
+  });
+
+  if (!user) {
+    return res.status(404).json({ status: 'error', message: 'User not found' });
+  }
+
+  if (user.resetPasswordToken !== token) {
+    return res.status(400).json({ status: 'error', message: 'Invalid reset code' });
+  }
+
+  const expires = user.resetPasswordExpires ? new Date(user.resetPasswordExpires) : null;
+  if (!expires || expires < new Date()) {
+    return res.status(400).json({ status: 'error', message: 'Reset code has expired' });
+  }
+
+  await db.update(users)
+    .set({ 
+      password: newPassword, 
+      resetPasswordToken: null, 
+      resetPasswordExpires: null,
+      updatedAt: new Date().toISOString() 
+    })
+    .where(eq(users.email, email));
+
+  // Sync password to role-specific tables for consistency
+  if (user.role === 'staff' || user.role === 'teacher') {
+    await db.update(staff)
+      .set({ password: newPassword, updatedAt: new Date().toISOString() })
+      .where(eq(staff.userId, user.uid));
+  } else if (user.role === 'principal') {
+    await db.update(principals)
+      .set({ password: newPassword, updatedAt: new Date().toISOString() })
+      .where(eq(principals.userId, user.uid));
+  } else if (user.role === 'student') {
+    await db.update(students)
+      .set({ password: newPassword, updatedAt: new Date().toISOString() })
+      .where(eq(students.userId, user.uid));
+  }
+
+  res.status(200).json({ status: 'success', message: 'Password reset successfully' });
 });

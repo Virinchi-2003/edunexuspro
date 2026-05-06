@@ -35,7 +35,11 @@ import {
   getRequisitions,
   addRequisition,
   updateRequisition,
-  deleteRequisition
+  deleteRequisition,
+  getMeasurements,
+  addMeasurement,
+  updateMeasurement,
+  deleteMeasurement
 } from '../controllers/coachController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -96,5 +100,11 @@ router.get('/requisitions/:schoolId', getRequisitions);
 router.post('/requisitions', addRequisition);
 router.put('/requisitions/:id', updateRequisition);
 router.delete('/requisitions/:id', deleteRequisition);
+
+// --- Measurements ---
+router.get('/measurements/:schoolId', getMeasurements);
+router.post('/measurements', addMeasurement);
+router.put('/measurements/:id', updateMeasurement);
+router.delete('/measurements/:id', deleteMeasurement);
 
 export default router;

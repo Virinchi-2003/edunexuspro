@@ -153,12 +153,16 @@ const TeacherAttendance: React.FC = () => {
       const records = res.data.data || [];
       setAttendanceRecords(records);
       
-      // Pre-fill markQueue with existing records
-      const initialQueue: Record<string, 'present' | 'absent' | 'late' | undefined> = {};
-      records.forEach((r: any) => {
-        initialQueue[r.studentId] = r.status;
+      // Merge with markQueue instead of overwriting to preserve local scans
+      setMarkQueue(prev => {
+        const newQueue = { ...prev };
+        records.forEach((r: any) => {
+          // Store both UUID and readable ID in the queue to be safe
+          if (r.studentId) newQueue[r.studentId] = r.status;
+          if (r.student?.studentId) newQueue[r.student.studentId] = r.status;
+        });
+        return newQueue;
       });
-      setMarkQueue(initialQueue);
     } catch (error) {
       console.error(error);
     }
@@ -235,33 +239,75 @@ const TeacherAttendance: React.FC = () => {
           await html5QrCode.start(
             { facingMode: "environment" }, 
             { 
-              fps: 20, // Increased FPS for faster detection
-              qrbox: { width: 280, height: 280 }, // Slightly larger box
+              fps: 10, 
+              qrbox: { width: 250, height: 250 }, 
               aspectRatio: 1.0 
             },
             async (decodedText) => {
-              // Use Ref to avoid stale closure issues
+              console.log("[QR SCAN] Raw Data detected:", decodedText);
+
+              // Use Ref to avoid stale closure issues and rapid duplicate scans
               if (lastScannedRef.current === decodedText) return;
-              
               lastScannedRef.current = decodedText;
               
               try {
+                // 1. Try parsing JSON for logging/validation
+                let studentInfo = { studentId: decodedText };
+                try {
+                  const parsed = JSON.parse(decodedText);
+                  if (parsed && parsed.studentId) {
+                    studentInfo = parsed;
+                    console.log("[QR SCAN] Parsed Student Info:", studentInfo);
+                  }
+                } catch (e) {
+                  console.log("[QR SCAN] Data is not JSON, treating as raw ID/Token");
+                }
+
+                // 2. Send to backend QR endpoint
                 const res = await api.post('/attendance/qr', {
                   schoolId: user.schoolId,
-                  qrData: decodedText,
+                  qrData: decodedText, // Send raw text, backend handles JWT vs JSON vs Raw
                   classId: selectedClass.id,
                   status: 'present',
-                  date: selectedDate
+                  date: selectedDate,
+                  timestamp: new Date().toISOString()
                 });
                 
                 const student = res.data.data;
+                console.log("[QR SCAN SUCCESS] Marked student full data:", student);
+                
                 setScanSuccess({ name: student.name, id: student.studentId });
                 toast.success(`${student.name} marked Present`);
                 
-                setMarkQueue(prev => ({ ...prev, [student.id]: 'present' }));
-                fetchExistingRecords(selectedClass.id, selectedDate);
+                // 1. Update local mark queue immediately (using both possible IDs for safety)
+                setMarkQueue(prev => ({ 
+                  ...prev, 
+                  [student.id]: 'present',
+                  [student.studentId]: 'present' 
+                }));
+                
+                // 2. Mock an attendance record locally so "Already Saved" shows up immediately
+                setAttendanceRecords(prev => {
+                  const exists = prev.find(r => r.studentId === student.id || r.studentId === student.studentId);
+                  if (exists) {
+                    return prev.map(r => (r.studentId === student.id || r.studentId === student.studentId) ? { ...r, status: 'present' } : r);
+                  }
+                  return [...prev, { 
+                    id: `temp-${Date.now()}`, 
+                    studentId: student.id, 
+                    status: 'present', 
+                    date: selectedDate,
+                    student: student 
+                  }];
+                });
+                
+                // 3. Refresh records from server after a short delay
+                setTimeout(() => {
+                  console.log("[QR SCAN] Triggering refresh for class:", selectedClass.id);
+                  fetchExistingRecords(selectedClass.id, selectedDate);
+                }, 1500);
 
-                // Allow scanning the same person again after 5 seconds if needed
+                // Prevent duplicate scans for 5 seconds
                 setTimeout(() => {
                   if (lastScannedRef.current === decodedText) {
                     lastScannedRef.current = null;
@@ -271,6 +317,7 @@ const TeacherAttendance: React.FC = () => {
                 // Clear success message after 3s
                 setTimeout(() => setScanSuccess(null), 3000);
               } catch (err: any) {
+                console.error("[QR SCAN ERROR]", err);
                 toast.error(err.response?.data?.message || 'Failed to mark via QR');
                 lastScannedRef.current = null; // Reset on error to allow retry
               }
@@ -413,7 +460,10 @@ const TeacherAttendance: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {students.map((student) => {
-                  const currentStatus = markQueue[student.id];
+                  // Check status using both UUID and readable ID
+                  const currentStatus = markQueue[student.id] || markQueue[student.studentId];
+                  const isSaved = attendanceRecords.some(r => r.studentId === student.id || r.studentId === student.studentId);
+                  
                   return (
                     <tr key={student.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-10 py-6">
@@ -456,7 +506,7 @@ const TeacherAttendance: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-10 py-6 text-right">
-                        {attendanceRecords.find(r => r.studentId === student.id) ? (
+                        {isSaved ? (
                           <Badge className="bg-slate-100 text-slate-400 border-none font-bold text-[9px] uppercase tracking-wider">Already Saved</Badge>
                         ) : (
                           <span className="text-xs text-slate-300 italic">Not saved</span>

@@ -12,6 +12,7 @@ import {
   Search,
   MessageSquare,
   Calendar,
+  Activity,
   GraduationCap,
   Trophy,
   FileText,
@@ -45,6 +46,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: GraduationCap, label: 'Examinations', path: '/principal/exams' },
     { icon: Trophy, label: 'Gradebook', path: '/principal/gradebook' },
     { icon: CreditCard, label: 'Fees', path: '/principal/fees' },
+    { icon: Wallet, label: 'Salaries', path: '/principal/salaries' },
     { icon: Calendar, label: 'Attendance', path: '/principal/attendance' },
     { icon: Settings, label: 'Settings', path: '/principal/settings' },
   ];
@@ -86,6 +88,8 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const coachNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/coach' },
     { icon: Calendar, label: 'Sports Attendance', path: '/coach/attendance' },
+    { icon: Activity, label: 'Measurements', path: '/coach/measurements' },
+    { icon: MessageSquare, label: 'Messages', path: '/coach/messages' },
     { icon: Calendar, label: 'Training Timetable', path: '/coach/timetable' },
     { icon: Settings, label: 'Profile Settings', path: '/coach/settings' },
   ];
@@ -129,7 +133,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </NavLink>
         </div>
 
-        <nav className="flex-1 px-4 space-y-1">
+        <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
             <NavLink
               key={item.path}

@@ -85,6 +85,8 @@ export const users = sqliteTable('users', {
   darkMode: integer('darkMode', { mode: 'boolean' }).default(false),
   language: text('language').default('English'),
   status: text('status').default('active'),
+  resetPasswordToken: text('resetPasswordToken'),
+  resetPasswordExpires: text('resetPasswordExpires'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
@@ -617,6 +619,49 @@ export const salaryPayments = sqliteTable('salary_payments', {
   transactionId: text('transactionId'),
   notes: text('notes'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const measurements = sqliteTable('measurements', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  height: real('height'), // in cm
+  weight: real('weight'), // in kg
+  bmi: real('bmi'),
+  fatPercentage: real('fatPercentage'),
+  muscleMass: real('muscleMass'),
+  chest: real('chest'),
+  waist: real('waist'),
+  recordedBy: text('recordedBy').references(() => staff.id),
+  notes: text('notes'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const announcements = sqliteTable('announcements', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  type: text('type', { enum: ['event', 'holiday', 'exam', 'notice', 'other'] }).default('notice'),
+  priority: text('priority', { enum: ['low', 'medium', 'high'] }).default('medium'),
+  attachmentUrl: text('attachmentUrl'),
+  attachmentName: text('attachmentName'),
+  postedBy: text('postedBy').references(() => users.uid), // Principal or Admin is a user
+  postedAt: text('postedAt').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const payrollApprovals = sqliteTable('payroll_approvals', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  month: text('month').notNull(), // e.g., "October 2026"
+  status: text('status').default('pending'), // pending, approved
+  approvedBy: text('approvedBy').references(() => principals.id),
+  approvedAt: text('approvedAt'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
 // --- Relations ---
@@ -877,5 +922,38 @@ export const trophiesRelations = relations(trophies, ({ one }) => ({
   sport: one(sports, {
     fields: [trophies.sportId],
     references: [sports.id],
+  }),
+}));
+
+export const announcementRelations = relations(announcements, ({ one }) => ({
+  school: one(schools, {
+    fields: [announcements.schoolId],
+    references: [schools.id],
+  }),
+  author: one(users, {
+    fields: [announcements.postedBy],
+    references: [users.uid],
+  }),
+}));
+
+export const payrollApprovalRelations = relations(payrollApprovals, ({ one }) => ({
+  school: one(schools, {
+    fields: [payrollApprovals.schoolId],
+    references: [schools.id],
+  }),
+  approver: one(principals, {
+    fields: [payrollApprovals.approvedBy],
+    references: [principals.id],
+  }),
+}));
+
+export const measurementsRelations = relations(measurements, ({ one }) => ({
+  student: one(students, {
+    fields: [measurements.studentId],
+    references: [students.id],
+  }),
+  recorder: one(staff, {
+    fields: [measurements.recordedBy],
+    references: [staff.id],
   }),
 }));

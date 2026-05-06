@@ -19,6 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import AnnouncementBoard from '@/components/AnnouncementBoard';
 
 // Import sub-modules
 import FeesManagement from './modules/Fees';
@@ -207,6 +208,9 @@ const AccountantDashboard: React.FC<{ defaultTab?: string }> = ({ defaultTab }) 
               </Button>
            </div>
         </Card>
+      </div>
+      <div className="mt-8">
+        <AnnouncementBoard limit={3} />
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import AnnouncementBoard from '@/components/AnnouncementBoard';
 
 import CoachClipboard from './modules/Clipboard';
 import CoachFixtures from './modules/Fixtures';
@@ -232,6 +233,7 @@ const CoachDashboard: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+          <AnnouncementBoard limit={3} />
         </div>
 
         {/* Right Sidebar Area */}

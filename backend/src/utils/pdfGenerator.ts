@@ -355,3 +355,82 @@ export const generateFeeReceiptPDF = (data: any, res: Response) => {
     }
   }
 };
+
+export const generateSalaryReportPDF = (data: any, res: Response) => {
+  const doc = new PDFDocument({ margin: 50 });
+  doc.pipe(res);
+
+  const school = data.school || {};
+  const month = data.month;
+
+  // Header
+  doc.fillColor('#1e1b4b').fontSize(26).font('Helvetica-Bold').text(school.name || 'EduNexus Pro Institution', { align: 'center' });
+  doc.fillColor('#64748b').fontSize(10).font('Helvetica').text(school.address || 'Global Education Hub', { align: 'center' });
+  doc.moveDown(1.5);
+
+  // Title Section
+  doc.rect(50, 110, 500, 40).fill('#f8fafc');
+  doc.fillColor('#1e1b4b').fontSize(16).font('Helvetica-Bold').text(`MONTHLY PAYROLL REPORT: ${month.toUpperCase()}`, 50, 125, { align: 'center' });
+  doc.moveDown(2.5);
+
+  // Summary Box
+  const summaryY = 170;
+  doc.rect(50, summaryY, 500, 60).stroke('#e2e8f0');
+  doc.fontSize(10).fillColor('#64748b').text('Total Monthly Liability', 70, summaryY + 15);
+  doc.fontSize(16).fillColor('#1e1b4b').font('Helvetica-Bold').text(`₹ ${data.totalLiability.toLocaleString()}`, 70, summaryY + 30);
+  
+  doc.fontSize(10).fillColor('#64748b').font('Helvetica').text('Staff Headcount', 300, summaryY + 15);
+  doc.fontSize(16).fillColor('#1e1b4b').font('Helvetica-Bold').text(`${data.headcount} Members`, 300, summaryY + 30);
+
+  doc.moveDown(4);
+
+  // Table Header
+  const tableY = 250;
+  doc.rect(50, tableY, 500, 25).fill('#1e1b4b');
+  doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold');
+  doc.text('Employee Name', 60, tableY + 8);
+  doc.text('Department', 200, tableY + 8);
+  doc.text('Base Salary', 320, tableY + 8);
+  doc.text('Paid Amt', 400, tableY + 8);
+  doc.text('Status', 480, tableY + 8);
+
+  doc.fillColor('#0f172a').font('Helvetica');
+  let y = tableY + 35;
+
+  data.records.forEach((r: any) => {
+    // Check for page overflow
+    if (y > 700) {
+      doc.addPage();
+      y = 50;
+      // Redraw header on new page
+      doc.rect(50, y, 500, 25).fill('#1e1b4b');
+      doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold');
+      doc.text('Employee Name', 60, y + 8);
+      doc.text('Department', 200, y + 8);
+      doc.text('Base Salary', 320, y + 8);
+      doc.text('Paid Amt', 400, y + 8);
+      doc.text('Status', 480, y + 8);
+      doc.fillColor('#0f172a').font('Helvetica');
+      y += 35;
+    }
+
+    doc.text(r.name, 60, y, { width: 130 });
+    doc.text(r.department.toUpperCase(), 200, y, { width: 110 });
+    doc.text(`₹ ${r.salary.toLocaleString()}`, 320, y);
+    doc.text(r.paidAmount ? `₹ ${r.paidAmount.toLocaleString()}` : '-', 400, y);
+    
+    const status = r.paidAmount > 0 ? 'PAID' : 'PENDING';
+    doc.fillColor(status === 'PAID' ? '#059669' : '#d97706').font('Helvetica-Bold');
+    doc.text(status, 480, y);
+    doc.fillColor('#0f172a').font('Helvetica');
+
+    doc.moveTo(50, y + 15).lineTo(550, y + 15).strokeColor('#f1f5f9').stroke();
+    y += 25;
+  });
+
+  // Footer
+  doc.fontSize(8).fillColor('#94a3b8').text(`\nReport Generated on: ${new Date().toLocaleString()}`, { align: 'center' });
+  doc.text('This is an official document of EduNexus Pro Management Suite.', { align: 'center' });
+
+  doc.end();
+};

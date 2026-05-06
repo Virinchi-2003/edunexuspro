@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import AnnouncementBoard from '@/components/AnnouncementBoard';
 
 const ParentDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -117,31 +118,7 @@ const ParentDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="sm:col-span-2 border-none shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Bell className="w-5 h-5 text-indigo-600" /> Recent Activities
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                    <span className="text-sm text-slate-700 font-medium">Math Assignment Submitted</span>
-                  </div>
-                  <span className="text-xs text-slate-400">2h ago</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-sm text-slate-700 font-medium">Marked Present for today</span>
-                  </div>
-                  <span className="text-xs text-slate-400">4h ago</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <AnnouncementBoard limit={3} />
         </div>
       </div>
     </div>

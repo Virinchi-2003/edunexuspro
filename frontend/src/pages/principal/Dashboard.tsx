@@ -25,6 +25,8 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import SchoolInsights from '@/components/SchoolInsights';
+import AnnouncementBoard from '@/components/AnnouncementBoard';
+import PostAnnouncementModal from '@/components/PostAnnouncementModal';
 
 import { 
   DropdownMenu, 
@@ -107,6 +109,8 @@ const PrincipalDashboard: React.FC = () => {
     }
   };
 
+  const [refreshKey, setRefreshKey] = React.useState(0);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
@@ -115,6 +119,7 @@ const PrincipalDashboard: React.FC = () => {
           <p className="text-slate-500">{school?.name || 'School Dashboard'} • {school?.address || 'Loading...'}</p>
         </div>
         <div className="flex gap-3">
+          <PostAnnouncementModal onSuccess={() => setRefreshKey(prev => prev + 1)} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 border-slate-200 bg-white hover:bg-slate-50 shadow-sm">
@@ -224,6 +229,22 @@ const PrincipalDashboard: React.FC = () => {
           </Card>
           <SchoolInsights stats={stats} />
         </div>
+      </div>
+
+      {/* Announcement Board */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AnnouncementBoard key={refreshKey} limit={5} showPostButton />
+        {/* Placeholder for future real-time activity or calendar */}
+        <Card className="border-none shadow-sm bg-slate-50/50 flex items-center justify-center p-12">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <Calendar className="w-8 h-8 text-slate-300" />
+            </div>
+            <h3 className="text-slate-900 font-bold">School Calendar</h3>
+            <p className="text-slate-500 text-sm mt-1">Upcoming academic events and schedule.</p>
+            <Button variant="outline" className="mt-6 rounded-xl border-slate-200 bg-white">View Calendar</Button>
+          </div>
+        </Card>
       </div>
     </div>
   );

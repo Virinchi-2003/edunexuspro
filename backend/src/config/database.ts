@@ -21,6 +21,15 @@ export const initDb = async () => {
     // Here we just ensure the client is connected.
     await client.execute('SELECT 1');
     
+    // Self-healing: Ensure new columns exist
+    try {
+      await client.execute('ALTER TABLE users ADD COLUMN resetPasswordToken TEXT');
+      await client.execute('ALTER TABLE users ADD COLUMN resetPasswordExpires TEXT');
+      console.log('✅ Added reset password columns to users table.');
+    } catch (e) {
+      // Columns likely already exist
+    }
+
     // Self-healing: Ensure requisitions table exists
     await client.execute(`
       CREATE TABLE IF NOT EXISTS requisitions (
@@ -32,6 +41,19 @@ export const initDb = async () => {
         reason TEXT,
         status TEXT DEFAULT 'pending',
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS payroll_approvals (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        month TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        approvedBy TEXT,
+        approvedAt TEXT,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

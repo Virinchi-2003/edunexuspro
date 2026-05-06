@@ -21,6 +21,7 @@ import examRoutes from './routes/examRoutes';
 import coachRoutes from './routes/coachRoutes';
 import portalRoutes from './routes/portalRoutes';
 import accountantRoutes from './routes/accountantRoutes';
+import announcementRoutes from './routes/announcementRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -65,6 +66,7 @@ app.use('/api/exams', examRoutes);
 app.use('/api/coach', coachRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/accountant', accountantRoutes);
+app.use('/api/announcements', announcementRoutes);
 
 // Global Error Handler (must be after routes)
 app.use(errorHandler);

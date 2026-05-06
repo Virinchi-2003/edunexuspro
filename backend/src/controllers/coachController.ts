@@ -11,7 +11,8 @@ import {
   medicalRecords, 
   trainingLogs,
   trophies,
-  requisitions
+  requisitions,
+  measurements
 } from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -436,4 +437,45 @@ export const deleteRequisition = asyncHandler(async (req: Request, res: Response
   const id = getSingleValue(req.params.id);
   await db.delete(requisitions).where(eq(requisitions.id, id));
   res.status(200).json({ status: 'success', message: 'Requisition deleted' });
+});
+
+// --- Measurements ---
+export const getMeasurements = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  const studentId = req.query.studentId as string;
+  
+  let result;
+  if (studentId) {
+    result = await db.query.measurements.findMany({
+      where: and(eq(measurements.schoolId, schoolId), eq(measurements.studentId, studentId)),
+      orderBy: [desc(measurements.createdAt)]
+    });
+  } else {
+    result = await db.query.measurements.findMany({
+      where: eq(measurements.schoolId, schoolId),
+      with: { student: true },
+      orderBy: [desc(measurements.createdAt)]
+    });
+  }
+  res.status(200).json({ status: 'success', data: result });
+});
+
+export const addMeasurement = asyncHandler(async (req: Request, res: Response) => {
+  const id = uuidv4();
+  const data = req.body;
+  await db.insert(measurements).values({ id, ...data });
+  res.status(201).json({ status: 'success', message: 'Body measurements logged successfully' });
+});
+
+export const updateMeasurement = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  const data = req.body;
+  await db.update(measurements).set(data).where(eq(measurements.id, id));
+  res.status(200).json({ status: 'success', message: 'Measurement updated' });
+});
+
+export const deleteMeasurement = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  await db.delete(measurements).where(eq(measurements.id, id));
+  res.status(200).json({ status: 'success', message: 'Measurement record removed' });
 });

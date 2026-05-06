@@ -8,7 +8,12 @@ import {
   updateTicketStatus,
   getAccountantRequisitions,
   updateRequisitionStatus,
-  sendCustomFeeReminder
+  sendCustomFeeReminder,
+  getPayrollApprovalStatus,
+  authorizePayroll,
+  getMonthlySalaryReminders,
+  getSalaryReport,
+  getSalaryOverview
 } from '../controllers/accountantController';
 import { getFeesBySchool, updateFeeStatus, createFeeRecord, sendFeeReminders } from '../controllers/feesController';
 import { authenticate, authorize } from '../middleware/auth';
@@ -29,9 +34,16 @@ router.post('/fees/reminders', sendFeeReminders);
 router.post('/fees/custom-reminder', sendCustomFeeReminder);
 
 // --- Salary Management ---
+router.get('/salaries/report/:schoolId', getSalaryReport);
+router.get('/salaries/reminders/:schoolId', getMonthlySalaryReminders);
 router.get('/salaries/records/:schoolId', getSalaryRecords);
 router.post('/salaries/pay', processSalaryPayment);
 router.get('/salaries/history/:schoolId', getSalaryHistory);
+
+// --- Payroll Authorization & Overview (Principal/Accountant) ---
+router.get('/salaries/approval-status/:schoolId', getPayrollApprovalStatus);
+router.post('/salaries/authorize', authorizePayroll);
+router.get('/salaries/overview/:schoolId', getSalaryOverview);
 
 // --- Support / Helpdesk ---
 router.get('/tickets/:schoolId', getSupportTickets);

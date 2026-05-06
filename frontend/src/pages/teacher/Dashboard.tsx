@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import AnnouncementBoard from '@/components/AnnouncementBoard';
 
 const TeacherDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -218,28 +219,7 @@ const TeacherDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm bg-primary text-white overflow-hidden relative rounded-[2.5rem]">
-            <CardHeader className="p-8 pb-4">
-              <CardTitle className="text-lg font-display">Announcements</CardTitle>
-            </CardHeader>
-            <CardContent className="p-8 pt-0">
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 text-sm leading-relaxed">
-                  Staff meeting at 4:00 PM today in the Conference Hall.
-                </div>
-                <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 text-sm leading-relaxed">
-                  Exam schedule for Grade 10 has been updated in the portal.
-                </div>
-                <Button 
-                  variant="secondary" 
-                  className="w-full font-bold h-12 rounded-xl bg-white text-primary hover:bg-slate-100"
-                  onClick={() => toast.info('Announcements managed by Principal.')}
-                >
-                  View All
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <AnnouncementBoard limit={3} />
         </div>
       </div>
     </div>

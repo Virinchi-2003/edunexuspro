@@ -6,7 +6,8 @@ import {
   CreditCard,
   CheckCircle2,
   Mail,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,18 +71,27 @@ const AccountantFees: React.FC = () => {
   });
 
   const fetchData = async () => {
+    if (!user?.schoolId) {
+      console.warn('No schoolId found for accountant');
+      return;
+    }
     try {
       setLoading(true);
       const [feesRes, classesRes] = await Promise.all([
         api.get(`/accountant/fees/${user.schoolId}`),
         api.get(`/classes/school/${user.schoolId}`)
       ]);
-      setFeeRecords(feesRes.data.data.fees);
-      setStudents(feesRes.data.data.students);
-      setTransactions(feesRes.data.data.transactions || []);
-      setClassList(classesRes.data.data);
+      
+      const data = feesRes.data?.data || {};
+      setFeeRecords(data.fees || []);
+      setStudents(data.students || []);
+      setTransactions(data.transactions || []);
+      setClassList(classesRes.data?.data || []);
+      
+      console.log(`Loaded ${data.fees?.length || 0} fee records for school ${user.schoolId}`);
     } catch (error) {
-      toast.error('Failed to load records');
+      console.error('Accountant Fees Fetch Error:', error);
+      toast.error('Failed to load payroll data');
     } finally {
       setLoading(false);
     }
@@ -157,21 +167,62 @@ const AccountantFees: React.FC = () => {
     }
   };
 
-  const filteredRecords = feeRecords.filter(f => {
-    const student = students.find(s => s.id === f.studentId);
-    const matchesSearch = student?.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         student?.studentId.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || f.status === filterStatus;
-    const matchesClass = !filterClass || student?.classId === filterClass;
-    const matchesSection = !filterSection || student?.section === filterSection;
+  const filteredRecords = React.useMemo(() => {
+    const records: any[] = [];
     
-    return matchesSearch && matchesStatus && matchesClass && matchesSection;
-  });
+    // Process existing fee records
+    feeRecords.forEach(f => {
+      const student = students.find(s => s.id === f.studentId);
+      const studentName = student?.name || 'Unknown Student';
+      const studentId = student?.studentId || '';
+      
+      const matchesSearch = studentName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           studentId.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesClass = !filterClass || student?.classId === filterClass;
+      const matchesSection = !filterSection || student?.section === filterSection;
+      
+      if (matchesSearch && matchesClass && matchesSection) {
+        records.push({ ...f, student });
+      }
+    });
+
+    // Add "Virtual" records for students with NO fees assigned
+    if (filterStatus === 'all' || filterStatus === 'unpaid' || filterStatus === 'pending') {
+      students.forEach(s => {
+        const hasFees = feeRecords.some(f => f.studentId === s.id);
+        if (!hasFees) {
+          const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                               s.studentId.toLowerCase().includes(searchQuery.toLowerCase());
+          const matchesClass = !filterClass || s.classId === filterClass;
+          const matchesSection = !filterSection || s.section === filterSection;
+          
+          if (matchesSearch && matchesClass && matchesSection) {
+            records.push({
+              id: `pending-${s.id}`,
+              studentId: s.id,
+              student: s,
+              status: 'unassigned',
+              feeType: 'Not Assigned',
+              amount: 0,
+              dueDate: null,
+              isVirtual: true
+            });
+          }
+        }
+      });
+    }
+
+    return records.filter(r => {
+      if (filterStatus === 'all') return true;
+      if (filterStatus === 'unpaid') return r.status === 'unpaid' || r.status === 'unassigned' || r.status === 'partially_paid';
+      return r.status === filterStatus;
+    });
+  }, [feeRecords, students, searchQuery, filterStatus, filterClass, filterSection]);
 
   const filteredTransactions = transactions.filter(t => {
     const student = students.find(s => s.id === t.studentId);
-    const matchesSearch = student?.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         student?.studentId.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (student?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         (student?.studentId || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesClass = !filterClass || student?.classId === filterClass;
     const matchesSection = !filterSection || student?.section === filterSection;
     
@@ -215,6 +266,15 @@ const AccountantFees: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
+          <Button 
+            variant="outline" 
+            className="rounded-2xl h-14 px-6 font-bold bg-white border-slate-200 text-slate-600 gap-2 flex-1 md:flex-none shadow-sm"
+            onClick={fetchData}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Sync Data
+          </Button>
           <Button 
             variant="outline" 
             className="rounded-2xl h-14 px-6 font-bold bg-white border-slate-200 text-slate-600 gap-2 flex-1 md:flex-none shadow-sm"
@@ -279,7 +339,7 @@ const AccountantFees: React.FC = () => {
                <table className="w-full">
                   <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                     <tr>
-                      <th className="px-10 py-6 text-left">Athlete / Student</th>
+                      <th className="px-10 py-6 text-left">Student Name</th>
                       <th className="px-10 py-6 text-left">Challan #</th>
                       <th className="px-10 py-6 text-left">Fee Type</th>
                       <th className="px-10 py-6 text-left">Amount</th>
@@ -314,6 +374,7 @@ const AccountantFees: React.FC = () => {
                            <Badge className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border-none ${
                               fee.status === 'paid' ? 'bg-emerald-500 text-white' : 
                               fee.status === 'partially_paid' ? 'bg-amber-500 text-white' : 
+                              fee.status === 'unassigned' ? 'bg-slate-200 text-slate-500' :
                               'bg-rose-500 text-white'
                            }`}>
                               {fee.status.replace('_', ' ')}
@@ -324,21 +385,37 @@ const AccountantFees: React.FC = () => {
                              variant="ghost" 
                              className="rounded-xl h-10 px-4 text-emerald-600 font-bold hover:bg-emerald-50"
                              onClick={() => {
-                               setSelectedFee(fee);
-                               setUpdateFormData({
-                                 status: fee.status,
-                                 paidAmount: fee.paidAmount || 0,
-                                 transactionId: fee.transactionId || '',
-                                 amount: fee.amount
-                               });
-                               setIsUpdateModalOpen(true);
+                               if (fee.isVirtual) {
+                                 setCreateFormData({
+                                   ...createFormData,
+                                   studentId: fee.studentId
+                                 });
+                                 setIsCreateModalOpen(true);
+                               } else {
+                                 setSelectedFee(fee);
+                                 setUpdateFormData({
+                                   status: fee.status,
+                                   paidAmount: fee.paidAmount || 0,
+                                   transactionId: fee.transactionId || '',
+                                   amount: fee.amount
+                                 });
+                                 setIsUpdateModalOpen(true);
+                               }
                              }}
                            >
-                             Manage
+                             {fee.isVirtual ? 'Assign' : 'Manage'}
                            </Button>
                         </td>
                       </tr>
                     ))}
+                    {filteredRecords.length === 0 && !loading && (
+                      <tr>
+                        <td colSpan={7} className="px-10 py-20 text-center text-slate-400">
+                           <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                           <p className="font-bold uppercase text-xs tracking-widest">No fee records found for this selection</p>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                </table>
             ) : (
@@ -416,7 +493,7 @@ const AccountantFees: React.FC = () => {
                 value={createFormData.studentId}
                 onChange={(e) => setCreateFormData({...createFormData, studentId: e.target.value})}
               >
-                <option value="">Select athlete...</option>
+                <option value="">Select student...</option>
                 {students.map(s => (
                   <option key={s.id} value={s.id}>{s.name} ({s.studentId})</option>
                 ))}
