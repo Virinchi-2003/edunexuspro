@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
-import { turso } from '../config/database';
-import { announcements, staff } from '../db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { db } from '../config/database';
+import { announcements } from '../db/schema';
+import { eq, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
 export const createAnnouncement = asyncHandler(async (req: Request, res: Response) => {
@@ -14,10 +14,16 @@ export const createAnnouncement = asyncHandler(async (req: Request, res: Respons
 
   const id = uuidv4();
   
-  await turso.execute({
-    sql: `INSERT INTO announcements (id, schoolId, title, content, type, priority, attachmentUrl, attachmentName, postedBy, postedAt, createdAt, updatedAt) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    args: [id, schoolId, title, content, type || 'notice', priority || 'medium', attachmentUrl || null, attachmentName || null, postedBy || null]
+  await db.insert(announcements).values({
+    id,
+    schoolId,
+    title,
+    content,
+    type: type || 'notice',
+    priority: priority || 'medium',
+    attachmentUrl: attachmentUrl || null,
+    attachmentName: attachmentName || null,
+    postedBy: postedBy || null
   });
 
   res.status(201).json({
@@ -29,28 +35,24 @@ export const createAnnouncement = asyncHandler(async (req: Request, res: Respons
 export const getAnnouncements = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId } = req.params;
 
-  const result = await turso.execute({
-    sql: `SELECT a.*, u.name as authorName 
-          FROM announcements a
-          LEFT JOIN users u ON a.postedBy = u.uid
-          WHERE a.schoolId = ?
-          ORDER BY a.postedAt DESC`,
-    args: [schoolId]
+  const result = await db.query.announcements.findMany({
+    where: eq(announcements.schoolId, schoolId),
+    with: {
+      author: true
+    },
+    orderBy: [desc(announcements.postedAt)]
   });
 
   res.status(200).json({
     status: 'success',
-    data: result.rows
+    data: result
   });
 });
 
 export const deleteAnnouncement = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  await turso.execute({
-    sql: `DELETE FROM announcements WHERE id = ?`,
-    args: [id]
-  });
+  await db.delete(announcements).where(eq(announcements.id, id));
 
   res.status(200).json({
     status: 'success',

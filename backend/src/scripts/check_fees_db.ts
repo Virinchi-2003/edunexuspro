@@ -1,5 +1,5 @@
-import { db } from './src/config/database';
-import { fees, schools, students } from './src/db/schema';
+import { db } from '../config/database';
+import { fees, schools, students } from '../db/schema';
 import { count } from 'drizzle-orm';
 
 async function checkFees() {
