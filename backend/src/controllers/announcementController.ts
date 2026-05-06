@@ -4,6 +4,7 @@ import { db } from '../config/database';
 import { announcements } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { getSingleValue } from '../utils/queryHelper';
 
 export const createAnnouncement = asyncHandler(async (req: Request, res: Response) => {
   const { schoolId, title, content, type, priority, attachmentUrl, attachmentName, postedBy } = req.body;
@@ -33,7 +34,7 @@ export const createAnnouncement = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getAnnouncements = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId } = req.params;
+  const schoolId = getSingleValue(req.params.schoolId);
 
   const result = await db.query.announcements.findMany({
     where: eq(announcements.schoolId, schoolId),
@@ -50,7 +51,7 @@ export const getAnnouncements = asyncHandler(async (req: Request, res: Response)
 });
 
 export const deleteAnnouncement = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getSingleValue(req.params.id);
 
   await db.delete(announcements).where(eq(announcements.id, id));
 
