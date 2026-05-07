@@ -8,7 +8,8 @@ import {
   Lock,
   Unlock,
   PlusCircle,
-  TrendingDown
+  TrendingDown,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardTitle, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import { toast } from 'sonner';
 
 const ParentWallet: React.FC = () => {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<any>(null);
   const [topupAmount, setTopupAmount] = useState('500');
   const [dailyLimit, setDailyLimit] = useState(500);
@@ -87,6 +89,10 @@ const ParentWallet: React.FC = () => {
       toast.error('Failed to update limits');
     }
   };
+
+  if (loading && !wallet) {
+    return <div className="flex items-center justify-center min-h-[400px]"><RefreshCw className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
 
   return (
     <EliteGating>

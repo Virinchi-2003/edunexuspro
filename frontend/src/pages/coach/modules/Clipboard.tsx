@@ -7,6 +7,7 @@ import {
   TrendingUp,
   AlertCircle,
   FileText,
+  Clock,
   History,
   Calendar as CalendarIcon,
   Trash2
