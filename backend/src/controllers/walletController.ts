@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/database';
 import { wallets, walletTransactions, walletLimits, rechargeLogs } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -9,11 +10,11 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_KIn9L9L9L9L9L9',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
 });
 
-export const getWallet = asyncHandler(async (req: Request, res: Response) => {
+export const getWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
   const studentId = getSingleValue(req.params.studentId);
   const schoolId = req.user?.schoolId || '';
 
@@ -51,7 +52,7 @@ export const getWallet = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json({ status: 'success', data: { ...wallet, limits } });
 });
 
-export const getTransactions = asyncHandler(async (req: Request, res: Response) => {
+export const getTransactions = asyncHandler(async (req: AuthRequest, res: Response) => {
   const studentId = getSingleValue(req.params.studentId);
   const result = await db.query.walletTransactions.findMany({
     where: eq(walletTransactions.studentId, studentId),
@@ -61,7 +62,7 @@ export const getTransactions = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ status: 'success', data: result });
 });
 
-export const topupWallet = asyncHandler(async (req: Request, res: Response) => {
+export const topupWallet = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { studentId, amount, transactionId, parentId } = req.body;
   const schoolId = req.user?.schoolId || '';
 
@@ -105,7 +106,7 @@ export const topupWallet = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json({ status: 'success', balance: wallet?.balance });
 });
 
-export const processPayment = asyncHandler(async (req: Request, res: Response) => {
+export const processPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { studentId, amount, vendor, category, description } = req.body;
   const schoolId = req.user?.schoolId || '';
 
@@ -149,7 +150,7 @@ export const processPayment = asyncHandler(async (req: Request, res: Response) =
   res.status(200).json({ status: 'success', message: 'Payment successful' });
 });
 
-export const setWalletLimits = asyncHandler(async (req: Request, res: Response) => {
+export const setWalletLimits = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { studentId, dailyLimit, weeklyLimit } = req.body;
   await db.insert(walletLimits)
     .values({ studentId, dailyLimit, weeklyLimit })
@@ -160,7 +161,7 @@ export const setWalletLimits = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json({ status: 'success', message: 'Limits updated' });
 });
 
-export const toggleWalletStatus = asyncHandler(async (req: Request, res: Response) => {
+export const toggleWalletStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { studentId, status } = req.body;
   await db.update(wallets)
     .set({ status, updatedAt: new Date().toISOString() })
@@ -168,7 +169,7 @@ export const toggleWalletStatus = asyncHandler(async (req: Request, res: Respons
   res.status(200).json({ status: 'success', message: `Wallet ${status}` });
 });
 
-export const createRazorpayOrder = asyncHandler(async (req: Request, res: Response) => {
+export const createRazorpayOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { amount } = req.body;
   
   if (!amount || amount < 100) {
@@ -185,7 +186,7 @@ export const createRazorpayOrder = asyncHandler(async (req: Request, res: Respon
   res.status(201).json({ status: 'success', data: order });
 });
 
-export const verifyRazorpayPayment = asyncHandler(async (req: Request, res: Response) => {
+export const verifyRazorpayPayment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { 
     studentId, 
     amount, 
