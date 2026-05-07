@@ -45,6 +45,9 @@ import CoachClipboard from './pages/coach/modules/Clipboard';
 import CoachTimetable from './pages/coach/modules/Timetable';
 import CoachMeasurements from './pages/coach/modules/Measurements';
 import AccountantDashboard from './pages/accountant/Dashboard';
+import StudentWallet from './pages/student/Wallet';
+import ParentWallet from './pages/parent/Wallet';
+import VendorScanner from './pages/vendor/Scanner';
 
 import { Toaster } from 'sonner';
 
@@ -182,6 +185,34 @@ const App: React.FC = () => {
                   <Route path="/performance" element={<StudentPerformance />} />
                   <Route path="/messages" element={<StudentMessaging />} />
                   <Route path="/fees" element={<StudentFees />} />
+                  <Route path="/wallet" element={<StudentWallet />} />
+                  <Route path="/settings" element={<StudentSettings />} />
+                </Routes>
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+          
+          {/* Parent Routes */}
+          <Route path="/parent/*" element={
+            <ProtectedRoute roles={['parent']}>
+              <AdminLayout>
+                <Routes>
+                  <Route path="/" element={<StudentDashboard />} />
+                  <Route path="/wallet" element={<ParentWallet />} />
+                  <Route path="/fees" element={<StudentFees />} />
+                  <Route path="/settings" element={<StudentSettings />} />
+                </Routes>
+              </AdminLayout>
+            </ProtectedRoute>
+          } />
+
+          {/* Vendor Routes */}
+          <Route path="/vendor/*" element={
+            <ProtectedRoute roles={['vendor']}>
+              <AdminLayout>
+                <Routes>
+                  <Route path="/" element={<VendorScanner />} />
+                  <Route path="/scanner" element={<VendorScanner />} />
                   <Route path="/settings" element={<StudentSettings />} />
                 </Routes>
               </AdminLayout>

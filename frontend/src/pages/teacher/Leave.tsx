@@ -34,7 +34,7 @@ const TeacherLeave: React.FC = () => {
       setStaffProfile(profile);
 
       if (profile?.id) {
-        const res = await api.get(`/staff/leaves/${profile.id}`);
+        const res = await api.get(`/leaves/teacher/${profile.id}`);
         setLeaves(res.data.data || []);
       }
     } catch (error) {
@@ -54,7 +54,7 @@ const TeacherLeave: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      await api.post('/staff/leaves/status', {
+      await api.put('/leaves/update-status', {
         leaveId: selectedLeave.id,
         status,
         teacherMessage,
@@ -71,14 +71,28 @@ const TeacherLeave: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, aiStatus?: string) => {
+    const isAi = aiStatus && status === aiStatus.toLowerCase();
+    
     switch (status) {
       case 'pending':
         return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-4 py-1.5 rounded-full font-bold uppercase text-[10px] tracking-widest">Pending</Badge>;
       case 'approved':
-        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-4 py-1.5 rounded-full font-bold uppercase text-[10px] tracking-widest">Approved</Badge>;
+        return (
+          <div className="flex flex-col items-end gap-1">
+            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-4 py-1.5 rounded-full font-bold uppercase text-[10px] tracking-widest flex items-center gap-1.5">
+              <CheckCircle2 className="w-3 h-3" /> {isAi ? 'AI Approved' : 'Approved'}
+            </Badge>
+          </div>
+        );
       case 'rejected':
-        return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-4 py-1.5 rounded-full font-bold uppercase text-[10px] tracking-widest">Rejected</Badge>;
+        return (
+          <div className="flex flex-col items-end gap-1">
+            <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-4 py-1.5 rounded-full font-bold uppercase text-[10px] tracking-widest flex items-center gap-1.5">
+              <XCircle className="w-3 h-3" /> {isAi ? 'AI Rejected' : 'Rejected'}
+            </Badge>
+          </div>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -86,9 +100,15 @@ const TeacherLeave: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Student Leave Requests</h2>
-        <p className="text-slate-500 font-medium mt-1">Review and manage leave applications from your students.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">AI Leave Assistant</h2>
+          <p className="text-slate-500 font-medium mt-1">Smart analysis and management of student leave applications.</p>
+        </div>
+        <div className="flex items-center gap-3 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-2xl border border-indigo-100">
+          <div className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">AI Auto-Mode Active</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -108,17 +128,38 @@ const TeacherLeave: React.FC = () => {
               <CardContent className="p-8">
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
                   <div className="flex-1 space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xl">
-                        {leave.student?.name?.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                           <h3 className="text-xl font-bold text-slate-900">{leave.student?.name}</h3>
-                           <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 font-bold uppercase tracking-widest px-2 py-0">ID: {leave.student?.studentId}</Badge>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xl">
+                          {leave.student?.name?.charAt(0)}
                         </div>
-                        <p className="text-slate-400 text-sm font-medium">Class {leave.student?.grade}-{leave.student?.section}</p>
+                        <div>
+                          <div className="flex items-center gap-2">
+                             <h3 className="text-xl font-bold text-slate-900">{leave.student?.name}</h3>
+                             <Badge variant="outline" className="text-[10px] border-slate-200 text-slate-500 font-bold uppercase tracking-widest px-2 py-0">ID: {leave.student?.studentId}</Badge>
+                          </div>
+                          <p className="text-slate-400 text-sm font-medium">Class {leave.student?.grade}-{leave.student?.section}</p>
+                        </div>
                       </div>
+                      
+                      {leave.aiStatus && (
+                        <div className={`px-4 py-2 rounded-2xl flex items-center gap-3 border ${
+                          leave.aiStatus === 'APPROVED' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
+                          leave.aiStatus === 'REJECTED' ? 'bg-rose-50 border-rose-100 text-rose-700' :
+                          'bg-amber-50 border-amber-100 text-amber-700'
+                        }`}>
+                          <div className="text-left">
+                            <div className="text-[9px] font-bold uppercase tracking-wider opacity-60">AI Analysis</div>
+                            <div className="text-[11px] font-bold">{leave.aiReason}</div>
+                          </div>
+                          {leave.aiConfidence && (
+                            <div className="pl-3 border-l border-current/10 text-center">
+                              <div className="text-[9px] font-bold uppercase tracking-wider opacity-60">Conf.</div>
+                              <div className="text-[11px] font-bold">{Math.round(leave.aiConfidence * 100)}%</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -136,31 +177,34 @@ const TeacherLeave: React.FC = () => {
                              <MessageSquare className="w-5 h-5" />
                           </div>
                           <div>
-                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reason</div>
+                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Student Reason</div>
                              <p className="text-slate-600 font-medium leading-relaxed">{leave.reason}</p>
                           </div>
                        </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col lg:items-end justify-between gap-4 self-stretch">
-                     {getStatusBadge(leave.status)}
-                     {leave.status === 'pending' ? (
-                       <Button 
-                         onClick={() => {
-                           setSelectedLeave(leave);
-                           setIsResponseOpen(true);
-                         }}
-                         className="rounded-2xl h-12 px-6 bg-slate-900 hover:bg-indigo-600 text-white font-bold transition-all gap-2"
-                       >
-                         Respond to Request
-                       </Button>
-                     ) : (
-                       <div className="text-right">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Your Response</div>
-                          <p className="text-sm font-medium text-slate-600 italic">"{leave.teacherMessage || 'No comments'}"</p>
-                       </div>
-                     )}
+                  <div className="flex flex-col lg:items-end justify-between gap-4 self-stretch min-w-[200px]">
+                     {getStatusBadge(leave.status, leave.aiStatus)}
+                     
+                     <div className="space-y-2 w-full text-right">
+                       {leave.status === 'pending' || (leave.aiStatus && leave.status === leave.aiStatus.toLowerCase()) ? (
+                         <Button 
+                           onClick={() => {
+                             setSelectedLeave(leave);
+                             setIsResponseOpen(true);
+                           }}
+                           className="w-full rounded-2xl h-12 px-6 bg-slate-900 hover:bg-indigo-600 text-white font-bold transition-all gap-2"
+                         >
+                           Override Decision
+                         </Button>
+                       ) : (
+                         <div className="text-right">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Final Decision Comment</div>
+                            <p className="text-sm font-medium text-slate-600 italic">"{leave.teacherMessage || 'No comments'}"</p>
+                         </div>
+                       )}
+                     </div>
                   </div>
                 </div>
               </CardContent>

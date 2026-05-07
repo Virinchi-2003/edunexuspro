@@ -9,8 +9,7 @@ import {
   TrendingUp, 
   User,
   MoreVertical,
-  Trash2,
-  ArrowRight
+  Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +51,10 @@ const CoachMeasurements: React.FC = () => {
     notes: ''
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [historyStudent, setHistoryStudent] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -116,11 +119,28 @@ const CoachMeasurements: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Remove this measurement record?')) return;
     try {
+      setIsDeleting(id);
       await api.delete(`/coach/measurements/${id}`);
       toast.success('Record deleted');
       fetchData();
+      if (isHistoryModalOpen && historyStudent) {
+         handleViewHistory(historyStudent);
+      }
     } catch (error) {
       toast.error('Delete failed');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const handleViewHistory = async (student: any) => {
+    try {
+      setHistoryStudent(student);
+      const res = await api.get(`/coach/measurements/${user.schoolId}?studentId=${student.id}`);
+      setHistoryData(res.data.data || []);
+      setIsHistoryModalOpen(true);
+    } catch (error) {
+      toast.error('Failed to load history');
     }
   };
 
@@ -223,18 +243,7 @@ const CoachMeasurements: React.FC = () => {
               </CardContent>
            </Card>
 
-           <Card className="border-none shadow-2xl rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-              <div className="relative z-10">
-                 <TrendingUp className="w-8 h-8 mb-4 text-indigo-200" />
-                 <h4 className="text-xl font-bold">Growth Insights</h4>
-                 <p className="text-indigo-100/70 text-sm mt-2 leading-relaxed">Average squad height has increased by 1.2cm this term.</p>
-                 <Button variant="link" className="text-white p-0 h-auto mt-6 font-bold hover:no-underline flex items-center gap-2 group">
-                    View Analytics <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                 </Button>
-              </div>
-           </Card>
-        </div>
+         </div>
 
         <div className="lg:col-span-3 space-y-6">
            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -271,7 +280,12 @@ const CoachMeasurements: React.FC = () => {
                                       setSelectedStudent(student);
                                       setIsAddModalOpen(true);
                                    }}><Plus className="w-4 h-4" /> New Record</DropdownMenuItem>
-                                   <DropdownMenuItem className="rounded-xl font-bold gap-2"><History className="w-4 h-4" /> View History</DropdownMenuItem>
+                                   <DropdownMenuItem 
+                                      className="rounded-xl font-bold gap-2"
+                                      onClick={() => handleViewHistory(student)}
+                                    >
+                                       <History className="w-4 h-4" /> View History
+                                    </DropdownMenuItem>
                                    {latest && (
                                      <DropdownMenuItem className="rounded-xl font-bold gap-2 text-rose-600" onClick={() => handleDelete(latest.id)}>
                                         <Trash2 className="w-4 h-4" /> Delete Latest
@@ -422,6 +436,120 @@ const CoachMeasurements: React.FC = () => {
                  {isSaving ? 'Logging Metrics...' : 'Log Metrics'}
                </Button>
             </DialogFooter>
+         </DialogContent>
+      </Dialog>
+
+      {/* History Modal */}
+      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+         <DialogContent className="sm:max-w-[700px] rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
+            <div className="h-32 bg-slate-900 p-8 flex items-end justify-between">
+               <div>
+                  <DialogTitle className="text-3xl font-display font-bold text-white">Measurement History</DialogTitle>
+                  <p className="text-slate-400 font-medium">Tracking progress for {historyStudent?.name}</p>
+               </div>
+               <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                  {historyStudent?.name?.charAt(0)}
+               </div>
+            </div>
+            <div className="p-8 max-h-[60vh] overflow-y-auto">
+               {historyData.length === 0 ? (
+                  <div className="text-center py-12">
+                     <History className="w-12 h-12 mx-auto mb-4 text-slate-200" />
+                     <p className="text-slate-400 font-bold">No history records found.</p>
+                  </div>
+               ) : (
+                  <div className="space-y-4">
+                     {historyData.map((record) => (
+                        <div key={record.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 group hover:border-indigo-200 transition-colors">
+                           <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200/50">
+                              <div className="flex items-center gap-3">
+                                 <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                                    <Activity className="w-5 h-5 text-indigo-600" />
+                                 </div>
+                                 <div>
+                                    <div className="font-bold text-slate-900">{new Date(record.createdAt).toLocaleDateString()}</div>
+                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recorded By {record.recordedBy === user.id ? 'You' : 'Coach'}</div>
+                                 </div>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="rounded-full text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                                onClick={() => handleDelete(record.id)}
+                                disabled={isDeleting === record.id}
+                              >
+                                 <Trash2 className="w-4 h-4" />
+                              </Button>
+                           </div>
+
+                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                              <div>
+                                 <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1">
+                                    <Ruler className="w-3 h-3" /> Height
+                                 </div>
+                                 <div className="font-bold text-slate-900">{record.height} cm</div>
+                              </div>
+                              <div>
+                                 <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1">
+                                    <Scale className="w-3 h-3" /> Weight
+                                 </div>
+                                 <div className="font-bold text-slate-900">{record.weight} kg</div>
+                              </div>
+                              <div>
+                                 <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1">
+                                    <Activity className="w-3 h-3" /> BMI
+                                 </div>
+                                 <div className="font-bold text-indigo-600">{record.bmi}</div>
+                              </div>
+                              {(record.fatPercentage || record.muscleMass) && (
+                                 <div>
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1">
+                                       <TrendingUp className="w-3 h-3" /> Composition
+                                    </div>
+                                    <div className="text-xs font-bold text-slate-700">
+                                       {record.fatPercentage && `BF: ${record.fatPercentage}%`}
+                                       {record.fatPercentage && record.muscleMass && ' | '}
+                                       {record.muscleMass && `MM: ${record.muscleMass}kg`}
+                                    </div>
+                                 </div>
+                              )}
+                              {(record.chest || record.waist) && (
+                                 <div className="col-span-full pt-2">
+                                    <div className="flex gap-4">
+                                       {record.chest && (
+                                          <div>
+                                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Chest: </span>
+                                             <span className="text-xs font-bold text-slate-700">{record.chest} in</span>
+                                          </div>
+                                       )}
+                                       {record.waist && (
+                                          <div>
+                                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Waist: </span>
+                                             <span className="text-xs font-bold text-slate-700">{record.waist} in</span>
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
+                              )}
+                              {record.notes && (
+                                 <div className="col-span-full mt-2 p-3 bg-white rounded-xl border border-slate-100 italic text-xs text-slate-500">
+                                    "{record.notes}"
+                                 </div>
+                              )}
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               )}
+            </div>
+            <div className="p-8 bg-slate-50 flex items-center justify-end">
+               <Button 
+                 className="rounded-xl font-bold bg-slate-900 text-white"
+                 onClick={() => setIsHistoryModalOpen(false)}
+               >
+                  Close History
+               </Button>
+            </div>
          </DialogContent>
       </Dialog>
     </div>

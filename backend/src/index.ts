@@ -1,8 +1,10 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import { initDb, turso } from './config/database';
 
 import schoolRoutes from './routes/schoolRoutes';
@@ -22,9 +24,9 @@ import coachRoutes from './routes/coachRoutes';
 import portalRoutes from './routes/portalRoutes';
 import accountantRoutes from './routes/accountantRoutes';
 import announcementRoutes from './routes/announcementRoutes';
+import leaveRoutes from './routes/leaveRoutes';
+import walletRoutes from './routes/walletRoutes';
 import { errorHandler } from './middleware/errorHandler';
-
-dotenv.config();
 
 // Initialize Turso
 initDb();
@@ -67,6 +69,8 @@ app.use('/api/coach', coachRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/accountant', accountantRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/leaves', leaveRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Global Error Handler (must be after routes)
 app.use(errorHandler);

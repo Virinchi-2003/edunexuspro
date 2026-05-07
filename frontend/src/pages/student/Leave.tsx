@@ -37,7 +37,7 @@ const StudentLeave: React.FC = () => {
       setStudent(sData);
 
       if (sData?.id) {
-        const res = await api.get(`/students/leave/${sData.id}`);
+        const res = await api.get(`/leaves/student/${sData.id}`);
         setLeaves(res.data.data || []);
       }
     } catch (error) {
@@ -59,12 +59,12 @@ const StudentLeave: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      await api.post('/students/leave', {
+      const res = await api.post('/leaves/apply', {
         ...formData,
         studentId: student.id,
         schoolId: student.schoolId
       });
-      toast.success('Leave application submitted successfully');
+      toast.success(res.data.message);
       setIsApplyOpen(false);
       setFormData({ reason: '', startDate: '', endDate: '' });
       fetchData();
@@ -75,14 +75,16 @@ const StudentLeave: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, aiStatus?: string) => {
+    const isAi = aiStatus && status === aiStatus.toLowerCase();
+    
     switch (status) {
       case 'pending':
-        return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-4 py-1.5 rounded-full font-bold">Pending Approval</Badge>;
+        return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-4 py-1.5 rounded-full font-bold">Pending Review</Badge>;
       case 'approved':
-        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-4 py-1.5 rounded-full font-bold">Approved</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-4 py-1.5 rounded-full font-bold">{isAi ? 'AI Approved' : 'Approved'}</Badge>;
       case 'rejected':
-        return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-4 py-1.5 rounded-full font-bold">Rejected</Badge>;
+        return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none px-4 py-1.5 rounded-full font-bold">{isAi ? 'AI Rejected' : 'Rejected'}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -91,11 +93,16 @@ const StudentLeave: React.FC = () => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">Leave Management</h2>
-          <p className="text-slate-500 font-medium mt-1">Submit and track your academic leave applications.</p>
+        <div className="flex items-center gap-4">
+           <div className="w-14 h-14 rounded-[1.5rem] bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+              <FileText className="w-7 h-7" />
+           </div>
+           <div>
+              <h2 className="text-4xl font-display font-bold text-slate-900 tracking-tight">AI Leave Assistant</h2>
+              <p className="text-slate-500 font-medium mt-1">Smart leave tracking with automated AI verification.</p>
+           </div>
         </div>
-        <Button onClick={() => setIsApplyOpen(true)} className="gap-2 rounded-2xl h-14 px-8 shadow-xl shadow-primary/20 hover:scale-105 transition-all">
+        <Button onClick={() => setIsApplyOpen(true)} className="gap-2 rounded-2xl h-14 px-8 shadow-xl shadow-primary/20 hover:scale-105 transition-all bg-indigo-600 hover:bg-indigo-700 text-white">
           <Plus className="w-5 h-5" /> Apply for Leave
         </Button>
       </div>
@@ -114,17 +121,17 @@ const StudentLeave: React.FC = () => {
              </Card>
            ) : (
              leaves.map((leave) => (
-               <Card key={leave.id} className="group border-none shadow-xl hover:shadow-2xl transition-all duration-500 rounded-[2.5rem] bg-white overflow-hidden">
+               <Card key={leave.id} className="group border-none shadow-xl hover:shadow-2xl transition-all duration-500 rounded-[2.5rem] bg-white overflow-hidden border border-slate-50">
                   <CardContent className="p-8">
                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                        <div className="space-y-4">
+                        <div className="space-y-4 flex-1">
                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                              <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
                                  <CalendarIcon className="w-6 h-6" />
                               </div>
                               <div>
-                                 <div className="text-sm font-bold text-slate-400 uppercase tracking-widest">Duration</div>
-                                 <div className="font-display font-bold text-slate-900">{leave.startDate} — {leave.endDate}</div>
+                                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Leave Period</div>
+                                 <div className="font-display font-bold text-slate-900 text-lg">{leave.startDate} — {leave.endDate}</div>
                               </div>
                            </div>
                            <div className="flex items-start gap-4">
@@ -132,18 +139,32 @@ const StudentLeave: React.FC = () => {
                                  <MessageSquare className="w-5 h-5" />
                               </div>
                               <div>
-                                 <div className="text-sm font-bold text-slate-400 uppercase tracking-widest">Reason</div>
+                                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reason</div>
                                  <div className="text-slate-600 font-medium leading-relaxed max-w-md">{leave.reason}</div>
                               </div>
                            </div>
+
+                           {leave.aiStatus && (
+                              <div className={`mt-4 p-4 rounded-2xl border ${
+                                leave.aiStatus === 'APPROVED' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
+                                leave.aiStatus === 'REJECTED' ? 'bg-rose-50 border-rose-100 text-rose-800' :
+                                'bg-amber-50 border-amber-100 text-amber-800'
+                              }`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className="text-[10px] font-bold uppercase tracking-wider opacity-60">AI Assistant Response</div>
+                                  <Badge className="text-[8px] h-4 bg-white/50 border-none font-bold">BOT</Badge>
+                                </div>
+                                <p className="text-sm font-bold">{leave.aiReason}</p>
+                              </div>
+                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-3">
-                           {getStatusBadge(leave.status)}
-                           <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Applied {new Date(leave.createdAt).toLocaleDateString()}</div>
+                        <div className="flex flex-col items-end gap-3 min-w-[150px]">
+                           {getStatusBadge(leave.status, leave.aiStatus)}
+                           <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-1">Applied {new Date(leave.createdAt).toLocaleDateString()}</div>
                            {leave.teacherMessage && (
-                             <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 max-w-xs">
-                                <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-1">Teacher Feedback</div>
-                                <p className="text-xs text-slate-600 italic leading-relaxed">"{leave.teacherMessage}"</p>
+                             <div className="mt-4 p-4 bg-slate-900 text-white rounded-2xl border-none max-w-xs shadow-lg">
+                                <div className="text-[9px] font-bold text-indigo-300 uppercase tracking-widest mb-1">Teacher Remarks</div>
+                                <p className="text-xs font-medium italic leading-relaxed">"{leave.teacherMessage}"</p>
                              </div>
                            )}
                         </div>

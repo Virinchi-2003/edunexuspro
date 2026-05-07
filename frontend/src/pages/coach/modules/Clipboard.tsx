@@ -9,7 +9,11 @@ import {
   AlertCircle,
   FileText,
   Clock,
-  UserCheck
+  UserCheck,
+  History,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +57,11 @@ const CoachClipboard: React.FC = () => {
     score: 5,
     comments: ''
   });
+  
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historyDate, setHistoryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -155,6 +164,28 @@ const CoachClipboard: React.FC = () => {
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await api.get(`/attendance/school/${user.schoolId}?date=${historyDate}`);
+      // Filter for sports attendance for this specific sport if possible
+      const sportSpecificRecords = res.data.data.filter((r: any) => 
+        r.remarks?.includes(`Field Attendance - ${activeSport?.name}`)
+      );
+      setHistoryRecords(sportSpecificRecords);
+    } catch (error) {
+      toast.error('Failed to load attendance history');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isHistoryModalOpen) {
+      fetchHistory();
+    }
+  }, [historyDate, isHistoryModalOpen]);
+
   const submitAssessment = async () => {
     try {
       setSaving(true);
@@ -213,7 +244,15 @@ const CoachClipboard: React.FC = () => {
                <CardTitle className="text-3xl font-display font-bold text-slate-900">Field Attendance</CardTitle>
                <CardDescription className="text-slate-500 font-medium mt-1">Today's {activeSport?.name} roster for {new Date().toLocaleDateString()}</CardDescription>
             </div>
-            <div className="flex items-center gap-3">
+             <div className="flex items-center gap-3">
+               <Button 
+                 variant="outline"
+                 className="rounded-2xl border-slate-100 text-slate-400 font-bold h-14 px-6 hover:bg-slate-50 gap-2"
+                 onClick={() => setIsHistoryModalOpen(true)}
+               >
+                 <History className="w-5 h-5" />
+                 History
+               </Button>
                <Button 
                  variant="outline"
                  className="rounded-2xl border-slate-100 text-slate-400 font-bold h-14 px-6 hover:bg-slate-50"
@@ -223,7 +262,7 @@ const CoachClipboard: React.FC = () => {
                    setAttendance(allPresent);
                  }}
                >
-                 Mark All
+                 Mark All Present
                </Button>
                <Button 
                  className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-100 font-bold gap-2 px-8 h-14 transition-all hover:scale-[1.02]"
@@ -260,30 +299,31 @@ const CoachClipboard: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-10 py-8 text-center">
-                         <div className="flex items-center justify-center gap-3">
+                         <div className="flex items-center justify-center gap-2">
                             <Button
-                              size="lg"
+                              size="sm"
                               variant="ghost"
-                              onClick={() => toggleAttendance(student.id)}
-                              className={`rounded-2xl px-8 h-12 font-bold transition-all border-2 ${
+                              onClick={() => setAttendance(prev => ({ ...prev, [student.id]: 'present' }))}
+                              className={`rounded-xl px-4 h-10 font-bold transition-all border ${
                                  attendance[student.id] === 'present' 
-                                   ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                                   : 'bg-white text-slate-300 border-slate-50 hover:bg-slate-50 hover:text-slate-400'
+                                   ? 'bg-emerald-500 text-white border-emerald-500' 
+                                   : 'bg-white text-slate-300 border-slate-100 hover:bg-emerald-50 hover:text-emerald-500'
                               }`}
                             >
-                              {attendance[student.id] === 'present' ? <UserCheck className="w-5 h-5 mr-2" /> : <Activity className="w-5 h-5 mr-2" />}
-                              {attendance[student.id] === 'present' ? 'Attended' : 'Mark Present'}
+                              Present
                             </Button>
-                            {attendance[student.id] === 'present' && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => setAttendance(prev => ({ ...prev, [student.id]: 'absent' }))}
-                                className="h-12 w-12 rounded-2xl text-rose-500 hover:bg-rose-50 group-hover:scale-110 transition-transform"
-                              >
-                                <XCircle className="w-5 h-5" />
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setAttendance(prev => ({ ...prev, [student.id]: 'absent' }))}
+                              className={`rounded-xl px-4 h-10 font-bold transition-all border ${
+                                 attendance[student.id] === 'absent' 
+                                   ? 'bg-rose-500 text-white border-rose-500' 
+                                   : 'bg-white text-slate-300 border-slate-100 hover:bg-rose-50 hover:text-rose-500'
+                              }`}
+                            >
+                              Absent
+                            </Button>
                          </div>
                       </td>
                       <td className="px-10 py-8 text-right">
@@ -508,6 +548,113 @@ const CoachClipboard: React.FC = () => {
                     </div>
                  )}
               </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attendance History Modal */}
+      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+        <DialogContent className="sm:max-w-[700px] rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden">
+          <div className="bg-indigo-600 p-10 text-white">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-3xl font-display font-bold">Attendance History</DialogTitle>
+                  <DialogDescription className="text-indigo-100 mt-2 font-medium">Viewing past records for {activeSport?.name}</DialogDescription>
+                </div>
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                   <History className="w-8 h-8" />
+                </div>
+              </div>
+            </DialogHeader>
+          </div>
+
+          <div className="p-10 space-y-8">
+            <div className="flex items-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+               <div className="flex-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Select Date</label>
+                  <div className="relative mt-2">
+                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input 
+                      type="date" 
+                      className="w-full h-14 rounded-xl bg-white border border-slate-200 pl-12 pr-6 font-bold text-slate-900 focus:ring-2 focus:ring-indigo-100 outline-none"
+                      value={historyDate}
+                      onChange={(e) => setHistoryDate(e.target.value)}
+                    />
+                  </div>
+               </div>
+               <Button 
+                 onClick={fetchHistory}
+                 disabled={loadingHistory}
+                 className="h-14 mt-6 rounded-xl bg-slate-900 px-8 font-bold"
+               >
+                 {loadingHistory ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Fetch Records'}
+               </Button>
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+               {loadingHistory ? (
+                  <div className="py-20 text-center">
+                     <Loader2 className="w-10 h-10 animate-spin mx-auto text-indigo-600 mb-4" />
+                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Records...</p>
+                  </div>
+               ) : historyRecords.length === 0 ? (
+                  <div className="py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-100">
+                     <Activity className="w-12 h-12 mx-auto mb-4 text-slate-200" />
+                     <p className="text-slate-400 font-bold">No attendance records found for this date.</p>
+                  </div>
+               ) : (
+                  <div className="space-y-3">
+                     {historyRecords.map((record: any) => (
+                        <div key={record.id} className="flex items-center justify-between p-5 rounded-2xl bg-white border border-slate-100 hover:border-indigo-100 transition-colors group">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center font-bold text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                 {record.student?.name?.charAt(0) || 'S'}
+                              </div>
+                              <div>
+                                 <div className="font-bold text-slate-900 text-sm">{record.student?.name || 'Unknown Student'}</div>
+                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Grade {record.student?.grade || 'N/A'}-{record.student?.section || ''}</div>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              <Badge className={`rounded-full px-4 py-1 font-black text-[10px] uppercase tracking-widest border-none ${
+                                 record.status === 'present' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+                              }`}>
+                                 {record.status}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={async () => {
+                                   if (!window.confirm('Delete this attendance record?')) return;
+                                   try {
+                                      await api.delete(`/attendance/${record.id}`);
+                                      toast.success('Record removed');
+                                      fetchHistory();
+                                   } catch (error) {
+                                      toast.error('Failed to delete record');
+                                   }
+                                }}
+                              >
+                                 <Trash2 className="w-4 h-4" />
+                              </Button>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               )}
+            </div>
+          </div>
+          
+          <div className="p-8 bg-slate-50 flex justify-end">
+             <Button 
+               variant="ghost" 
+               className="rounded-xl font-bold text-slate-500"
+               onClick={() => setIsHistoryModalOpen(false)}
+             >
+               Close History
+             </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -68,3 +68,25 @@ export const authorize = (roles: string[]) => {
     next();
   };
 };
+
+import { schools } from '../db/schema';
+export const checkPlan = (requiredPlan: string) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user?.schoolId) {
+      return res.status(403).json({ status: 'error', message: 'School identification missing' });
+    }
+
+    const school = await db.query.schools.findFirst({
+      where: eq(schools.id, req.user.schoolId)
+    });
+
+    if (!school || school.subscriptionPlan?.toUpperCase() !== requiredPlan.toUpperCase()) {
+      return res.status(403).json({ 
+        status: 'error', 
+        message: `This feature requires the ${requiredPlan} Plan. Please upgrade to access.` 
+      });
+    }
+
+    next();
+  };
+};

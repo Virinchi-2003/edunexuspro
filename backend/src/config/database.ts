@@ -30,6 +30,22 @@ export const initDb = async () => {
       // Columns likely already exist
     }
 
+    // Self-healing: Ensure new columns exist
+    const addColumn = async (table: string, col: string, type: string) => {
+      try {
+        await client.execute(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+        console.log(`✅ Added ${col} column to ${table}.`);
+      } catch (e) {}
+    };
+
+    await addColumn('leave_requests', 'aiStatus', 'TEXT');
+    await addColumn('leave_requests', 'aiReason', 'TEXT');
+    await addColumn('leave_requests', 'aiConfidence', 'REAL');
+    await addColumn('leave_requests', 'updatedAt', 'TEXT');
+    await addColumn('salary_payments', 'updatedAt', 'TEXT');
+    await addColumn('wallet_transactions', 'updatedAt', 'TEXT');
+    await addColumn('recharge_logs', 'updatedAt', 'TEXT');
+
     // Self-healing: Ensure requisitions table exists
     await client.execute(`
       CREATE TABLE IF NOT EXISTS requisitions (
@@ -54,6 +70,57 @@ export const initDb = async () => {
         approvedAt TEXT,
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Self-healing: Ensure wallet tables exist
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS wallets (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        studentId TEXT NOT NULL UNIQUE,
+        balance REAL DEFAULT 0,
+        status TEXT DEFAULT 'active',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        studentId TEXT NOT NULL,
+        walletId TEXT NOT NULL,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL,
+        category TEXT DEFAULT 'others',
+        vendor TEXT,
+        description TEXT,
+        status TEXT DEFAULT 'success',
+        timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS wallet_limits (
+        studentId TEXT PRIMARY KEY,
+        dailyLimit REAL DEFAULT 500,
+        weeklyLimit REAL DEFAULT 2000,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS recharge_logs (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        studentId TEXT NOT NULL,
+        parentId TEXT,
+        amount REAL NOT NULL,
+        transactionId TEXT,
+        status TEXT DEFAULT 'pending',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

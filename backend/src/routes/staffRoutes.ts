@@ -7,10 +7,12 @@ import {
   deleteStaff,
   assignClasses,
   getTeacherClasses,
-  getTeacherDashboardStats,
-  getLeavesByTeacher,
-  updateLeaveStatus
+  getTeacherDashboardStats
 } from '../controllers/staffController';
+import {
+  getTeacherLeaves as getLeavesByTeacher,
+  updateLeaveStatus
+} from '../controllers/leaveController';
 import { 
   createHomework, 
   getTeacherHomework, 

@@ -24,7 +24,10 @@ export const getAttendance = asyncHandler(async (req: Request, res: Response) =>
 
   const result = await db.query.attendance.findMany({
     where: whereClause,
-    orderBy: [desc(attendance.date)]
+    orderBy: [desc(attendance.date)],
+    with: {
+      student: true
+    }
   });
 
   res.status(200).json({ status: 'success', data: result });

@@ -8,13 +8,30 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { getSingleValue } from '../utils/queryHelper';
 
 export const createSchool = asyncHandler(async (req: Request, res: Response) => {
-  const { name, address, contactEmail, subscriptionPlan, adminEmail, password } = req.body;
+  const { name, address, contactEmail, subscriptionPlan, adminEmail, password, school_id: providedId } = req.body;
+  
+  // Check if email already exists
+  const targetEmail = adminEmail || contactEmail;
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, targetEmail)
+  });
+
+  if (existingUser) {
+    return res.status(400).json({ 
+      status: 'error', 
+      message: `An account with the email ${targetEmail} already exists. Please use a different administrator email.` 
+    });
+  }
+
   const id = uuidv4();
 
-  // Generate a human-readable School ID
-  const [lastSchool] = await db.select({ count: sql`count(*)` }).from(schools);
-  const schoolCount = Number((lastSchool as any)?.count || 0) + 1;
-  const school_id = `SCH-${String(schoolCount).padStart(3, '0')}`;
+  // Generate or use provided human-readable School ID
+  let school_id = providedId;
+  if (!school_id) {
+    const [lastSchool] = await db.select({ count: sql`count(*)` }).from(schools);
+    const schoolCount = Number((lastSchool as any)?.count || 0) + 1;
+    school_id = `SCH-${String(schoolCount).padStart(3, '0')}`;
+  }
 
   // 1. Create the School
   await db.insert(schools).values({
@@ -123,7 +140,7 @@ export const updateSchoolStatus = asyncHandler(async (req: Request, res: Respons
 });
 export const updateSchool = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
-  const { name, address, contactEmail, subscriptionPlan, currentAcademicYear } = req.body;
+  const { name, address, contactEmail, subscriptionPlan, currentAcademicYear, school_id } = req.body;
 
   await db.update(schools)
     .set({ 
@@ -132,6 +149,7 @@ export const updateSchool = asyncHandler(async (req: Request, res: Response) => 
       contactEmail, 
       subscriptionPlan,
       currentAcademicYear,
+      school_id,
       updatedAt: new Date().toISOString() 
     })
     .where(eq(schools.id, id));

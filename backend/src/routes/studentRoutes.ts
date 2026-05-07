@@ -9,11 +9,13 @@ import {
   bulkCreateStudents,
   getStudentByUser,
   getStudentHomework,
-  getStudentLeaves,
-  applyLeave,
   getStudentQR,
   createSupportTicket
 } from '../controllers/studentController';
+import {
+  applyLeave,
+  getStudentLeaves
+} from '../controllers/leaveController';
 import { 
   getStudentHomeworkList, 
   submitHomework 

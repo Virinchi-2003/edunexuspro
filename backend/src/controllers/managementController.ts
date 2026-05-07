@@ -148,6 +148,72 @@ export const updateSystemConfig = asyncHandler(async (req: Request, res: Respons
 // Principal Controllers
 export const createPrincipal = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = principalSchema.parse(req.body);
+  
+  // Check if principal already exists in management table
+  const existingPrincipal = await db.query.principals.findFirst({
+    where: eq(principals.email, validatedData.email)
+  });
+
+  if (existingPrincipal) {
+    // Update existing principal record
+    await db.update(principals)
+      .set({ 
+        name: validatedData.name,
+        phone: validatedData.phone,
+        schoolId: validatedData.schoolId,
+        updatedAt: new Date().toISOString() 
+      })
+      .where(eq(principals.id, existingPrincipal.id));
+
+    // Ensure user record is synced
+    await db.update(users)
+      .set({ 
+        name: validatedData.name,
+        role: 'principal',
+        schoolId: validatedData.schoolId,
+        phoneNumber: validatedData.phone
+      })
+      .where(eq(users.email, validatedData.email));
+
+    return res.status(200).json({ 
+      status: 'success', 
+      message: 'Existing principal details updated and synchronized.',
+      data: { ...existingPrincipal, ...validatedData }
+    });
+  }
+
+  // Check if email exists in users table but not in principals
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, validatedData.email)
+  });
+
+  if (existingUser) {
+    const id = uuidv4();
+    // Create principal record linking to existing user
+    await db.insert(principals).values({
+      id,
+      ...validatedData,
+      userId: existingUser.uid,
+      status: 'active' as const
+    });
+
+    // Update user role and school
+    await db.update(users)
+      .set({ 
+        role: 'principal', 
+        schoolId: validatedData.schoolId,
+        name: validatedData.name,
+        phoneNumber: validatedData.phone
+      })
+      .where(eq(users.uid, existingUser.uid));
+
+    return res.status(201).json({ 
+      status: 'success', 
+      message: 'Existing user record found. Promoted to Principal and linked to school.',
+      data: { id, ...validatedData }
+    });
+  }
+
   const id = uuidv4();
   const userId = uuidv4(); // Generate a UID for the users table
 
@@ -197,7 +263,14 @@ export const getPrincipalById = asyncHandler(async (req: Request, res: Response)
 
 export const updatePrincipal = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
-  const validatedData = principalSchema.partial().parse(req.body);
+  
+  // Strip empty password to avoid Zod min(6) error if not changing password
+  const updateData = { ...req.body };
+  if (updateData.password === '') {
+    delete updateData.password;
+  }
+  
+  const validatedData = principalSchema.partial().parse(updateData);
 
   // Get current principal to find userId
   const currentPrincipal = await db.query.principals.findFirst({
@@ -328,6 +401,19 @@ export const updateAdminProfile = asyncHandler(async (req: Request, res: Respons
 
 export const createNewAdmin = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = adminSchema.parse(req.body);
+
+  // Check if email already exists
+  const existingUser = await db.query.users.findFirst({
+    where: eq(users.email, validatedData.email)
+  });
+
+  if (existingUser) {
+    return res.status(400).json({ 
+      status: 'error', 
+      message: 'An account with this email already exists.' 
+    });
+  }
+
   if (!validatedData.password) {
     return res.status(400).json({ status: 'error', message: 'Password is required for new accounts' });
   }

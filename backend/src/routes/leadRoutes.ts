@@ -1,11 +1,21 @@
 import { Router } from 'express';
-import { createLead, getLeads, updateLeadStatus, replyToLead, updatePaymentStatus } from '../controllers/leadController';
+import { 
+  createLead, 
+  getLeads, 
+  updateLeadStatus, 
+  replyToLead, 
+  updatePaymentStatus,
+  createLeadOrder,
+  verifyLeadPayment
+} from '../controllers/leadController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
 // Public route for contacting sales
 router.post('/', createLead);
+router.post('/:id/order', createLeadOrder);
+router.post('/:id/verify', verifyLeadPayment);
 router.put('/:id/pay', updatePaymentStatus); // Public for simulation
 
 // Protected routes for admins to manage leads

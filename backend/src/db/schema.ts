@@ -389,9 +389,13 @@ export const leaveRequests = sqliteTable('leave_requests', {
   startDate: text('startDate').notNull(),
   endDate: text('endDate').notNull(),
   status: text('status').default('pending'), // pending, approved, rejected
+  aiStatus: text('aiStatus'), // APPROVED, REJECTED, REVIEW
+  aiReason: text('aiReason'),
+  aiConfidence: real('aiConfidence'),
   approvedBy: text('approvedBy').references(() => staff.id),
   teacherMessage: text('teacherMessage'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const notifications = sqliteTable('notifications', {
@@ -955,5 +959,69 @@ export const measurementsRelations = relations(measurements, ({ one }) => ({
   recorder: one(staff, {
     fields: [measurements.recordedBy],
     references: [staff.id],
+  }),
+}));
+
+export const wallets = sqliteTable('wallets', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().unique().references(() => students.id, { onDelete: 'cascade' }),
+  balance: real('balance').default(0).notNull(),
+  status: text('status').default('active').notNull(), // active, blocked
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const walletTransactions = sqliteTable('wallet_transactions', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  walletId: text('walletId').notNull().references(() => wallets.id, { onDelete: 'cascade' }),
+  amount: real('amount').notNull(),
+  type: text('type').notNull(), // credit (top-up), debit (spend)
+  category: text('category').default('others'), // canteen, library, stationery, topup
+  vendor: text('vendor'),
+  description: text('description'),
+  status: text('status').default('success').notNull(),
+  timestamp: text('timestamp').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const walletLimits = sqliteTable('wallet_limits', {
+  studentId: text('studentId').primaryKey().references(() => students.id, { onDelete: 'cascade' }),
+  dailyLimit: real('dailyLimit').default(500),
+  weeklyLimit: real('weeklyLimit').default(2000),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const rechargeLogs = sqliteTable('recharge_logs', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  parentId: text('parentId'),
+  amount: real('amount').notNull(),
+  transactionId: text('transactionId'), // Razorpay/Stripe ID
+  status: text('status').default('pending'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Relations
+export const walletsRelations = relations(wallets, ({ one, many }) => ({
+  student: one(students, {
+    fields: [wallets.studentId],
+    references: [students.id],
+  }),
+  transactions: many(walletTransactions),
+}));
+
+export const walletTransactionsRelations = relations(walletTransactions, ({ one }) => ({
+  wallet: one(wallets, {
+    fields: [walletTransactions.walletId],
+    references: [wallets.id],
+  }),
+  student: one(students, {
+    fields: [walletTransactions.studentId],
+    references: [students.id],
   }),
 }));

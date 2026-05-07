@@ -153,13 +153,11 @@ const TeacherAttendance: React.FC = () => {
       const records = res.data.data || [];
       setAttendanceRecords(records);
       
-      // Merge with markQueue instead of overwriting to preserve local scans
+      // Only use the primary UUID for tracking to prevent duplicate records
       setMarkQueue(prev => {
         const newQueue = { ...prev };
         records.forEach((r: any) => {
-          // Store both UUID and readable ID in the queue to be safe
           if (r.studentId) newQueue[r.studentId] = r.status;
-          if (r.student?.studentId) newQueue[r.student.studentId] = r.status;
         });
         return newQueue;
       });
@@ -588,7 +586,7 @@ const TeacherAttendance: React.FC = () => {
                 {attendanceRecords.map((record) => (
                   <tr key={record.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-10 py-6 font-bold text-slate-900">
-                      {record.student?.name || 'Unknown'}
+                      {record.student?.name || (record.studentId?.startsWith('temp-') ? 'Scanning...' : `Student ID: ${record.studentId || 'Unknown'}`)}
                     </td>
                     <td className="px-10 py-6 text-center">
                       <Badge className={`px-4 py-1.5 rounded-full font-bold uppercase text-[10px] ${

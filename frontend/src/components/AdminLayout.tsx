@@ -65,6 +65,8 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: Settings, label: 'Settings', path: '/teacher/settings' },
   ];
 
+  const isElite = user?.subscriptionPlan?.toUpperCase() === 'ELITE';
+
   const studentNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/student' },
     { icon: Calendar, label: 'Attendance', path: '/student/attendance' },
@@ -73,7 +75,23 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: MessageSquare, label: 'Messages', path: '/student/messages' },
     { icon: Trophy, label: 'Performance', path: '/student/performance' },
     { icon: CreditCard, label: 'Fees', path: '/student/fees' },
+    ...(isElite ? [{ icon: Wallet, label: 'Campus Wallet', path: '/student/wallet' }] : []),
     { icon: Settings, label: 'Settings', path: '/student/settings' },
+  ];
+
+  const parentNavItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/parent' },
+    { icon: CreditCard, label: 'Fees', path: '/parent/fees' },
+    ...(isElite ? [{ icon: Wallet, label: 'Student Wallet', path: '/parent/wallet' }] : []),
+    { icon: MessageSquare, label: 'Messages', path: '/parent/messages' },
+    { icon: Settings, label: 'Settings', path: '/parent/settings' },
+  ];
+
+  const vendorNavItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/vendor' },
+    { icon: ShoppingBag, label: 'Scanner', path: '/vendor/scanner' },
+    { icon: FileText, label: 'Sales History', path: '/vendor/history' },
+    { icon: Settings, label: 'Settings', path: '/vendor/settings' },
   ];
 
   const accountantNavItems = [
@@ -100,6 +118,8 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       case 'principal': return principalNavItems;
       case 'accountant': return accountantNavItems;
       case 'coach': return coachNavItems;
+      case 'parent': return parentNavItems;
+      case 'vendor': return vendorNavItems;
       case 'staff':
       case 'teacher': return teacherNavItems;
       case 'student': return studentNavItems;
@@ -177,9 +197,6 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="text-slate-500">
-              <Bell className="w-5 h-5" />
-            </Button>
             <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
               <div className="text-right">
                 <p className="text-sm font-semibold text-slate-900">{user?.displayName}</p>

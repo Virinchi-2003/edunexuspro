@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 const PrincipalsPage: React.FC = () => {
   const [principals, setPrincipals] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -55,13 +56,15 @@ const PrincipalsPage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [principalsRes, schoolsRes] = await Promise.all([
+      const [principalsRes, schoolsRes, leadsRes] = await Promise.all([
         api.get('/management/principals'),
-        api.get('/schools')
+        api.get('/schools'),
+        api.get('/leads')
       ]);
       
       setPrincipals(principalsRes.data.data || []);
       setSchools(schoolsRes.data.data || []);
+      setLeads((leadsRes.data.data || []).filter((l: any) => l.status !== 'converted'));
     } catch (error) {
       toast.error('Failed to load records from database');
     } finally {
@@ -109,7 +112,14 @@ const PrincipalsPage: React.FC = () => {
   const handleUpdatePrincipal = async () => {
     try {
       setIsSaving(true);
-      await api.put(`/management/principals/${editingId}`, formData);
+      
+      // Don't send empty password to avoid validation errors
+      const dataToUpdate = { ...formData };
+      if (!dataToUpdate.password) {
+        delete dataToUpdate.password;
+      }
+
+      await api.put(`/management/principals/${editingId}`, dataToUpdate);
       toast.success('Principal record updated');
       setIsEditDialogOpen(false);
       fetchData();
@@ -136,11 +146,13 @@ const PrincipalsPage: React.FC = () => {
     return s ? s.name : 'Unknown School';
   };
 
-  const filteredPrincipals = principals.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.email.toLowerCase().includes(search.toLowerCase()) ||
-    p.phone?.includes(search)
-  );
+  const filteredPrincipals = principals.filter(p => {
+    const school = schools.find(s => s.id === p.schoolId);
+    return p.name.toLowerCase().includes(search.toLowerCase()) ||
+           p.email.toLowerCase().includes(search.toLowerCase()) ||
+           p.phone?.includes(search) ||
+           school?.school_id?.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -258,6 +270,32 @@ const PrincipalsPage: React.FC = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {!isEditDialogOpen && leads.length > 0 && (
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 mb-2">
+                <label className="text-[10px] font-black uppercase text-blue-500 mb-2 block">Quick Import from Enquiries</label>
+                <select 
+                  className="w-full bg-white border-none rounded-lg h-9 text-xs outline-none px-2 font-semibold text-slate-700"
+                  onChange={(e) => {
+                    const lead = leads.find(l => l.id === e.target.value);
+                    if (lead) {
+                      setFormData({
+                        ...formData,
+                        name: lead.adminName,
+                        email: lead.email,
+                        phone: lead.phone || '',
+                      });
+                      toast.success('Details imported from enquiry!');
+                    }
+                  }}
+                >
+                  <option value="">Select an Enquiry to Import</option>
+                  {leads.map(l => (
+                    <option key={l.id} value={l.id}>{l.adminName} - {l.schoolName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-sm font-semibold">Full Name</label>
               <Input 
@@ -297,18 +335,47 @@ const PrincipalsPage: React.FC = () => {
                 className="bg-slate-50 border-none"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Assign School</label>
-              <select 
-                className="flex h-10 w-full rounded-md border-none bg-slate-50 px-3 py-2 text-sm outline-none"
-                value={formData.schoolId}
-                onChange={e => setFormData({...formData, schoolId: e.target.value})}
-              >
-                <option value="">Select a School</option>
-                {schools.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold">Assign School</label>
+                  {formData.schoolId && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const school = schools.find(s => s.id === formData.schoolId);
+                        if (school) {
+                          setFormData({
+                            ...formData,
+                            name: school.name.split(' ').slice(0, 2).join(' '), // Guessing a name from school name or just school name
+                            email: school.contactEmail
+                          });
+                          toast.info('Form populated from school contact info');
+                        }
+                      }}
+                      className="text-[10px] font-black uppercase text-primary hover:underline"
+                    >
+                      Auto-fill Details
+                    </button>
+                  )}
+                </div>
+                <select 
+                  className="flex h-10 w-full rounded-md border-none bg-slate-50 px-3 py-2 text-sm outline-none font-medium"
+                  value={formData.schoolId}
+                  onChange={e => setFormData({...formData, schoolId: e.target.value})}
+                >
+                  <option value="">Select a School</option>
+                  {schools.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.school_id || 'No ID'})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Selected School ID</label>
+                <div className="flex h-10 w-full rounded-md bg-slate-100 px-3 py-2 text-sm font-mono text-slate-500 items-center border border-slate-200/50">
+                  {schools.find(s => s.id === formData.schoolId)?.school_id || 'Select school to view ID'}
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>

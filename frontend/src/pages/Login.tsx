@@ -68,7 +68,7 @@ const Login: React.FC = () => {
     },
     { 
       name: 'Elite', 
-      price: 'Custom', 
+      price: '₹49,999/mo', 
       capacity: 'Unlimited', 
       features: ['All Modules', 'Biometrics', 'Campus Wallet', 'White Labeling', 'Dedicated Support'],
       color: 'bg-amber-50 border-amber-200 text-amber-900'
@@ -100,11 +100,80 @@ const Login: React.FC = () => {
     if (!leadId) return;
     try {
       setIsSubmitting(true);
-      await api.put(`/leads/${leadId}/pay`, { paymentStatus: 'paid' });
-      toast.success('Payment successful! Your credentials will be sent shortly.');
-      setCurrentStep(4);
+      
+      // 1. Create Order
+      const orderRes = await api.post(`/leads/${leadId}/order`, { planName: leadForm.plan });
+      const order = orderRes.data.data;
+      const isMock = orderRes.data.isMock;
+
+      if (isMock) {
+        toast.info('Simulating Razorpay Payment...');
+        setTimeout(async () => {
+          try {
+            const verifyRes = await api.post(`/leads/${leadId}/verify`, {
+              razorpay_order_id: order.id,
+              isMock: true
+            });
+            if (verifyRes.data.status === 'success') {
+              toast.success('Simulation Successful! School provisioned.');
+              setCurrentStep(4);
+            }
+          } catch (e) {
+            toast.error('Simulation verification failed.');
+          } finally {
+            setIsSubmitting(false);
+          }
+        }, 2000);
+        return;
+      }
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_KIn9L9L9L9L9L9',
+        amount: order.amount,
+        currency: order.currency,
+        name: "EduNexus Pro",
+        description: `Subscription for ${leadForm.plan} Plan`,
+        image: "https://edunexus.pro/logo.png",
+        order_id: order.id,
+        handler: async (response: any) => {
+          try {
+            // 2. Verify Payment
+            const verifyRes = await api.post(`/leads/${leadId}/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+
+            if (verifyRes.data.status === 'success') {
+              toast.success('Payment successful! Your credentials will be sent shortly.');
+              setCurrentStep(4);
+            }
+          } catch (error) {
+            toast.error('Payment verification failed.');
+          }
+        },
+        prefill: {
+          name: leadForm.adminName,
+          email: leadForm.email,
+          contact: leadForm.phone
+        },
+        notes: {
+          school_name: leadForm.schoolName,
+          plan: leadForm.plan
+        },
+        theme: {
+          color: "#4f46e5"
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function (response: any) {
+        toast.error(response.error.description);
+      });
+      rzp.open();
+
     } catch (error) {
-      toast.error('Payment failed. Please try again.');
+      toast.error('Failed to initiate payment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -399,14 +468,19 @@ const Login: React.FC = () => {
                 <p className="text-xs text-slate-500 italic">Billed monthly. Cancel anytime.</p>
               </div>
 
-              <div className="space-y-4 text-left px-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Card Information</label>
-                  <Input placeholder="4242 4242 4242 4242" defaultValue="4242 4242 4242 4242" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input placeholder="MM / YY" defaultValue="12 / 26" />
-                  <Input placeholder="CVC" defaultValue="123" />
+              <div className="space-y-6 py-4 px-4">
+                <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 gap-4">
+                   <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center">
+                      <CreditCard className="w-8 h-8 text-indigo-600" />
+                   </div>
+                   <div className="text-center">
+                      <h4 className="font-bold text-slate-900">Secure Razorpay Checkout</h4>
+                      <p className="text-xs text-slate-500 mt-1 px-4">Supports UPI, NetBanking, All Major Cards & Wallets</p>
+                   </div>
+                   <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">PCI-DSS Compliant</span>
+                   </div>
                 </div>
               </div>
 

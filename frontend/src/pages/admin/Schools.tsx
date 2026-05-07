@@ -20,7 +20,8 @@ import {
   Trash2,
   Ban,
   CheckCircle2,
-  Pencil
+  Pencil,
+  ShieldCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -51,7 +52,8 @@ const SchoolsPage: React.FC = () => {
     contactEmail: '',
     subscriptionPlan: 'starter',
     adminEmail: '',
-    password: ''
+    password: '',
+    school_id: ''
   });
 
   const fetchSchools = async () => {
@@ -184,7 +186,8 @@ const SchoolsPage: React.FC = () => {
           contactEmail: '', 
           subscriptionPlan: 'starter',
           adminEmail: '',
-          password: ''
+          password: '',
+          school_id: ''
         });
       }
     } catch (error: any) {
@@ -308,6 +311,17 @@ const SchoolsPage: React.FC = () => {
                       value={newSchool.name}
                       onChange={e => setNewSchool({...newSchool, name: e.target.value})}
                       className="bg-slate-50 border-none focus:bg-white transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-slate-400" /> Unique School ID
+                    </label>
+                    <Input 
+                      placeholder="e.g. SCH-001 (Leave blank for auto)" 
+                      value={newSchool.school_id}
+                      onChange={e => setNewSchool({...newSchool, school_id: e.target.value})}
+                      className="bg-slate-50 border-none focus:bg-white transition-all font-mono"
                     />
                   </div>
                   <div className="space-y-2">
@@ -560,6 +574,17 @@ const SchoolsPage: React.FC = () => {
                     value={editingSchool.name}
                     onChange={e => setEditingSchool({...editingSchool, name: e.target.value})}
                     className="bg-slate-50 border-none focus:bg-white transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-slate-400" /> School ID
+                  </label>
+                  <Input 
+                    placeholder="e.g. SCH-001" 
+                    value={editingSchool.school_id}
+                    onChange={e => setEditingSchool({...editingSchool, school_id: e.target.value})}
+                    className="bg-slate-50 border-none focus:bg-white transition-all font-mono"
                   />
                 </div>
                 <div className="space-y-2">
