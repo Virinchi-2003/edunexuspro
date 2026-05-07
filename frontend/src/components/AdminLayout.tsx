@@ -8,7 +8,6 @@ import {
   CreditCard, 
   Settings, 
   LogOut,
-  Bell,
   Search,
   MessageSquare,
   Calendar,

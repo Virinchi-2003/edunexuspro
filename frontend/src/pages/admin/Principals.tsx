@@ -114,7 +114,7 @@ const PrincipalsPage: React.FC = () => {
       setIsSaving(true);
       
       // Don't send empty password to avoid validation errors
-      const dataToUpdate = { ...formData };
+      const dataToUpdate: any = { ...formData };
       if (!dataToUpdate.password) {
         delete dataToUpdate.password;
       }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import EliteGating from '@/components/EliteGating';
 import { 
-  Wallet, 
   Shield, 
   CreditCard, 
   History, 
@@ -22,7 +21,6 @@ import { toast } from 'sonner';
 
 const ParentWallet: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<any>(null);
   const [topupAmount, setTopupAmount] = useState('500');
   const [dailyLimit, setDailyLimit] = useState(500);

@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Activity, 
-  XCircle, 
   Save, 
   Loader2,
   ChevronRight,
   TrendingUp,
   AlertCircle,
   FileText,
-  Clock,
-  UserCheck,
   History,
   Calendar as CalendarIcon,
-  CheckCircle2,
   Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -113,12 +109,6 @@ const CoachClipboard: React.FC = () => {
     }
   }, [activeSport]);
 
-  const toggleAttendance = (studentId: string) => {
-    setAttendance(prev => ({
-      ...prev,
-      [studentId]: prev[studentId] === 'present' ? 'absent' : 'present'
-    }));
-  };
 
   const saveAttendance = async () => {
     try {

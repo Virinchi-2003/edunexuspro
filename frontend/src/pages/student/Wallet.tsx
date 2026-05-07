@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import EliteGating from '@/components/EliteGating';
 import { 
-  Wallet, 
   ArrowUpRight, 
   RefreshCw, 
   TrendingUp, 

@@ -15,6 +15,8 @@ import AnnouncementBoard from '@/components/AnnouncementBoard';
 
 const ParentDashboard: React.FC = () => {
   const { user } = useAuth();
+  const [student, setStudent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [leaves, setLeaves] = useState<any[]>([]);
 
   const fetchData = async () => {

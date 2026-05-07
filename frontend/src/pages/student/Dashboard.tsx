@@ -10,14 +10,10 @@ import {
   DialogDescription
 } from '@/components/ui/dialog';
 import { 
-  Search, 
   Upload, 
   Trash2, 
   MessageSquare, 
   AlertCircle,
-  Download,
-  FileSpreadsheet,
-  ChevronRight,
   BookOpen, 
   Calendar,
   Clock,
