@@ -18,7 +18,8 @@ import {
   BookOpen,
   DollarSign,
   Wallet,
-  ShoppingBag
+  ShoppingBag,
+  Bus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -47,6 +48,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: CreditCard, label: 'Fees', path: '/principal/fees' },
     { icon: Wallet, label: 'Salaries', path: '/principal/salaries' },
     { icon: Calendar, label: 'Attendance', path: '/principal/attendance' },
+    { icon: Bus, label: 'Transport', path: '/principal/transport' },
     { icon: Settings, label: 'Settings', path: '/principal/settings' },
   ];
 
@@ -61,6 +63,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: BookOpen, label: 'Homework', path: '/teacher/homework' },
     { icon: MessageSquare, label: 'Messages', path: '/teacher/messages' },
     { icon: CreditCard, label: 'Fees', path: '/teacher/fees' },
+    { icon: Bus, label: 'Transport', path: '/teacher/transport' },
     { icon: Settings, label: 'Settings', path: '/teacher/settings' },
   ];
 
@@ -75,6 +78,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: Trophy, label: 'Performance', path: '/student/performance' },
     { icon: CreditCard, label: 'Fees', path: '/student/fees' },
     ...(isElite ? [{ icon: Wallet, label: 'Campus Wallet', path: '/student/wallet' }] : []),
+    { icon: Bus, label: 'Transport', path: '/student/transport' },
     { icon: Settings, label: 'Settings', path: '/student/settings' },
   ];
 

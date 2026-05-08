@@ -10,7 +10,8 @@ import {
   getStudentByUser,
   getStudentHomework,
   getStudentQR,
-  createSupportTicket
+  createSupportTicket,
+  getStudentAssessmentHistory
 } from '../controllers/studentController';
 import {
   applyLeave,
@@ -39,6 +40,7 @@ router.get('/:studentId/qr', authorize(['admin', 'principal', 'staff', 'teacher'
 // Homework
 router.get('/homework-list/:classId', authorize(['student']), getStudentHomeworkList);
 router.post('/homework/submit', authorize(['student']), submitHomework);
+router.get('/assessment/history/:studentId', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), getStudentAssessmentHistory);
 router.post('/', authorize(['admin', 'principal', 'staff', 'teacher']), createStudent);
 router.post('/bulk', authorize(['admin', 'principal', 'staff', 'teacher']), bulkCreateStudents);
 router.put('/:id', authorize(['admin', 'principal', 'staff', 'teacher', 'student']), updateStudent);

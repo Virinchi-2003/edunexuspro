@@ -26,6 +26,7 @@ import accountantRoutes from './routes/accountantRoutes';
 import announcementRoutes from './routes/announcementRoutes';
 import leaveRoutes from './routes/leaveRoutes';
 import walletRoutes from './routes/walletRoutes';
+import transportRoutes from './routes/transportRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 // Initialize Turso
@@ -71,6 +72,7 @@ app.use('/api/accountant', accountantRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/transport', transportRoutes);
 
 // Global Error Handler (must be after routes)
 app.use(errorHandler);

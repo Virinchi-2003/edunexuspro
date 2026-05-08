@@ -31,13 +31,17 @@ const StudentFees = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [feeStructure, setFeeStructure] = useState<any>(null);
   const [studentProfile, setStudentProfile] = useState<any>(null);
+  const [installments, setInstallments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
-  const [advanceData, setAdvanceData] = useState({ amount: '', type: 'Activity Fee' });
+  const [advanceData, setAdvanceData] = useState({ amount: '', type: 'Activity Fee', installmentId: '' });
   const [isSupportDialogOpen, setIsSupportDialogOpen] = useState(false);
   const [supportData, setSupportData] = useState({ subject: 'Fee Query', message: '', category: 'fee_issue', priority: 'medium' });
   const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [isPaymentModeDialogOpen, setIsPaymentModeDialogOpen] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
+  const [paymentMode, setPaymentMode] = useState<'cash' | 'online'>('online');
 
   useEffect(() => {
     fetchData();
@@ -66,21 +70,18 @@ const StudentFees = () => {
       }
 
       const feesRes = await api.get(`/fees/student/${student.id}`);
-      const { fees: studentFees, transactions: studentTxs } = feesRes.data.data;
+      const { 
+        fees: studentFees, 
+        transactions: studentTxs, 
+        feeStructure: backendStruct,
+        installments: studentInsts 
+      } = feesRes.data.data;
 
       setFees(studentFees || []);
       setTransactions(studentTxs || []);
-      setStudentProfile(student); // Use the student record we already have
-
-      if (student.schoolId && student.grade) {
-        const structRes = await api.get(`/fee-structures/school/${student.schoolId}`);
-        const structures = structRes.data.data || [];
-        const myStruct = structures.find((s: any) => 
-          s.grade.toLowerCase().trim() === student.grade.toLowerCase().replace(/(\d+)(st|nd|rd|th)/i, '$1').trim() ||
-          s.grade.toLowerCase().trim() === student.grade.toLowerCase().trim()
-        );
-        setFeeStructure(myStruct);
-      }
+      setStudentProfile(student);
+      setFeeStructure(backendStruct);
+      setInstallments(studentInsts || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load financial records');
@@ -108,7 +109,7 @@ const StudentFees = () => {
     }
   };
 
-  const handlePayment = async (feeRecords: any | any[]) => {
+  const handlePayment = async (feeRecords: any | any[], mode: 'cash' | 'online' = 'online', installmentId?: string) => {
     try {
       setPaying(true);
       const user = JSON.parse(localStorage.getItem('user')!);
@@ -116,6 +117,16 @@ const StudentFees = () => {
       const records = Array.isArray(feeRecords) ? feeRecords : [feeRecords];
       const totalAmount = records.reduce((acc, f) => acc + (f.amount + (f.lateFee || 0) - (f.paidAmount || 0)), 0);
       
+      if (mode === 'cash') {
+        await api.post('/fees/pay-installment', {
+          installmentId,
+          paymentMode: 'cash',
+        });
+        toast.success('Cash payment submitted for verification');
+        fetchData();
+        return;
+      }
+
       const response = await api.post('/fees/razorpay/order', {
         amount: totalAmount,
         currency: 'INR',
@@ -132,16 +143,24 @@ const StudentFees = () => {
         order_id: order.id,
         handler: async (response: any) => {
           try {
-            await api.post('/fees/razorpay/verify', {
-              ...response,
-              studentId: studentProfile.id,
-              schoolId: studentProfile.schoolId,
-              feeIds: records.map(r => r.id),
-              amount: totalAmount,
-              breakdown: records.length === 1 && records[0].breakdown ? records[0].breakdown : JSON.stringify(
-                records.reduce((acc, r) => ({...acc, [r.feeType]: r.amount}), {})
-              )
-            });
+            if (installmentId) {
+              await api.post('/fees/pay-installment', {
+                installmentId,
+                paymentMode: 'online',
+                transactionId: response.razorpay_payment_id
+              });
+            } else {
+              await api.post('/fees/razorpay/verify', {
+                ...response,
+                studentId: studentProfile.id,
+                schoolId: studentProfile.schoolId,
+                feeIds: records.map(r => r.id),
+                amount: totalAmount,
+                breakdown: records.length === 1 && records[0].breakdown ? records[0].breakdown : JSON.stringify(
+                  records.reduce((acc, r) => ({...acc, [r.feeType]: r.amount}), {})
+                )
+              });
+            }
             toast.success('Payment Successful!');
             fetchData();
           } catch (error) {
@@ -164,6 +183,7 @@ const StudentFees = () => {
       toast.error('Could not initiate payment');
     } finally {
       setPaying(false);
+      setIsPaymentModeDialogOpen(false);
     }
   };
 
@@ -188,7 +208,15 @@ const StudentFees = () => {
   };
 
   const pendingFeeRecords = fees.filter(f => f.status !== 'paid');
-  const totalPendingAmount = pendingFeeRecords.reduce((acc, f) => acc + (f.amount + (f.lateFee || 0) - (f.paidAmount || 0)), 0);
+  const currentDues = pendingFeeRecords.reduce((acc, f) => acc + (f.amount + (f.lateFee || 0) - (f.paidAmount || 0)), 0);
+  
+  // Calculate total paid across all time
+  const totalPaid = transactions.reduce((acc, tx) => acc + (tx.amount || 0), 0);
+  const yearlyTotal = feeStructure?.amount || 0;
+  const yearlyRemaining = Math.max(0, yearlyTotal - totalPaid);
+
+  // If no bills generated but structure exists, show structure balance
+  const displayPayable = fees.length === 0 ? yearlyTotal : currentDues;
 
   if (loading) return (
     <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
@@ -241,40 +269,7 @@ const StudentFees = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Main Pending Card */}
-            <Card className="border-none shadow-2xl rounded-[3rem] bg-slate-900 text-white p-10 overflow-hidden relative group">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-indigo-500/20 transition-all duration-700" />
-               <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-8">
-                     <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-                        <CreditCard className="w-6 h-6 text-indigo-400" />
-                     </div>
-                     <Badge className="bg-rose-500/20 text-rose-400 border-none px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                        Outstanding
-                     </Badge>
-                  </div>
-                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500 mb-2">Total Payable Amount</p>
-                  <h3 className="text-6xl font-display font-bold tracking-tighter">₹{totalPendingAmount.toLocaleString()}</h3>
-                  
-                  <div className="mt-10 pt-8 border-t border-white/5 flex flex-col gap-4">
-                     <div className="flex items-center gap-3 text-sm text-slate-400 font-medium">
-                        <ShieldCheck className="w-5 h-5 text-emerald-500" /> 
-                        <span>128-bit SSL Secured Razorpay Gateway</span>
-                     </div>
-                     {pendingFeeRecords.length > 0 && (
-                       <Button 
-                        disabled={paying}
-                        onClick={() => handlePayment(pendingFeeRecords)}
-                        className="w-full h-14 rounded-[1.5rem] bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-xl shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                       >
-                        {paying ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <CreditCard className="w-5 h-5 mr-2" />}
-                        Pay Full Dues Now
-                       </Button>
-                     )}
-                  </div>
-               </div>
-            </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
             {/* Breakdown Card */}
             <Card className="border-none shadow-xl rounded-[2.5rem] bg-white p-10 flex flex-col justify-between">
@@ -285,8 +280,28 @@ const StudentFees = () => {
                      </div>
                      <h4 className="text-xl font-display font-bold text-slate-900">Fee Breakdown</h4>
                   </div>
-                  <div className="space-y-6">
-                     {pendingFeeRecords.map((fee, i) => {
+                   <div className="space-y-6">
+                      {/* Yearly Progress Summary */}
+                      {feeStructure && (
+                        <div className="p-4 rounded-3xl bg-indigo-50/50 border border-indigo-100/50 mb-4">
+                           <div className="flex justify-between items-center mb-2">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Academic Year Progress</span>
+                              <span className="text-[10px] font-bold text-indigo-600">{Math.round((totalPaid / (yearlyTotal || 1)) * 100)}% Paid</span>
+                           </div>
+                           <div className="h-2 bg-white rounded-full overflow-hidden mb-2">
+                              <div 
+                                className="h-full bg-indigo-600 transition-all duration-1000" 
+                                style={{ width: `${(totalPaid / (yearlyTotal || 1)) * 100}%` }}
+                              />
+                           </div>
+                           <div className="flex justify-between text-[10px] font-bold">
+                              <span className="text-slate-500">Paid: ₹{totalPaid.toLocaleString()}</span>
+                              <span className="text-slate-500">Target: ₹{yearlyTotal.toLocaleString()}</span>
+                           </div>
+                        </div>
+                      )}
+
+                      {pendingFeeRecords.map((fee, i) => {
                          let breakdownItems: any[] = [];
                          if (fee.breakdown) {
                            try {
@@ -361,7 +376,9 @@ const StudentFees = () => {
                      {pendingFeeRecords.length === 0 && (
                         <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">All Dues Paid</p>
+                           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                              {yearlyRemaining > 0 ? `Remaining Annual Balance: ₹${yearlyRemaining.toLocaleString()}` : 'All Dues Paid'}
+                           </p>
                         </div>
                      )}
                   </div>
@@ -375,6 +392,92 @@ const StudentFees = () => {
                   </p>
                </div>
             </Card>
+
+             {/* Installment Boxes Card */}
+             <Card className="border-none shadow-xl rounded-[2.5rem] bg-white p-10 col-span-1 md:col-span-2">
+                <div className="flex items-center justify-between mb-8">
+                   <h4 className="text-xl font-display font-bold text-slate-900 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
+                         <IndianRupee className="w-5 h-5" />
+                      </div>
+                      Payment Installments
+                   </h4>
+                   <Badge variant="outline" className="rounded-full px-4 py-1 text-[10px] font-bold border-indigo-100 text-indigo-600">
+                      {installments.filter(i => i.status === 'paid').length} / {installments.length} Settled
+                   </Badge>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                   {installments.map((inst, i) => {
+                      const isOverdue = new Date(inst.dueDate) < new Date() && inst.status !== 'paid';
+                      return (
+                        <div key={i} className={`relative p-6 rounded-[2rem] border transition-all duration-300 group ${
+                          inst.status === 'paid' ? 'bg-emerald-50/30 border-emerald-100' : 
+                          isOverdue ? 'bg-rose-50/30 border-rose-100' : 'bg-slate-50/50 border-slate-100 hover:border-indigo-200 hover:shadow-lg'
+                        }`}>
+                           <div className="flex justify-between items-start mb-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                                inst.status === 'paid' ? 'bg-emerald-500 text-white' : 
+                                isOverdue ? 'bg-rose-500 text-white' : 'bg-white text-slate-400 border border-slate-100'
+                              }`}>
+                                 {i + 1}
+                              </div>
+                              <Badge className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border-none ${
+                                inst.status === 'paid' ? 'bg-emerald-500 text-white' : 
+                                inst.status === 'pending_verification' ? 'bg-amber-500 text-white' :
+                                isOverdue ? 'bg-rose-500 text-white' : 'bg-slate-400 text-white'
+                              }`}>
+                                 {inst.status === 'pending_verification' ? 'Verification' : inst.status}
+                              </Badge>
+                           </div>
+                           
+                           <div className="space-y-1 mb-6">
+                              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Amount Due</div>
+                              <div className={`text-2xl font-display font-bold ${inst.status === 'paid' ? 'text-emerald-700' : 'text-slate-900'}`}>
+                                 ₹{inst.amount.toLocaleString()}
+                              </div>
+                           </div>
+
+                           <div className="flex items-center gap-2 mb-6">
+                              <Clock className={`w-3.5 h-3.5 ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`} />
+                              <span className={`text-[10px] font-bold ${isOverdue ? 'text-rose-600' : 'text-slate-500'}`}>
+                                 Due: {new Date(inst.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                              </span>
+                           </div>
+
+                           {inst.status === 'pending' || (inst.status === 'overdue' || !inst.status) ? (
+                              <Button 
+                                 onClick={() => {
+                                    setSelectedInstallment(inst);
+                                    setIsPaymentModeDialogOpen(true);
+                                 }}
+                                 className="w-full rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-bold h-10 text-xs transition-all shadow-lg shadow-slate-200 group-hover:scale-[1.02]"
+                              >
+                                 Pay Now
+                              </Button>
+                           ) : inst.status === 'paid' ? (
+                              <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold text-xs py-2">
+                                 <CheckCircle2 className="w-4 h-4" /> Paid
+                              </div>
+                           ) : (
+                              <div className="flex items-center justify-center gap-2 text-amber-600 font-bold text-xs py-2 bg-amber-50 rounded-xl">
+                                 <Loader2 className="w-3 h-3 animate-spin" /> Verifying...
+                              </div>
+                           )}
+                        </div>
+                      );
+                   })}
+                </div>
+
+                {installments.length === 0 && (
+                   <div className="py-20 text-center">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200">
+                         <AlertCircle className="w-8 h-8 text-slate-300" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No installment plan assigned.</p>
+                   </div>
+                )}
+             </Card>
 
             {/* Side Card for Quick Info */}
             <Card className="border-none shadow-xl rounded-[2.5rem] bg-indigo-50 border-2 border-white p-10 flex flex-col justify-between">
@@ -609,15 +712,42 @@ const StudentFees = () => {
                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Fee Category</label>
                  <select 
                     className="w-full h-14 rounded-2xl border-slate-100 bg-slate-50 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    value={advanceData.type}
-                    onChange={(e) => setAdvanceData({...advanceData, type: e.target.value})}
+                    value={advanceData.installmentId ? `inst_${advanceData.installmentId}` : advanceData.type}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.startsWith('inst_')) {
+                        const id = val.replace('inst_', '');
+                        const inst = installments.find(i => i.id === id);
+                        if (inst) {
+                          setAdvanceData({
+                            ...advanceData,
+                            type: `Installment ${inst.installmentNumber}`,
+                            amount: inst.amount.toString(),
+                            installmentId: id
+                          });
+                        }
+                      } else {
+                        setAdvanceData({...advanceData, type: val, installmentId: ''});
+                      }
+                    }}
                  >
-                    <option value="Activity Fee">Activity Fee</option>
-                    <option value="Library Fee">Library Fee</option>
-                    <option value="Transport Fee">Transport Fee</option>
-                    <option value="Exam Fee">Exam Fee</option>
-                    <option value="Advance Tuition">Advance Tuition</option>
-                    <option value="Others">Others</option>
+                    <optgroup label="Standard Categories">
+                      <option value="Activity Fee">Activity Fee</option>
+                      <option value="Library Fee">Library Fee</option>
+                      <option value="Transport Fee">Transport Fee</option>
+                      <option value="Exam Fee">Exam Fee</option>
+                      <option value="Advance Tuition">Advance Tuition</option>
+                      <option value="Others">Others</option>
+                    </optgroup>
+                    {installments.filter(i => i.status !== 'paid').length > 0 && (
+                      <optgroup label="Pending Installments">
+                        {installments.filter(i => i.status !== 'paid').map(inst => (
+                          <option key={inst.id} value={`inst_${inst.id}`}>
+                            Installment {inst.installmentNumber} (₹{inst.amount.toLocaleString()})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                  </select>
               </div>
               <div className="space-y-2">
@@ -640,12 +770,12 @@ const StudentFees = () => {
                     return;
                   }
                   handlePayment({
-                    id: `custom_${Date.now()}`,
+                    id: advanceData.installmentId || `custom_${Date.now()}`,
                     feeType: advanceData.type,
                     amount: parseInt(advanceData.amount),
                     lateFee: 0,
                     paidAmount: 0
-                  });
+                  }, 'online', advanceData.installmentId || undefined);
                   setIsAdvanceDialogOpen(false);
                 }}
                 disabled={paying}
@@ -706,6 +836,52 @@ const StudentFees = () => {
                >
                  {submittingTicket ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-5 h-5" />}
                  Submit Request
+               </Button>
+            </div>
+         </DialogContent>
+       </Dialog>
+
+       {/* Payment Mode Selection Dialog */}
+       <Dialog open={isPaymentModeDialogOpen} onOpenChange={setIsPaymentModeDialogOpen}>
+         <DialogContent className="sm:max-w-[400px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden text-left">
+            <div className="h-32 bg-indigo-600 p-8 flex flex-col justify-center">
+               <DialogTitle className="text-2xl font-display font-bold text-white">Select Payment Mode</DialogTitle>
+               <DialogDescription className="text-indigo-100 font-medium mt-1">Choose how you want to pay installment #{selectedInstallment?.installmentNumber}.</DialogDescription>
+            </div>
+            <div className="p-8 space-y-4">
+               <div 
+                  onClick={() => setPaymentMode('online')}
+                  className={`p-6 rounded-[2rem] border-2 cursor-pointer transition-all flex items-center gap-4 ${paymentMode === 'online' ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 hover:border-indigo-200'}`}
+               >
+                  <div className={`p-3 rounded-xl ${paymentMode === 'online' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                     <CreditCard className="w-6 h-6" />
+                  </div>
+                  <div>
+                     <div className="font-bold text-slate-900">Online Payment</div>
+                     <div className="text-[10px] font-bold text-slate-400 uppercase">Cards, UPI, Netbanking</div>
+                  </div>
+               </div>
+
+               <div 
+                  onClick={() => setPaymentMode('cash')}
+                  className={`p-6 rounded-[2rem] border-2 cursor-pointer transition-all flex items-center gap-4 ${paymentMode === 'cash' ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 hover:border-indigo-200'}`}
+               >
+                  <div className={`p-3 rounded-xl ${paymentMode === 'cash' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                     <IndianRupee className="w-6 h-6" />
+                  </div>
+                  <div>
+                     <div className="font-bold text-slate-900">Cash Payment</div>
+                     <div className="text-[10px] font-bold text-slate-400 uppercase">Requires School Verification</div>
+                  </div>
+               </div>
+
+               <Button 
+                  onClick={() => handlePayment(selectedInstallment, paymentMode, selectedInstallment.id)}
+                  disabled={paying}
+                  className="w-full h-14 rounded-2xl bg-slate-900 text-white font-bold text-lg mt-4"
+               >
+                  {paying ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ShieldCheck className="w-5 h-5 mr-2" />}
+                  {paymentMode === 'online' ? 'Proceed to Gateway' : 'Submit for Verification'}
                </Button>
             </div>
          </DialogContent>

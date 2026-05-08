@@ -9,8 +9,12 @@ import {
   getStudentFees,
   downloadFeeReceipt,
   createRazorpayOrder,
-  verifyPayment
+  verifyPayment,
+  assignFeeStructure,
+  payInstallment,
+  verifyCashPayment
 } from '../controllers/feesController';
+import { createFeeStructure } from '../controllers/feeController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -30,5 +34,11 @@ router.post('/bulk', authenticate, authorize(['admin', 'principal']), importBulk
 router.post('/reminders', authenticate, authorize(['admin', 'principal']), sendFeeReminders);
 router.put('/:id', authenticate, authorize(['admin', 'principal']), updateFeeStatus);
 router.delete('/:id', authenticate, authorize(['admin', 'principal']), deleteFeeRecord);
+
+// Installment & Structure Management
+router.post('/structure', authenticate, authorize(['admin', 'principal']), createFeeStructure);
+router.post('/assign', authenticate, authorize(['admin', 'principal']), assignFeeStructure);
+router.post('/pay-installment', authenticate, payInstallment);
+router.put('/verify-cash/:installmentId', authenticate, authorize(['admin', 'principal']), verifyCashPayment);
 
 export default router;

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { students, users, schools, homework, leaveRequests, supportTickets } from '../db/schema';
+import { students, users, schools, homework, leaveRequests, supportTickets, skillAssessments } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
@@ -325,4 +325,16 @@ export const createSupportTicket = asyncHandler(async (req: Request, res: Respon
   
   await db.insert(supportTickets).values(newTicket);
   res.status(201).json({ status: 'success', data: newTicket });
+});
+
+export const getStudentAssessmentHistory = asyncHandler(async (req: Request, res: Response) => {
+  const studentId = getSingleValue(req.params.studentId);
+  const result = await db.query.skillAssessments.findMany({
+    where: eq(skillAssessments.studentId, studentId),
+    with: {
+      sport: true
+    },
+    orderBy: [desc(skillAssessments.createdAt)]
+  });
+  res.status(200).json({ status: 'success', data: result });
 });

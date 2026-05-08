@@ -162,10 +162,36 @@ export const feeStructures = sqliteTable('fee_structures', {
   examFees: integer('examFees').default(0),
   activityFees: integer('activityFees').default(0),
   otherFees: integer('otherFees').default(0),
+  installments: text('installments'), // JSON: [{ amount: 15000, dueDate: "2026-06-01" }]
   amount: integer('amount').notNull(), // Total Amount
   description: text('description'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const feeInstallments = sqliteTable('fee_installments', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  feeRecordId: text('feeRecordId').references(() => fees.id, { onDelete: 'cascade' }),
+  installmentNumber: integer('installmentNumber').notNull(),
+  amount: integer('amount').notNull(),
+  dueDate: text('dueDate').notNull(),
+  status: text('status', { enum: ['paid', 'pending', 'overdue', 'pending_verification'] }).default('pending'),
+  paymentMode: text('paymentMode', { enum: ['cash', 'online'] }),
+  transactionId: text('transactionId'),
+  paidAt: text('paidAt'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const feeReminders = sqliteTable('fee_reminders', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  installmentId: text('installmentId').references(() => feeInstallments.id, { onDelete: 'cascade' }),
+  reminderDate: text('reminderDate').default(sql`CURRENT_TIMESTAMP`),
+  status: text('status').default('sent'), // sent, failed
 });
 
 export const attendance = sqliteTable('attendance', {
@@ -385,9 +411,11 @@ export const leaveRequests = sqliteTable('leave_requests', {
   id: text('id').primaryKey(),
   schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
   studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  templateType: text('templateType'), // sick, personal, emergency, custom
   reason: text('reason').notNull(),
   startDate: text('startDate').notNull(),
   endDate: text('endDate').notNull(),
+  totalDays: integer('totalDays'),
   status: text('status').default('pending'), // pending, approved, rejected
   aiStatus: text('aiStatus'), // APPROVED, REJECTED, REVIEW
   aiReason: text('aiReason'),
@@ -791,7 +819,7 @@ export const homeworkSubmissionsRelations = relations(homeworkSubmissions, ({ on
   }),
 }));
 
-export const feesRelations = relations(fees, ({ one }) => ({
+export const feesRelations = relations(fees, ({ one, many }) => ({
   student: one(students, {
     fields: [fees.studentId],
     references: [students.id],
@@ -799,6 +827,18 @@ export const feesRelations = relations(fees, ({ one }) => ({
   school: one(schools, {
     fields: [fees.schoolId],
     references: [schools.id],
+  }),
+  installments: many(feeInstallments),
+}));
+
+export const feeInstallmentRelations = relations(feeInstallments, ({ one }) => ({
+  student: one(students, {
+    fields: [feeInstallments.studentId],
+    references: [students.id],
+  }),
+  feeRecord: one(fees, {
+    fields: [feeInstallments.feeRecordId],
+    references: [fees.id],
   }),
 }));
 
@@ -1025,3 +1065,75 @@ export const walletTransactionsRelations = relations(walletTransactions, ({ one 
     references: [students.id],
   }),
 }));
+
+// --- Transport Management System ---
+
+export const transportRoutes = sqliteTable('transport_routes', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  routeName: text('routeName').notNull(),
+  area: text('area').notNull(),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const transportStops = sqliteTable('transport_stops', {
+  id: text('id').primaryKey(),
+  routeId: text('routeId').notNull().references(() => transportRoutes.id, { onDelete: 'cascade' }),
+  stopName: text('stopName').notNull(),
+  arrivalTime: text('arrivalTime').notNull(),
+  order: integer('order').notNull(),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const buses = sqliteTable('buses', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  busNumber: text('busNumber').notNull(),
+  driverName: text('driverName').notNull(),
+  driverPhone: text('driverPhone').notNull(),
+  cleanerName: text('cleanerName'),
+  cleanerPhone: text('cleanerPhone'),
+  vehicleType: text('vehicleType').default('bus'),
+  capacity: integer('capacity').notNull(),
+  routeId: text('routeId').references(() => transportRoutes.id, { onDelete: 'set null' }),
+  status: text('status').default('active'), // active, inactive, maintenance, delayed
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const transportAssignments = sqliteTable('transport_assignments', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  userId: text('userId').notNull(),
+  role: text('role').notNull(), // student, staff
+  routeId: text('routeId').notNull().references(() => transportRoutes.id, { onDelete: 'cascade' }),
+  stopId: text('stopId').notNull().references(() => transportStops.id, { onDelete: 'cascade' }),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Transport Relations
+export const transportRoutesRelations = relations(transportRoutes, ({ many, one }) => ({
+  stops: many(transportStops),
+  buses: many(buses),
+  assignments: many(transportAssignments),
+  school: one(schools, { fields: [transportRoutes.schoolId], references: [schools.id] }),
+}));
+
+export const transportStopsRelations = relations(transportStops, ({ one, many }) => ({
+  route: one(transportRoutes, { fields: [transportStops.routeId], references: [transportRoutes.id] }),
+  assignments: many(transportAssignments),
+}));
+
+export const busesRelations = relations(buses, ({ one }) => ({
+  route: one(transportRoutes, { fields: [buses.routeId], references: [transportRoutes.id] }),
+  school: one(schools, { fields: [buses.schoolId], references: [schools.id] }),
+}));
+
+export const transportAssignmentsRelations = relations(transportAssignments, ({ one }) => ({
+  route: one(transportRoutes, { fields: [transportAssignments.routeId], references: [transportRoutes.id] }),
+  stop: one(transportStops, { fields: [transportAssignments.stopId], references: [transportStops.id] }),
+}));
+

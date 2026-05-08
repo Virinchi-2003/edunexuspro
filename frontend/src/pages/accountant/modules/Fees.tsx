@@ -31,8 +31,9 @@ const AccountantFees: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [feeRecords, setFeeRecords] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
-  const [classList, setClassList] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [installments, setInstallments] = useState<any[]>([]);
+  const [classList, setClassList] = useState<any[]>([]);
   const [activeView, setActiveView] = useState<'records' | 'history'>('records');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -86,6 +87,7 @@ const AccountantFees: React.FC = () => {
       setFeeRecords(data.fees || []);
       setStudents(data.students || []);
       setTransactions(data.transactions || []);
+      setInstallments(data.installments || []);
       setClassList(classesRes.data?.data || []);
       
       console.log(`Loaded ${data.fees?.length || 0} fee records for school ${user.schoolId}`);
@@ -564,23 +566,57 @@ const AccountantFees: React.FC = () => {
                 <option value="paid">Fully Paid</option>
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Total Amount (Incl. Late Fees)</label>
-              <Input 
-                type="number" 
-                className="rounded-2xl h-14 bg-slate-50 border-none px-6 font-bold"
-                value={updateFormData.amount}
-                onChange={(e) => setUpdateFormData({...updateFormData, amount: parseInt(e.target.value)})}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Paid Amount</label>
-              <Input 
-                type="number" 
-                className="rounded-2xl h-14 bg-slate-50 border-none px-6 font-bold text-emerald-600"
-                value={updateFormData.paidAmount}
-                onChange={(e) => setUpdateFormData({...updateFormData, paidAmount: parseInt(e.target.value)})}
-              />
+            
+            {/* Installment Viewer for Accountants */}
+            {selectedFee && (
+              <div className="space-y-3 p-6 rounded-[2rem] bg-slate-50/50 border border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Linked Installments</h5>
+                  <Badge variant="outline" className="text-[8px] bg-white border-slate-100">Synced</Badge>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                  {installments.filter(i => i.feeRecordId === selectedFee.id).length > 0 ? (
+                    installments.filter(i => i.feeRecordId === selectedFee.id).map((inst: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-slate-50 animate-in fade-in slide-in-from-right-2" style={{ animationDelay: `${idx * 50}ms` }}>
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Installment {idx + 1}</div>
+                          <div className="text-xs font-bold text-slate-900">₹{inst.amount.toLocaleString()}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Due</div>
+                          <div className="text-xs font-bold text-slate-600">{new Date(inst.dueDate).toLocaleDateString()}</div>
+                        </div>
+                        <Badge className={`ml-2 text-[8px] h-5 px-2 ${inst.status === 'paid' ? 'bg-emerald-500' : 'bg-slate-200 text-slate-500'}`}>
+                          {inst.status}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-slate-400 text-xs italic">No manual installments defined.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Total Amount</label>
+                <Input 
+                  type="number" 
+                  className="rounded-2xl h-14 bg-slate-50 border-none px-6 font-bold"
+                  value={updateFormData.amount}
+                  onChange={(e) => setUpdateFormData({...updateFormData, amount: parseInt(e.target.value)})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Paid Amount</label>
+                <Input 
+                  type="number" 
+                  className="rounded-2xl h-14 bg-slate-50 border-none px-6 font-bold text-emerald-600"
+                  value={updateFormData.paidAmount}
+                  onChange={(e) => setUpdateFormData({...updateFormData, paidAmount: parseInt(e.target.value)})}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Manual Transaction ID / Ref</label>

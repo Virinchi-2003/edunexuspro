@@ -39,7 +39,7 @@ const StudentPerformance: React.FC = () => {
         const res = await api.get(`/exams/marks/student/${sData.id}`);
         setMarks(res.data.data || []);
 
-        const skillRes = await api.get(`/coach/assessment/history/${sData.id}`);
+        const skillRes = await api.get(`/students/assessment/history/${sData.id}`);
         setSkillAssessments(skillRes.data.data || []);
       }
     } catch (error) {

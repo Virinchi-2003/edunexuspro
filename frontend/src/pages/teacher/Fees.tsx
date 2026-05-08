@@ -425,6 +425,29 @@ const TeacherFees: React.FC = () => {
                           </div>
                         )}
 
+                        {/* Teacher's Installment View */}
+                        {fee.installments?.length > 0 && (
+                          <div className="mt-4 space-y-2">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Payment Installments</div>
+                            <div className="grid grid-cols-1 gap-2">
+                              {fee.installments.map((inst: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-[10px] font-bold text-slate-500">#{idx + 1}</div>
+                                    <div className="text-xs font-bold text-slate-900">₹{inst.amount.toLocaleString()}</div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[10px] font-medium text-slate-400">{new Date(inst.dueDate).toLocaleDateString()}</span>
+                                    <Badge className={`text-[8px] h-4 px-1.5 ${inst.status === 'paid' ? 'bg-emerald-500' : 'bg-slate-200 text-slate-500'}`}>
+                                      {inst.status}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-50">
                           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total with Late Fee</span>
                           <span className="text-sm font-bold text-slate-900">₹{(fee.amount + (fee.lateFee || 0)).toLocaleString()}</span>

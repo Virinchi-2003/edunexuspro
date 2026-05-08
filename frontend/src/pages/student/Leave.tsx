@@ -26,8 +26,35 @@ const StudentLeave: React.FC = () => {
   const [formData, setFormData] = useState({
     reason: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    templateType: 'custom'
   });
+
+  const templates: Record<string, string> = {
+    'sick': "I am feeling unwell due to fever/cold and will not be able to attend classes.",
+    'personal': "I need leave due to a personal/family matter.",
+    'emergency': "I have an urgent situation and need immediate leave.",
+    'custom': ""
+  };
+
+  const handleTemplateChange = (type: string) => {
+    setFormData(prev => ({
+      ...prev,
+      templateType: type,
+      reason: type === 'custom' ? prev.reason : templates[type]
+    }));
+  };
+
+  const calculateDays = (start: string, end: string) => {
+    if (!start || !end) return 0;
+    const s = new Date(start);
+    const e = new Date(end);
+    const diff = e.getTime() - s.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24)) + 1;
+    return days > 0 ? days : 0;
+  };
+
+  const totalDays = calculateDays(formData.startDate, formData.endDate);
 
   const fetchData = async () => {
     try {
@@ -61,12 +88,13 @@ const StudentLeave: React.FC = () => {
       setIsSubmitting(true);
       const res = await api.post('/leaves/apply', {
         ...formData,
+        totalDays,
         studentId: student.id,
         schoolId: student.schoolId
       });
       toast.success(res.data.message);
       setIsApplyOpen(false);
-      setFormData({ reason: '', startDate: '', endDate: '' });
+      setFormData({ reason: '', startDate: '', endDate: '', templateType: 'custom' });
       fetchData();
     } catch (error) {
       toast.error('Failed to submit leave request');
@@ -131,7 +159,10 @@ const StudentLeave: React.FC = () => {
                               </div>
                               <div>
                                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Leave Period</div>
-                                 <div className="font-display font-bold text-slate-900 text-lg">{leave.startDate} — {leave.endDate}</div>
+                                 <div className="font-display font-bold text-slate-900 text-lg">
+                                    {leave.startDate} — {leave.endDate} 
+                                    <span className="ml-3 text-indigo-600">({leave.totalDays || 0} Days)</span>
+                                 </div>
                               </div>
                            </div>
                            <div className="flex items-start gap-4">
@@ -140,7 +171,14 @@ const StudentLeave: React.FC = () => {
                               </div>
                               <div>
                                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reason</div>
-                                 <div className="text-slate-600 font-medium leading-relaxed max-w-md">{leave.reason}</div>
+                                 <div className="text-slate-600 font-medium leading-relaxed max-w-md">
+                                    {leave.templateType && leave.templateType !== 'custom' && (
+                                       <Badge variant="outline" className="mr-2 border-indigo-100 bg-indigo-50 text-indigo-600 capitalize text-[9px]">
+                                          {leave.templateType} Leave
+                                       </Badge>
+                                    )}
+                                    {leave.reason}
+                                 </div>
                               </div>
                            </div>
 
@@ -191,11 +229,36 @@ const StudentLeave: React.FC = () => {
       {/* Apply Leave Dialog */}
       <Dialog open={isApplyOpen} onOpenChange={setIsApplyOpen}>
         <DialogContent className="sm:max-w-[480px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden">
-          <div className="h-32 bg-gradient-to-br from-indigo-600 to-violet-700 p-8">
-             <DialogTitle className="text-2xl font-display font-bold text-white">Leave Application</DialogTitle>
-             <DialogDescription className="text-indigo-100 font-medium">Request a leave of absence from the institution.</DialogDescription>
+          <div className="h-32 bg-gradient-to-br from-indigo-600 to-violet-700 p-8 flex justify-between items-start">
+             <div>
+                <DialogTitle className="text-2xl font-display font-bold text-white">Leave Application</DialogTitle>
+                <DialogDescription className="text-indigo-100 font-medium">Request a leave of absence from the institution.</DialogDescription>
+             </div>
+             {totalDays > 0 && (
+                <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 text-white font-bold text-sm">
+                   {totalDays} Days
+                </div>
+             )}
           </div>
           <div className="p-8 space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Select Leave Template</label>
+              <select 
+                className="w-full h-12 rounded-2xl border-slate-100 bg-slate-50/50 px-4 text-sm focus:outline-none"
+                value={formData.templateType}
+                onChange={(e) => handleTemplateChange(e.target.value)}
+              >
+                <option value="custom">Custom Application</option>
+                <option value="sick">Sick Leave</option>
+                <option value="personal">Personal Leave</option>
+                <option value="emergency">Emergency Leave</option>
+              </select>
+              {formData.templateType !== 'custom' && (
+                <div className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest mt-1 ml-1 flex items-center gap-1">
+                  AI Suggested Template Applied
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Start Date</label>

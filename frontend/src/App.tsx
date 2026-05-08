@@ -19,9 +19,11 @@ import PrincipalTimetable from './pages/principal/Timetable';
 import PrincipalExams from './pages/principal/Exams';
 import PrincipalGradebook from './pages/principal/Gradebook';
 import PrincipalSalaries from './pages/principal/Salaries';
+import PrincipalTransport from './pages/principal/Transport';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import TeacherStudents from './pages/teacher/Students';
 import TeacherAttendance from './pages/teacher/Attendance';
+import TeacherTransport from './pages/teacher/Transport';
 import StudentDashboard from './pages/student/Dashboard';
 import StudentAttendance from './pages/student/Attendance';
 import StudentLeave from './pages/student/Leave';
@@ -29,6 +31,7 @@ import StudentHomework from './pages/student/Homework';
 import StudentPerformance from './pages/student/Performance';
 import StudentFees from './pages/student/Fees';
 import StudentMessaging from './pages/student/Messaging';
+import StudentTransport from './pages/student/Transport';
 import StudentSettings from './pages/student/Settings';
 import TeacherExams from './pages/teacher/Exams';
 import TeacherGradebook from './pages/teacher/Gradebook';
@@ -114,6 +117,7 @@ const App: React.FC = () => {
                   <Route path="/exams" element={<PrincipalExams />} />
                   <Route path="/gradebook" element={<PrincipalGradebook />} />
                   <Route path="/salaries" element={<PrincipalSalaries />} />
+                  <Route path="/transport" element={<PrincipalTransport />} />
                   <Route path="/settings" element={<PrincipalSettings />} />
                 </Routes>
               </AdminLayout>
@@ -135,6 +139,7 @@ const App: React.FC = () => {
                   <Route path="/leave" element={<TeacherLeave />} />
                   <Route path="/homework" element={<TeacherHomework />} />
                   <Route path="/messages" element={<TeacherMessaging />} />
+                  <Route path="/transport" element={<TeacherTransport />} />
                   <Route path="/settings" element={<TeacherSettings />} />
                 </Routes>
               </AdminLayout>
@@ -185,6 +190,7 @@ const App: React.FC = () => {
                   <Route path="/performance" element={<StudentPerformance />} />
                   <Route path="/messages" element={<StudentMessaging />} />
                   <Route path="/fees" element={<StudentFees />} />
+                  <Route path="/transport" element={<StudentTransport />} />
                   <Route path="/wallet" element={<StudentWallet />} />
                   <Route path="/settings" element={<StudentSettings />} />
                 </Routes>

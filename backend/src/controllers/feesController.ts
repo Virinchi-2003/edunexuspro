@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { fees, students, classes, schools } from '../db/schema';
+import { fees, students, classes, schools, feeStructures, feeInstallments, feeReminders } from '../db/schema';
 import { asyncHandler } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import { eq, and, desc } from 'drizzle-orm';
@@ -68,19 +68,27 @@ export const getFeesBySchool = asyncHandler(async (req: Request, res: Response) 
     orderBy: [desc(feeTransactions.createdAt)]
   });
 
+  const allInstallments = await db.query.feeInstallments.findMany({
+    where: eq(feeInstallments.schoolId, schoolId),
+    with: {
+      student: true
+    }
+  });
+
   res.status(200).json({ 
     status: 'success', 
     data: {
       fees: updatedFees,
       students: allStudents,
-      transactions: allTransactions
+      transactions: allTransactions,
+      installments: allInstallments
     } 
   });
 });
 
 export const updateFeeStatus = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
-  const { status, paidAmount, transactionId, amount } = req.body;
+  const { status, paidAmount, transactionId, amount, installments: manualInstallments } = req.body;
 
   const currentFee = await db.query.fees.findFirst({ where: eq(fees.id, id) });
   if (!currentFee) return res.status(404).json({ status: 'error', message: 'Fee record not found' });
@@ -122,7 +130,90 @@ export const updateFeeStatus = asyncHandler(async (req: Request, res: Response) 
     }
   }
 
+  // Handle manual installments update if provided
+  if (manualInstallments && Array.isArray(manualInstallments)) {
+    // Delete existing installments for this specific fee record first to avoid duplication
+    await db.delete(feeInstallments).where(eq(feeInstallments.feeRecordId, id));
+    
+    if (manualInstallments.length > 0) {
+      const records = manualInstallments.map((inst: any, idx: number) => ({
+        id: uuidv4(),
+        schoolId: currentFee.schoolId,
+        studentId: currentFee.studentId,
+        feeRecordId: id,
+        installmentNumber: idx + 1,
+        amount: parseInt(inst.amount.toString()),
+        dueDate: inst.dueDate,
+        status: inst.status || 'pending',
+      }));
+      await db.insert(feeInstallments).values(records);
+    }
+  }
+
   res.status(200).json({ status: 'success', message: 'Fee record updated' });
+});
+
+export const createFeeStructure = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, grade, amount, tuitionFees, transportFees, libraryFees, examFees, activityFees, otherFees, description, installments } = req.body;
+  
+  const id = uuidv4();
+  await db.insert(feeStructures).values({
+    id,
+    schoolId,
+    grade,
+    amount: parseInt(amount.toString()),
+    tuitionFees: parseInt(tuitionFees?.toString() || '0'),
+    transportFees: parseInt(transportFees?.toString() || '0'),
+    libraryFees: parseInt(libraryFees?.toString() || '0'),
+    examFees: parseInt(examFees?.toString() || '0'),
+    activityFees: parseInt(activityFees?.toString() || '0'),
+    otherFees: parseInt(otherFees?.toString() || '0'),
+    description,
+    installments: installments ? (typeof installments === 'string' ? installments : JSON.stringify(installments)) : null,
+  });
+
+  res.status(201).json({ status: 'success', message: 'Fee structure created' });
+});
+
+export const assignFeeStructure = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, studentId, structureId } = req.body;
+
+  const structure = await db.query.feeStructures.findFirst({ where: eq(feeStructures.id, structureId) });
+  if (!structure) return res.status(404).json({ status: 'error', message: 'Structure not found' });
+
+  const feeRecordId = uuidv4();
+  const timestamp = new Date().toISOString();
+
+  // 1. Create main fee record
+  await db.insert(fees).values({
+    id: feeRecordId,
+    schoolId,
+    studentId,
+    amount: structure.amount,
+    status: 'unpaid',
+    feeType: 'Academic Year Fee',
+    academicYear: '2026-27',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  // 2. Create installments
+  if (structure.installments) {
+    const instConfigs = JSON.parse(structure.installments);
+    const installmentRecords = instConfigs.map((inst: any, idx: number) => ({
+      id: uuidv4(),
+      schoolId,
+      studentId,
+      feeRecordId,
+      installmentNumber: idx + 1,
+      amount: inst.amount,
+      dueDate: inst.dueDate,
+      status: 'pending',
+    }));
+    await db.insert(feeInstallments).values(installmentRecords);
+  }
+
+  res.status(201).json({ status: 'success', message: 'Fee structure assigned and installments generated' });
 });
 
 export const createFeeRecord = asyncHandler(async (req: Request, res: Response) => {
@@ -153,9 +244,41 @@ export const createFeeRecord = asyncHandler(async (req: Request, res: Response) 
   console.log(`[FEES] Creating new fee record for student ${studentId} in school ${schoolId}`);
   
   try {
-    await db.insert(fees).values(newFee);
-    res.status(201).json({ status: 'success', data: newFee });
-  } catch (error) {
+    const fee = await db.insert(fees).values(newFee).returning().then(res => res[0]);
+
+  // Create installments if provided
+  if (req.body.installments && Array.isArray(req.body.installments) && fee) {
+    const records = req.body.installments.map((inst: any, idx: number) => ({
+      id: uuidv4(),
+      schoolId: fee.schoolId,
+      studentId: fee.studentId,
+      feeRecordId: fee.id,
+      installmentNumber: idx + 1,
+      amount: parseInt(inst.amount.toString()),
+      dueDate: inst.dueDate,
+      status: 'pending',
+    }));
+    await db.insert(feeInstallments).values(records);
+  }
+
+  // Create transaction if initially paid
+  if (req.body.status === 'paid' && fee) {
+    await db.insert(feeTransactions).values({
+      id: uuidv4(),
+      schoolId: fee.schoolId,
+      studentId: fee.studentId,
+      amount: fee.amount,
+      category: fee.feeType?.toLowerCase() || 'tuition',
+      status: 'success',
+      razorpayPaymentId: `MANUAL-INIT-${uuidv4().slice(0,8).toUpperCase()}`,
+      invoiceNumber: `INV-${uuidv4().slice(0,8).toUpperCase()}`,
+      paymentMethod: 'manual',
+      gstAmount: fee.amount * 0.18,
+    });
+  }
+
+  res.status(201).json({ status: 'success', data: fee });
+} catch (error) {
     console.error('[FEES] Database error creating fee record:', error);
     res.status(500).json({ status: 'error', message: 'Failed to save fee record to database' });
   }
@@ -217,6 +340,24 @@ export const importBulkFees = asyncHandler(async (req: Request, res: Response) =
 
   if (newRecords.length > 0) {
     await db.insert(fees).values(newRecords);
+    
+    // Create transactions for any initially paid records
+    const paidTxs = newRecords.filter(r => r.status === 'paid').map(r => ({
+      id: uuidv4(),
+      schoolId: r.schoolId,
+      studentId: r.studentId,
+      amount: r.amount,
+      category: r.feeType?.toLowerCase() || 'tuition',
+      status: 'success' as const,
+      razorpayPaymentId: `BULK-PAY-${uuidv4().slice(0,8).toUpperCase()}`,
+      invoiceNumber: `INV-${uuidv4().slice(0,8).toUpperCase()}`,
+      paymentMethod: 'manual' as const,
+      gstAmount: r.amount * 0.18,
+    }));
+
+    if (paidTxs.length > 0) {
+      await db.insert(feeTransactions).values(paidTxs);
+    }
   }
 
   res.status(201).json({ 
@@ -279,28 +420,151 @@ export const sendFeeReminders = asyncHandler(async (req: Request, res: Response)
 export const getStudentFees = asyncHandler(async (req: Request, res: Response) => {
   const studentId = getSingleValue(req.params.studentId);
   
+  // 1. Fetch Student Details to get Grade and School
+  const student = await db.query.students.findFirst({
+    where: eq(students.id, studentId)
+  });
+
+  if (!student) {
+    return res.status(404).json({ status: 'error', message: 'Student not found' });
+  }
+
+  // 2. Fetch Fee Structure for the student's grade
+  const structure = await db.query.feeStructures.findFirst({
+    where: and(
+      eq(feeStructures.schoolId, student.schoolId),
+      eq(feeStructures.grade, student.grade)
+    )
+  });
+
+  // 3. Fetch all fee records
   const studentFees = await db.query.fees.findMany({
     where: eq(fees.studentId, studentId),
     orderBy: [desc(fees.createdAt)]
   });
 
-  // Calculate late fees for student view too
+  // Calculate late fees
   const updatedFees = studentFees.length > 0 
-    ? await calculateLateFees(studentFees, studentFees[0].schoolId)
+    ? await calculateLateFees(studentFees, student.schoolId)
     : [];
 
+  // 4. Fetch successful transactions
   const transactions = await db.query.feeTransactions.findMany({
     where: and(eq(feeTransactions.studentId, studentId), eq(feeTransactions.status, 'success')),
     orderBy: [desc(feeTransactions.createdAt)]
+  });
+
+  // 5. Fetch installments
+  const installments = await db.query.feeInstallments.findMany({
+    where: eq(feeInstallments.studentId, studentId),
+    orderBy: [desc(feeInstallments.dueDate)]
   });
 
   res.status(200).json({ 
     status: 'success', 
     data: {
       fees: updatedFees,
-      transactions
+      transactions,
+      installments,
+      feeStructure: structure || null,
+      yearlyTotal: structure?.amount || 0
     } 
   });
+});
+
+export const payInstallment = asyncHandler(async (req: Request, res: Response) => {
+  const { installmentId, paymentMode, transactionId } = req.body;
+
+  const installment = await db.query.feeInstallments.findFirst({ where: eq(feeInstallments.id, installmentId) });
+  if (!installment) return res.status(404).json({ status: 'error', message: 'Installment not found' });
+
+  const isCash = paymentMode?.toLowerCase() === 'cash';
+  const status = isCash ? 'pending_verification' : 'paid';
+
+  await db.update(feeInstallments)
+    .set({ 
+      status, 
+      paymentMode: paymentMode.toLowerCase() as any,
+      transactionId: transactionId || (isCash ? `CASH-${uuidv4().slice(0,8).toUpperCase()}` : null),
+      paidAt: !isCash ? new Date().toISOString() : null,
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(feeInstallments.id, installmentId));
+
+  // If online, also update main fee record and create transaction
+  if (!isCash) {
+    const feeRecord = await db.query.fees.findFirst({ where: eq(fees.id, installment.feeRecordId!) });
+    if (feeRecord) {
+      const newPaidAmount = (feeRecord.paidAmount || 0) + installment.amount;
+      await db.update(fees)
+        .set({ 
+          paidAmount: newPaidAmount,
+          status: newPaidAmount >= feeRecord.amount ? 'paid' : 'partially_paid',
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(fees.id, feeRecord.id));
+
+      // Create transaction log
+      await db.insert(feeTransactions).values({
+        id: uuidv4(),
+        schoolId: installment.schoolId,
+        studentId: installment.studentId,
+        amount: installment.amount,
+        category: 'tuition',
+        status: 'success',
+        razorpayPaymentId: transactionId || `ONLINE-${uuidv4().slice(0,8).toUpperCase()}`,
+        invoiceNumber: `INV-${uuidv4().slice(0,8).toUpperCase()}`,
+        paymentMethod: 'online',
+        gstAmount: installment.amount * 0.18,
+      });
+    }
+  }
+
+  res.status(200).json({ status: 'success', message: isCash ? 'Cash payment submitted for verification' : 'Payment successful' });
+});
+
+export const verifyCashPayment = asyncHandler(async (req: Request, res: Response) => {
+  const { installmentId } = req.params;
+
+  const installment = await db.query.feeInstallments.findFirst({ where: eq(feeInstallments.id, installmentId) });
+  if (!installment) return res.status(404).json({ status: 'error', message: 'Installment not found' });
+
+  await db.update(feeInstallments)
+    .set({ 
+      status: 'paid',
+      paidAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(feeInstallments.id, installmentId));
+
+  // Update main fee record
+  const feeRecord = await db.query.fees.findFirst({ where: eq(fees.id, installment.feeRecordId!) });
+  if (feeRecord) {
+    const newPaidAmount = (feeRecord.paidAmount || 0) + installment.amount;
+    await db.update(fees)
+      .set({ 
+        paidAmount: newPaidAmount,
+        status: newPaidAmount >= feeRecord.amount ? 'paid' : 'partially_paid',
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(fees.id, feeRecord.id));
+
+    // Create transaction log
+    await db.insert(feeTransactions).values({
+      id: uuidv4(),
+      schoolId: installment.schoolId,
+      studentId: installment.studentId,
+      amount: installment.amount,
+      category: 'tuition',
+      status: 'success',
+      razorpayPaymentId: installment.transactionId || `CASH-VERIFIED-${uuidv4().slice(0,8).toUpperCase()}`,
+      invoiceNumber: `INV-${uuidv4().slice(0,8).toUpperCase()}`,
+      paymentMethod: 'cash',
+      gstAmount: installment.amount * 0.18,
+    });
+  }
+
+  res.status(200).json({ status: 'success', message: 'Cash payment verified' });
 });
 
 export const downloadFeeReceipt = asyncHandler(async (req: Request, res: Response) => {

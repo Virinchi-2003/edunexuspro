@@ -13,13 +13,17 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Find user by email and password
+  console.log(`[Login] Attempting login for email: ${email}`);
   const user = await db.query.users.findFirst({
     where: and(eq(users.email, email), eq(users.password, password))
   });
 
   if (!user) {
+    console.log(`[Login] User not found for email: ${email}`);
     return res.status(401).json({ status: 'error', message: 'Invalid email or password' });
   }
+
+  console.log(`[Login] User found: ${user.email}, Role: ${user.role}`);
 
   // If schoolId is provided, verify it (either UUID or human-readable SCH-XXX)
   if (schoolId) {
@@ -53,7 +57,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       name: user.name,
       schoolId: user.schoolId,
       subscriptionPlan: schoolDetails?.subscriptionPlan || null,
-      displayName: user.name || (user.role === 'admin' ? 'Admin User' : 'Principal'),
+      displayName: user.name || (user.role.charAt(0).toUpperCase() + user.role.slice(1)),
       preferences: {
         emailAlerts: user.emailAlerts,
         smsAlerts: user.smsAlerts,

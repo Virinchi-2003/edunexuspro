@@ -8,7 +8,7 @@ import { getSingleValue } from '../utils/queryHelper';
 import { evaluateLeaveRequest } from '../services/leaveAiService';
 
 export const applyLeave = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId, studentId, reason, startDate, endDate } = req.body;
+  const { schoolId, studentId, reason, startDate, endDate, templateType, totalDays } = req.body;
 
   if (!reason || !startDate || !endDate) {
     return res.status(400).json({ status: 'error', message: 'Missing required fields (reason, startDate, endDate)' });
@@ -22,9 +22,11 @@ export const applyLeave = asyncHandler(async (req: Request, res: Response) => {
     id,
     schoolId,
     studentId,
+    templateType: templateType || 'custom',
     reason,
     startDate,
     endDate,
+    totalDays: totalDays || 0,
     status: (aiDecision.status === 'APPROVED' || aiDecision.status === 'REJECTED') 
             ? aiDecision.status.toLowerCase() 
             : 'pending',
@@ -128,18 +130,23 @@ export const getTeacherLeaves = asyncHandler(async (req: Request, res: Response)
 });
 
 export const updateLeaveStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { leaveId, status, teacherMessage, staffId } = req.body;
+  const { status, teacherMessage, staffId } = req.body;
+  const leaveId = getSingleValue(req.params.leaveId);
+
+  if (!leaveId) {
+    return res.status(400).json({ status: 'error', message: 'Leave ID is required' });
+  }
 
   await db.update(leaveRequests)
     .set({ 
-      status, 
+      status: status.toLowerCase(), 
       teacherMessage, 
       approvedBy: staffId,
       updatedAt: new Date().toISOString() 
     } as any)
     .where(eq(leaveRequests.id, leaveId));
 
-  res.status(200).json({ status: 'success', message: `Leave ${status} successfully (Teacher Override)` });
+  res.status(200).json({ status: 'success', message: `Leave ${status} successfully` });
 });
 
 export const getAllLeaves = asyncHandler(async (req: Request, res: Response) => {

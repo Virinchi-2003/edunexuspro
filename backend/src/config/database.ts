@@ -124,7 +124,61 @@ export const initDb = async () => {
       )
     `);
 
-    console.log('✅ Turso Database Connected & Ready.');
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS transport_routes (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        routeName TEXT NOT NULL,
+        area TEXT NOT NULL,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS transport_stops (
+        id TEXT PRIMARY KEY,
+        routeId TEXT NOT NULL,
+        stopName TEXT NOT NULL,
+        arrivalTime TEXT NOT NULL,
+        "order" INTEGER NOT NULL,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS buses (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        busNumber TEXT NOT NULL,
+        driverName TEXT NOT NULL,
+        driverPhone TEXT NOT NULL,
+        cleanerName TEXT,
+        cleanerPhone TEXT,
+        vehicleType TEXT DEFAULT 'bus',
+        capacity INTEGER NOT NULL,
+        routeId TEXT,
+        status TEXT DEFAULT 'active',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS transport_assignments (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        role TEXT NOT NULL,
+        routeId TEXT NOT NULL,
+        stopId TEXT NOT NULL,
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('✅ Turso Database Connected & Transport Tables Ready.');
   } catch (error) {
     console.error('❌ Failed to connect to Turso Database:', error);
   }

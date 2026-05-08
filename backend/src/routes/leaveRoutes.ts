@@ -18,7 +18,7 @@ router.get('/student/:studentId', authorize(['admin', 'principal', 'staff', 'tea
 
 // Teacher/Staff
 router.get('/teacher/:staffId', authorize(['admin', 'principal', 'staff', 'teacher', 'coach']), getTeacherLeaves);
-router.put('/update-status', authorize(['admin', 'principal', 'staff', 'teacher', 'coach']), updateLeaveStatus);
+router.put('/update/:leaveId', authorize(['admin', 'principal', 'staff', 'teacher', 'coach']), updateLeaveStatus);
 
 // Admin/All
 router.get('/school/:schoolId', authorize(['admin', 'principal']), getAllLeaves);
