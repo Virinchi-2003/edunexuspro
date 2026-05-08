@@ -207,8 +207,7 @@ const StudentFees = () => {
     }
   };
 
-  const pendingFeeRecords = fees.filter(f => f.status !== 'paid');
-  const currentDues = pendingFeeRecords.reduce((acc, f) => acc + (f.amount + (f.lateFee || 0) - (f.paidAmount || 0)), 0);
+
   
   // Calculate total paid across all time
   const totalPaid = transactions.reduce((acc, tx) => acc + (tx.amount || 0), 0);
