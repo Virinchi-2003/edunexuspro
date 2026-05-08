@@ -1,18 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Bus, 
-  MapPin, 
   Clock, 
   Phone, 
   Navigation, 
   Loader2, 
-  Info,
   ShieldCheck,
-  User,
-  AlertCircle
+  User
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";

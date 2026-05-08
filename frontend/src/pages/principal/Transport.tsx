@@ -1,27 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Bus, 
-  MapPin, 
   Users, 
   Clock, 
   Plus, 
-  Search, 
-  Edit2, 
   Trash2, 
-  ChevronRight, 
   AlertTriangle,
   Phone,
-  User,
   Navigation,
   Loader2,
-  MoreVertical,
-  CheckCircle2,
-  XCircle
+  MoreVertical
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -30,7 +23,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 import {
@@ -47,7 +39,6 @@ const TransportManagement = () => {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("dashboard");
   const [schoolId, setSchoolId] = useState("");
 
   // Form States

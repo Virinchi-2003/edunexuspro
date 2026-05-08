@@ -216,7 +216,6 @@ const StudentFees = () => {
   const yearlyRemaining = Math.max(0, yearlyTotal - totalPaid);
 
   // If no bills generated but structure exists, show structure balance
-  const displayPayable = fees.length === 0 ? yearlyTotal : currentDues;
 
   if (loading) return (
     <div className="h-[60vh] flex flex-col items-center justify-center gap-4">

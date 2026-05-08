@@ -24,12 +24,12 @@ import {
   Upload,
   Download,
   FileText,
-  CreditCard,
   BellRing,
   History,
   ShieldCheck,
   RefreshCw,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
