@@ -524,7 +524,7 @@ export const payInstallment = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const verifyCashPayment = asyncHandler(async (req: Request, res: Response) => {
-  const { installmentId } = req.params;
+  const installmentId = getSingleValue(req.params.installmentId);
 
   const installment = await db.query.feeInstallments.findFirst({ where: eq(feeInstallments.id, installmentId) });
   if (!installment) return res.status(404).json({ status: 'error', message: 'Installment not found' });

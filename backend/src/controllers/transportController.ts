@@ -28,13 +28,13 @@ export const createBus = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateBus = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id;
+  const id = getSingleValue(req.params.id);
   await db.update(buses).set({ ...req.body, updatedAt: new Date().toISOString() }).where(eq(buses.id, id));
   res.status(200).json({ status: 'success', message: 'Bus updated successfully' });
 });
 
 export const deleteBus = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id;
+  const id = getSingleValue(req.params.id);
   await db.delete(buses).where(eq(buses.id, id));
   res.status(200).json({ status: 'success', message: 'Bus deleted successfully' });
 });
@@ -69,13 +69,13 @@ export const createStop = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateStop = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id;
+  const id = getSingleValue(req.params.id);
   await db.update(transportStops).set({ ...req.body, updatedAt: new Date().toISOString() }).where(eq(transportStops.id, id));
   res.status(200).json({ status: 'success', message: 'Stop updated successfully' });
 });
 
 export const deleteStop = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id;
+  const id = getSingleValue(req.params.id);
   await db.delete(transportStops).where(eq(transportStops.id, id));
   res.status(200).json({ status: 'success', message: 'Stop deleted successfully' });
 });
@@ -112,7 +112,7 @@ export const assignTransport = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const getUserTransport = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.params.id;
+  const userId = getSingleValue(req.params.id);
   const assignment = await db.query.transportAssignments.findFirst({
     where: eq(transportAssignments.userId, userId),
     with: {
@@ -136,7 +136,7 @@ export const getUserTransport = asyncHandler(async (req: Request, res: Response)
 });
 
 export const getAssignments = asyncHandler(async (req: Request, res: Response) => {
-  const schoolId = req.params.schoolId;
+  const schoolId = getSingleValue(req.params.schoolId);
   const result = await db.query.transportAssignments.findMany({
     where: eq(transportAssignments.schoolId, schoolId),
     with: {
@@ -156,7 +156,7 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
     } else {
       const s = await db.query.staff.findFirst({ where: eq(staff.id, a.userId) });
       name = s?.name || "Unknown";
-      identifier = s?.staffId || "N/A";
+      identifier = s?.id || "N/A";
     }
     return { ...a, name, identifier };
   }));
@@ -165,7 +165,7 @@ export const getAssignments = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const deleteAssignment = asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id;
+  const id = getSingleValue(req.params.id);
   await db.delete(transportAssignments).where(eq(transportAssignments.id, id));
   res.status(200).json({ status: 'success', message: 'Assignment removed' });
 });
