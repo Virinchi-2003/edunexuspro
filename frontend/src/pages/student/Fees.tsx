@@ -207,7 +207,7 @@ const StudentFees = () => {
     }
   };
 
-
+  const pendingFeeRecords = fees.filter(f => f.status !== 'paid');
   
   // Calculate total paid across all time
   const totalPaid = transactions.reduce((acc, tx) => acc + (tx.amount || 0), 0);
@@ -299,7 +299,7 @@ const StudentFees = () => {
                         </div>
                       )}
 
-                      {pendingFeeRecords.map((fee, i) => {
+                      {pendingFeeRecords.map((fee: any, i: number) => {
                          let breakdownItems: any[] = [];
                          if (fee.breakdown) {
                            try {
