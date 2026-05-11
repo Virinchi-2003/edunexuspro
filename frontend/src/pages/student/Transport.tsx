@@ -171,26 +171,44 @@ const StudentTransport = () => {
                       </div>
                    </div>
 
-                   <div className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-3 mb-4">
-                         <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-indigo-600">
-                            <User className="w-5 h-5" />
+                   <div className="space-y-4">
+                      {/* Driver info */}
+                      <div className="p-5 rounded-3xl bg-indigo-50/50 border border-indigo-100/50 group hover:bg-indigo-50 transition-all">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-indigo-600">
+                               <User className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Driver</p>
+                               <p className="font-bold text-slate-900">{bus?.driverName || 'N/A'}</p>
+                            </div>
+                            {bus?.driverPhone && (
+                               <a href={`tel:${bus.driverPhone}`} className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">
+                                  <Phone className="w-4 h-4" />
+                               </a>
+                            )}
                          </div>
-                         <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Driver</p>
-                            <p className="font-bold text-slate-900">{bus?.driverName || 'N/A'}</p>
-                         </div>
+                         {bus?.driverPhone && <p className="text-[11px] font-bold text-indigo-600 mt-2 ml-16">{bus.driverPhone}</p>}
                       </div>
-                      <Button className="w-full h-12 rounded-2xl bg-indigo-600 hover:bg-slate-900 font-bold gap-2 shadow-lg shadow-indigo-100">
-                         <Phone className="w-4 h-4" /> Call Driver
-                      </Button>
-                   </div>
 
-                   <div className="flex items-center gap-3 px-4">
-                      <Info className="w-4 h-4 text-slate-400" />
-                      <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed">
-                         Cleaner: {bus?.cleanerName || 'N/A'} • {bus?.cleanerPhone || 'N/A'}
-                      </p>
+                      {/* Cleaner info */}
+                      <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100 group hover:bg-slate-100 transition-all">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-600">
+                               <User className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cleaner</p>
+                               <p className="font-bold text-slate-900">{bus?.cleanerName || 'N/A'}</p>
+                            </div>
+                            {bus?.cleanerPhone && (
+                               <a href={`tel:${bus.cleanerPhone}`} className="w-10 h-10 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 transition-colors">
+                                  <Phone className="w-4 h-4" />
+                               </a>
+                            )}
+                         </div>
+                         {bus?.cleanerPhone && <p className="text-[11px] font-bold text-slate-500 mt-2 ml-16">{bus.cleanerPhone}</p>}
+                      </div>
                    </div>
                 </div>
              </Card>

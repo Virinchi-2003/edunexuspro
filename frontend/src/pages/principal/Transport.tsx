@@ -299,6 +299,10 @@ const TransportManagement = () => {
                         <p className="text-sm font-bold text-slate-700">{bus.driverName}</p>
                       </div>
                       <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Cleaner</p>
+                        <p className="text-sm font-bold text-slate-700">{bus.cleanerName || 'N/A'}</p>
+                      </div>
+                      <div className="col-span-2">
                         <p className="text-[10px] font-bold text-slate-400 uppercase">Route</p>
                         <p className="text-sm font-bold text-slate-700">{bus.route?.routeName || 'Unassigned'}</p>
                       </div>
@@ -481,6 +485,22 @@ const TransportManagement = () => {
               <Input 
                 value={busForm.driverPhone} 
                 onChange={(e) => setBusForm({...busForm, driverPhone: e.target.value})}
+                className="h-12 rounded-xl bg-slate-50 border-none font-bold" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Cleaner Name</label>
+              <Input 
+                value={busForm.cleanerName} 
+                onChange={(e) => setBusForm({...busForm, cleanerName: e.target.value})}
+                className="h-12 rounded-xl bg-slate-50 border-none font-bold" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">Cleaner Phone</label>
+              <Input 
+                value={busForm.cleanerPhone} 
+                onChange={(e) => setBusForm({...busForm, cleanerPhone: e.target.value})}
                 className="h-12 rounded-xl bg-slate-50 border-none font-bold" 
               />
             </div>

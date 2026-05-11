@@ -63,6 +63,17 @@ export const students = sqliteTable('students', {
   phone: text('phone'),
   password: text('password'),
   photoURL: text('photoURL'),
+  dob: text('dob'),
+  gender: text('gender'),
+  aadhaarNumber: text('aadhaarNumber'),
+  bloodGroup: text('bloodGroup'),
+  previousSchool: text('previousSchool'),
+  religion: text('religion'),
+  category: text('category'),
+  fatherOccupation: text('fatherOccupation'),
+  motherName: text('motherName'),
+  motherOccupation: text('motherOccupation'),
+  annualIncome: text('annualIncome'),
   grade: text('grade').notNull(), // Kept for legacy/direct access
   section: text('section'), // Kept for legacy/direct access
   status: text('status').default('active'),
@@ -266,6 +277,10 @@ export const admissions = sqliteTable('admissions', {
   previousSchool: text('previousSchool'),
   religion: text('religion'),
   category: text('category'),
+  fatherOccupation: text('fatherOccupation'),
+  motherName: text('motherName'),
+  motherOccupation: text('motherOccupation'),
+  annualIncome: text('annualIncome'),
   documents: text('documents'), // JSON string of filenames
   studentId: text('studentId'), // Generated ID after approval
   status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),

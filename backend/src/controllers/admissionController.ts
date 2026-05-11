@@ -11,7 +11,8 @@ export const createAdmission = asyncHandler(async (req: Request, res: Response) 
   const { 
     schoolId, studentName, parentName, email, phone, grade, 
     address, dateOfBirth, gender, aadhaarNumber,
-    bloodGroup, previousSchool, religion, category, documents
+    bloodGroup, previousSchool, religion, category, documents,
+    fatherOccupation, motherName, motherOccupation, annualIncome
   } = req.body;
   
   const id = `APP-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -32,6 +33,10 @@ export const createAdmission = asyncHandler(async (req: Request, res: Response) 
     previousSchool,
     religion,
     category,
+    fatherOccupation,
+    motherName,
+    motherOccupation,
+    annualIncome,
     documents: documents ? JSON.stringify(documents) : null,
     status: 'pending' as const,
   };
@@ -78,6 +83,17 @@ export const updateAdmissionStatus = asyncHandler(async (req: Request, res: Resp
         parentName: application.parentName,
         email: application.email,
         phone: application.phone,
+        dob: application.dateOfBirth,
+        gender: application.gender,
+        aadhaarNumber: application.aadhaarNumber,
+        bloodGroup: application.bloodGroup,
+        previousSchool: application.previousSchool,
+        religion: application.religion,
+        category: application.category,
+        fatherOccupation: application.fatherOccupation,
+        motherName: application.motherName,
+        motherOccupation: application.motherOccupation,
+        annualIncome: application.annualIncome,
         grade: application.grade,
         userId: userUuid,
         status: 'active',

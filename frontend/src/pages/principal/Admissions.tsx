@@ -67,6 +67,14 @@ interface AdmissionApplication {
   address?: string;
   dateOfBirth?: string;
   gender?: string;
+  bloodGroup?: string;
+  religion?: string;
+  category?: string;
+  previousSchool?: string;
+  fatherOccupation?: string;
+  motherName?: string;
+  motherOccupation?: string;
+  annualIncome?: string;
   documents?: string;
 }
 
@@ -440,33 +448,54 @@ const PrincipalAdmissions: React.FC = () => {
                           <p className="text-sm font-bold font-mono">{selectedApp.aadhaarNumber || 'Not provided'}</p>
                         </div>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 text-slate-400 flex items-center justify-center font-bold text-[8px]">BG</div>
+                        <div>
+                          <p className="text-xs text-slate-400">Blood Group</p>
+                          <p className="text-sm font-bold">{selectedApp.bloodGroup || 'Not provided'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <School className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <p className="text-xs text-slate-400">Previous School</p>
+                          <p className="text-sm font-bold">{selectedApp.previousSchool || 'Fresh Admission'}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Parent & Contact</h4>
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Family & Background</h4>
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 font-bold">PN</div>
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 font-bold">FN</div>
                         <div>
-                          <p className="text-xs text-slate-400">Parent Name</p>
-                          <p className="text-sm font-bold">{selectedApp.parentName}</p>
+                          <p className="text-xs text-slate-400">Father's Name & Occupation</p>
+                          <p className="text-sm font-bold">{selectedApp.parentName} {selectedApp.fatherOccupation ? `(${selectedApp.fatherOccupation})` : ''}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 font-bold">MN</div>
+                        <div>
+                          <p className="text-xs text-slate-400">Mother's Name & Occupation</p>
+                          <p className="text-sm font-bold">{selectedApp.motherName || 'N/A'} {selectedApp.motherOccupation ? `(${selectedApp.motherOccupation})` : ''}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 text-slate-400 flex items-center justify-center font-bold text-[8px]">₹</div>
+                        <div>
+                          <p className="text-xs text-slate-400">Annual Family Income</p>
+                          <p className="text-sm font-bold capitalize">{selectedApp.annualIncome?.replace('_', ' ') || 'Not provided'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <Mail className="w-4 h-4 text-slate-400" />
                         <div>
-                          <p className="text-xs text-slate-400">Email Address</p>
-                          <p className="text-sm font-bold">{selectedApp.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Phone className="w-4 h-4 text-slate-400" />
-                        <div>
-                          <p className="text-xs text-slate-400">Phone Number</p>
-                          <p className="text-sm font-bold">{selectedApp.phone}</p>
+                          <p className="text-xs text-slate-400">Contact Details</p>
+                          <p className="text-sm font-bold">{selectedApp.email} | {selectedApp.phone}</p>
                         </div>
                       </div>
                     </div>
@@ -478,7 +507,7 @@ const PrincipalAdmissions: React.FC = () => {
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Uploaded Documents</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {(() => {
-                    let docs = [];
+                    let docs: {name: string, data: string, type: string}[] = [];
                     try {
                       docs = selectedApp.documents ? JSON.parse(selectedApp.documents as any) : [];
                     } catch (e) {
@@ -487,13 +516,52 @@ const PrincipalAdmissions: React.FC = () => {
                     
                     if (docs.length === 0) return <p className="text-xs text-slate-400 italic col-span-full">No documents uploaded</p>;
                     
-                    return docs.map((doc: string) => (
-                      <div key={doc} className="p-3 border rounded-xl bg-slate-50 flex flex-col items-center gap-2 group cursor-pointer hover:border-primary transition-all">
-                        <FileText className="w-8 h-8 text-slate-300 group-hover:text-primary transition-all" />
-                        <span className="text-[10px] font-bold text-slate-500">{doc}</span>
+                    return docs.map((doc) => (
+                      <div 
+                        key={doc.name} 
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = doc.data;
+                          link.download = doc.name;
+                          link.target = '_blank';
+                          link.click();
+                        }}
+                        className="p-3 border rounded-xl bg-slate-50 flex flex-col items-center gap-2 group cursor-pointer hover:border-primary transition-all relative overflow-hidden"
+                      >
+                        {doc.type?.startsWith('image/') ? (
+                          <div className="w-full h-16 rounded-lg overflow-hidden border border-slate-100">
+                             <img src={doc.data} alt={doc.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                          </div>
+                        ) : (
+                          <FileText className="w-8 h-8 text-slate-300 group-hover:text-primary transition-all" />
+                        )}
+                        <span className="text-[10px] font-bold text-slate-500 truncate w-full text-center">{doc.name}</span>
+                        <div className="absolute inset-0 bg-primary/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                           <Download className="w-5 h-5 text-white" />
+                        </div>
                       </div>
                     ));
                   })()}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-6">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Verification Checklist</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[
+                    'Aadhaar Card Authenticity',
+                    'TC/Bonafide Verification',
+                    'Previous Academic Records',
+                    'Parent Contact Verification',
+                    'Address Proof Validation'
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                      <div className="w-5 h-5 rounded border border-slate-300 flex items-center justify-center cursor-pointer hover:border-primary group transition-all">
+                        <CheckCircle2 className="w-3 h-3 text-primary opacity-0 group-hover:opacity-30 transition-all" />
+                      </div>
+                      <span className="text-xs font-medium text-slate-600">{item}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

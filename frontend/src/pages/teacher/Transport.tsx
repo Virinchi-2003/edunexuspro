@@ -148,22 +148,48 @@ const TeacherTransport = () => {
                 </div>
                 
                 <div className="space-y-6">
-                   <div className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Lead Driver</p>
-                      <p className="text-xl font-bold text-slate-900 mb-4">{bus?.driverName || 'N/A'}</p>
-                      <button className="w-full h-12 rounded-xl bg-white border border-slate-200 text-slate-900 font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all">
-                         <Phone className="w-4 h-4" /> {bus?.driverPhone || 'Contact Unavailable'}
-                      </button>
-                   </div>
-
-                   <div className="space-y-4 px-4">
-                      <div className="flex justify-between items-center">
-                         <span className="text-[10px] font-bold text-slate-400 uppercase">Cleaner</span>
-                         <span className="text-xs font-bold text-slate-900">{bus?.cleanerName || 'N/A'}</span>
+                   <div className="space-y-4">
+                      {/* Driver info */}
+                      <div className="p-5 rounded-3xl bg-slate-900 text-white group hover:bg-slate-800 transition-all shadow-xl shadow-slate-100">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
+                               <User className="w-6 h-6 text-indigo-400" />
+                            </div>
+                            <div className="flex-1">
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Lead Driver</p>
+                               <p className="font-bold text-white">{bus?.driverName || 'N/A'}</p>
+                            </div>
+                            {bus?.driverPhone && (
+                               <a href={`tel:${bus.driverPhone}`} className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">
+                                  <Phone className="w-4 h-4" />
+                               </a>
+                            )}
+                         </div>
+                         {bus?.driverPhone && <p className="text-[11px] font-bold text-indigo-400 mt-2 ml-16">{bus.driverPhone}</p>}
                       </div>
-                      <div className="flex justify-between items-center">
-                         <span className="text-[10px] font-bold text-slate-400 uppercase">Vehicle</span>
-                         <span className="text-xs font-bold text-slate-900">{bus?.vehicleType || 'Bus'}</span>
+
+                      {/* Cleaner info */}
+                      <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100 group hover:bg-slate-100 transition-all">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-600">
+                               <User className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Cleaner</p>
+                               <p className="font-bold text-slate-900">{bus?.cleanerName || 'N/A'}</p>
+                            </div>
+                            {bus?.cleanerPhone && (
+                               <a href={`tel:${bus.cleanerPhone}`} className="w-10 h-10 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-300 transition-colors">
+                                  <Phone className="w-4 h-4" />
+                               </a>
+                            )}
+                         </div>
+                         {bus?.cleanerPhone && <p className="text-[11px] font-bold text-slate-500 mt-2 ml-16">{bus.cleanerPhone}</p>}
+                      </div>
+                      
+                      <div className="flex justify-between items-center px-4 pt-2">
+                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vehicle Type</span>
+                         <span className="text-xs font-bold text-slate-900 uppercase">{bus?.vehicleType || 'Bus'}</span>
                       </div>
                    </div>
                 </div>

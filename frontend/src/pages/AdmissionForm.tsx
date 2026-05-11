@@ -57,12 +57,22 @@ const formSchema = z.object({
   address: z.string().min(5, 'Address is required'),
   dateOfBirth: z.string().min(1, 'Date of birth is required'),
   gender: z.string().min(1, 'Please select gender'),
-  aadhaarNumber: z.string().optional(),
+  aadhaarNumber: z.string().refine(val => val === '' || /^\d{12}$/.test(val), {
+    message: 'Aadhaar number must be exactly 12 digits if provided'
+  }),
   bloodGroup: z.string().optional(),
   previousSchool: z.string().optional(),
   religion: z.string().optional(),
   category: z.string().optional(),
-  documents: z.array(z.string()).optional(),
+  fatherOccupation: z.string().optional(),
+  motherName: z.string().min(2, 'Mother name is required'),
+  motherOccupation: z.string().optional(),
+  annualIncome: z.string().optional(),
+  documents: z.array(z.object({
+    name: z.string(),
+    data: z.string(),
+    type: z.string()
+  })).optional(),
 });
 
 const AdmissionForm: React.FC = () => {
@@ -100,8 +110,45 @@ const AdmissionForm: React.FC = () => {
       dateOfBirth: '',
       gender: '',
       aadhaarNumber: '',
+      fatherOccupation: '',
+      motherName: '',
+      motherOccupation: '',
+      annualIncome: '',
+      previousSchool: '',
+      religion: '',
+      category: '',
+      bloodGroup: '',
+      documents: [],
     },
   });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, docName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File size must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const currentDocs = form.getValues('documents') || [];
+      const filteredDocs = currentDocs.filter(d => d.name !== docName);
+      
+      form.setValue('documents', [
+        ...filteredDocs,
+        { 
+          name: docName, 
+          data: base64String, 
+          type: file.type 
+        }
+      ]);
+      toast.success(`${docName} uploaded!`);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -376,30 +423,84 @@ const AdmissionForm: React.FC = () => {
 
                 {step === 2 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                    <FormField
-                      control={form.control}
-                      name="parentName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Parent/Guardian Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter parent's full name" {...field} className="bg-slate-50 border-slate-100" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="parentName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Father/Guardian Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter father's full name" {...field} className="bg-slate-50 border-slate-100" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="fatherOccupation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Father's Occupation</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Engineer, Business" {...field} className="bg-slate-50 border-slate-100" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
-                        name="email"
+                        name="motherName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2"><Mail className="w-4 h-4" /> Contact Email</FormLabel>
+                            <FormLabel>Mother's Name</FormLabel>
                             <FormControl>
-                              <Input type="email" placeholder="email@example.com" {...field} className="bg-slate-50 border-slate-100" />
+                              <Input placeholder="Enter mother's full name" {...field} className="bg-slate-50 border-slate-100" />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="motherOccupation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Mother's Occupation</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Teacher, Homemaker" {...field} className="bg-slate-50 border-slate-100" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="annualIncome"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Annual Family Income</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="bg-slate-50 border-slate-100">
+                                  <SelectValue placeholder="Select Income Range" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="below_2l">Below 2 Lakhs</SelectItem>
+                                <SelectItem value="2l_5l">2 Lakhs - 5 Lakhs</SelectItem>
+                                <SelectItem value="5l_10l">5 Lakhs - 10 Lakhs</SelectItem>
+                                <SelectItem value="above_10l">Above 10 Lakhs</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -418,6 +519,20 @@ const AdmissionForm: React.FC = () => {
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2"><Mail className="w-4 h-4" /> Contact Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="email@example.com" {...field} className="bg-slate-50 border-slate-100" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={form.control}
@@ -454,31 +569,40 @@ const AdmissionForm: React.FC = () => {
                     <div className="space-y-4 pt-4">
                       <h3 className="text-sm font-semibold text-slate-700">Document Upload</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {['Birth Certificate', 'Transfer Certificate', 'Previous Report Card'].map(doc => {
-                          const isUploaded = form.watch('documents')?.includes(doc);
+                        {['Aadhar Card', 'Transfer Certificate (TC)', 'Bonafide Certificate', 'Birth Certificate', 'Previous Report Card'].map(doc => {
+                          const uploadedDoc = form.watch('documents')?.find(d => d.name === doc);
+                          const isUploaded = !!uploadedDoc;
+                          const fileInputId = `file-upload-${doc.replace(/\s+/g, '-').toLowerCase()}`;
+
                           return (
-                            <div 
-                              key={doc} 
-                              onClick={() => {
-                                const currentDocs = form.getValues('documents') || [];
-                                if (currentDocs.includes(doc)) {
-                                  form.setValue('documents', currentDocs.filter(d => d !== doc));
-                                } else {
-                                  form.setValue('documents', [...currentDocs, doc]);
-                                  toast.success(`${doc} attached!`);
-                                }
-                              }}
-                              className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer group ${
-                                isUploaded ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/50'
-                              }`}
-                            >
-                              {isUploaded ? (
-                                <CheckCircle2 className="w-6 h-6 text-primary mx-auto mb-2" />
-                              ) : (
-                                <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2 group-hover:text-primary transition-all" />
-                              )}
-                              <p className={`text-[10px] font-bold ${isUploaded ? 'text-primary' : 'text-slate-500'}`}>{doc}</p>
-                              <p className="text-[8px] text-slate-400">{isUploaded ? 'File Ready' : 'PDF or JPG (Max 2MB)'}</p>
+                            <div key={doc} className="relative">
+                              <input 
+                                type="file" 
+                                id={fileInputId}
+                                className="hidden" 
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) => handleFileChange(e, doc)}
+                              />
+                              <div 
+                                onClick={() => document.getElementById(fileInputId)?.click()}
+                                className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer group h-full ${
+                                  isUploaded ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/50'
+                                }`}
+                              >
+                                {isUploaded ? (
+                                  <div className="flex flex-col items-center">
+                                    <CheckCircle2 className="w-6 h-6 text-primary mb-2" />
+                                    <p className="text-[10px] font-bold text-primary truncate w-full px-2">{doc}</p>
+                                    <p className="text-[8px] text-primary/60 font-medium">Ready to Submit</p>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center">
+                                    <Upload className="w-6 h-6 text-slate-400 mb-2 group-hover:text-primary transition-all" />
+                                    <p className="text-[10px] font-bold text-slate-500">{doc}</p>
+                                    <p className="text-[8px] text-slate-400">PDF or JPG (Max 2MB)</p>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           );
                         })}

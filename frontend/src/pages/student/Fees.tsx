@@ -689,7 +689,10 @@ const StudentFees = () => {
                     <p className="text-emerald-100/60 text-sm mb-6 leading-relaxed">
                        If you are facing difficulties with payments, please contact the administrative office for installment plans.
                     </p>
-                    <Button className="w-full h-12 rounded-xl bg-white text-emerald-900 font-bold hover:bg-emerald-50">
+                    <Button 
+                       onClick={() => setIsSupportDialogOpen(true)}
+                       className="w-full h-12 rounded-xl bg-white text-emerald-900 font-bold hover:bg-emerald-50"
+                    >
                        Contact School Office
                     </Button>
                  </Card>
