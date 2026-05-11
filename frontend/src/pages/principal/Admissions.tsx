@@ -35,7 +35,6 @@ import {
   UserPlus,
   FileText,
   Mail,
-  Phone,
   QrCode,
   Loader2,
   School

@@ -8,7 +8,6 @@ import {
   Phone, 
   Navigation, 
   Loader2, 
-  Info,
   ShieldCheck,
   AlertCircle,
   User
