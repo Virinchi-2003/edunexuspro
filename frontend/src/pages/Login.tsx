@@ -40,6 +40,8 @@ const Login: React.FC = () => {
     plan: 'Starter'
   });
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [isMockPaymentOpen, setIsMockPaymentOpen] = useState(false);
+  const [mockPaymentData, setMockPaymentData] = useState<any>(null);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -107,23 +109,8 @@ const Login: React.FC = () => {
       const isMock = orderRes.data.isMock;
 
       if (isMock) {
-        toast.info('Simulating Razorpay Payment...');
-        setTimeout(async () => {
-          try {
-            const verifyRes = await api.post(`/leads/${leadId}/verify`, {
-              razorpay_order_id: order.id,
-              isMock: true
-            });
-            if (verifyRes.data.status === 'success') {
-              toast.success('Simulation Successful! School provisioned.');
-              setCurrentStep(4);
-            }
-          } catch (e) {
-            toast.error('Simulation verification failed.');
-          } finally {
-            setIsSubmitting(false);
-          }
-        }, 2000);
+        setMockPaymentData({ order, leadId, plan: leadForm.plan });
+        setIsMockPaymentOpen(true);
         return;
       }
 
@@ -587,6 +574,75 @@ const Login: React.FC = () => {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Mock Sales Payment Simulation Dialog */}
+      <Dialog open={isMockPaymentOpen} onOpenChange={setIsMockPaymentOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden">
+           <div className="h-32 bg-indigo-600 p-8 flex flex-col justify-center">
+              <DialogTitle className="text-2xl font-display font-bold text-white flex items-center gap-3">
+                 <CreditCard className="w-6 h-6" /> Mock Checkout
+              </DialogTitle>
+              <DialogDescription className="text-indigo-100 font-medium mt-1">Select a simulated payment method to continue.</DialogDescription>
+           </div>
+           <div className="p-8 space-y-6">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                 <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Subscription Plan</div>
+                    <div className="text-lg font-bold text-slate-900">{mockPaymentData?.plan}</div>
+                 </div>
+                 <div className="text-right">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount</div>
+                    <div className="text-lg font-bold text-indigo-600">{plans.find(p => p.name === mockPaymentData?.plan)?.price}</div>
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                 {[
+                   { id: 'card', name: 'Credit / Debit Card', icon: '💳' },
+                   { id: 'upi', name: 'UPI (GPay, PhonePe)', icon: '📱' },
+                   { id: 'netbanking', name: 'NetBanking', icon: '🏦' }
+                 ].map(method => (
+                   <div 
+                     key={method.id}
+                     className="p-4 rounded-2xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50/50 cursor-pointer transition-all flex items-center justify-between group"
+                     onClick={async () => {
+                        try {
+                          setIsSubmitting(true);
+                          const verifyRes = await api.post(`/leads/${mockPaymentData.leadId}/verify`, {
+                            razorpay_order_id: mockPaymentData.order.id,
+                            isMock: true
+                          });
+                          if (verifyRes.data.status === 'success') {
+                            toast.success(`Simulated ${method.name} payment successful!`);
+                            setIsMockPaymentOpen(false);
+                            setCurrentStep(4);
+                          }
+                        } catch (e) {
+                          toast.error('Payment simulation failed.');
+                        } finally {
+                          setIsSubmitting(false);
+                        }
+                     }}
+                   >
+                      <div className="flex items-center gap-3">
+                         <span className="text-2xl">{method.icon}</span>
+                         <span className="font-bold text-slate-700 group-hover:text-indigo-600">{method.name}</span>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+                   </div>
+                 ))}
+              </div>
+
+              <Button 
+                variant="ghost" 
+                className="w-full text-rose-500 font-bold hover:text-rose-600 hover:bg-rose-50"
+                onClick={() => setIsMockPaymentOpen(false)}
+              >
+                Cancel Transaction
+              </Button>
+           </div>
         </DialogContent>
       </Dialog>
 

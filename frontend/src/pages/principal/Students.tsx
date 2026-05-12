@@ -24,7 +24,10 @@ import {
   User as UserIcon,
   ChevronLeft,
   ChevronRight,
-  Building
+  Building,
+  FileCheck,
+  Trash2 as TrashIcon,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -59,7 +62,8 @@ const StudentsPage: React.FC = () => {
     phone: '',
     password: '',
     grade: '',
-    section: ''
+    section: '',
+    documents: [] as {name: string, data: string, type: string}[]
   });
 
   const [classes, setClasses] = useState<any[]>([]);
@@ -174,13 +178,53 @@ const StudentsPage: React.FC = () => {
     return a.name.localeCompare(b.name);
   });
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, docName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      const currentDocs = formData.documents || [];
+      const filteredDocs = currentDocs.filter(d => d.name !== docName);
+      
+      setFormData(prev => ({
+        ...prev,
+        documents: [
+          ...filteredDocs,
+          { 
+            name: docName, 
+            data: base64String, 
+            type: file.type,
+            fileName: file.name
+          }
+        ]
+      }));
+      toast.success(`${docName} uploaded!`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const removeDocument = (docName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      documents: prev.documents.filter(d => d.name !== docName)
+    }));
+    toast.info(`${docName} removed`);
+  };
+
   const handleAddStudent = async () => {
     if (!formData.studentId || !formData.name || !formData.grade) {
       toast.error('Student ID, Name and Class are required');
       return;
     }
 
-    // Auto-match classId if possible
     const matchedClass = classes.find(c => c.name === formData.grade && c.section === formData.section);
 
     try {
@@ -188,7 +232,8 @@ const StudentsPage: React.FC = () => {
       await api.post('/students', { 
         ...formData, 
         schoolId: user.schoolId,
-        classId: matchedClass?.id 
+        classId: matchedClass?.id,
+        documents: formData.documents
       });
       toast.success('Student registered successfully');
       setIsAddDialogOpen(false);
@@ -203,15 +248,28 @@ const StudentsPage: React.FC = () => {
 
   const handleEditClick = (student: any) => {
     setEditingId(student.id);
+    let docs = [];
+    try {
+      if (typeof student.documents === 'string') {
+        const parsed = JSON.parse(student.documents);
+        docs = Array.isArray(parsed) ? parsed : [];
+      } else if (Array.isArray(student.documents)) {
+        docs = student.documents;
+      }
+    } catch (e) {
+      docs = [];
+    }
+
     setFormData({
       studentId: student.studentId,
       name: student.name,
       parentName: student.parentName || '',
       email: student.email || '',
       phone: student.phone || '',
-      password: '', // Don't load password
+      password: '',
       grade: student.grade,
-      section: student.section || ''
+      section: student.section || '',
+      documents: docs
     });
     setIsEditDialogOpen(true);
   };
@@ -220,7 +278,11 @@ const StudentsPage: React.FC = () => {
     const matchedClass = classes.find(c => c.name === formData.grade && c.section === formData.section);
     try {
       setIsSaving(true);
-      await api.put(`/students/${editingId}`, { ...formData, classId: matchedClass?.id });
+      await api.put(`/students/${editingId}`, { 
+        ...formData, 
+        classId: matchedClass?.id,
+        documents: formData.documents
+      });
       toast.success('Student details updated');
       setIsEditDialogOpen(false);
       fetchData();
@@ -251,7 +313,8 @@ const StudentsPage: React.FC = () => {
       phone: '',
       password: '',
       grade: '',
-      section: ''
+      section: '',
+      documents: []
     });
   };
 
@@ -509,11 +572,24 @@ const StudentsPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(s)}>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => {
+                                handleEditClick(s);
+                              }}
+                              title="View & Edit Student"
+                            >
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDelete(s.id)}>
-                              <Trash2 className="w-4 h-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-red-600" 
+                              onClick={() => handleDelete(s.id)}
+                              title="Delete Student"
+                            >
+                              <TrashIcon className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -677,6 +753,65 @@ const StudentsPage: React.FC = () => {
                 placeholder={isEditDialogOpen ? "Leave blank to keep current" : "Min 6 characters"}
                 className="bg-slate-50 border-none"
               />
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <label className="text-sm font-semibold flex items-center gap-2">
+                Student Documents
+                <Badge variant="secondary" className="text-[10px] py-0">{formData.documents?.length || 0} Uploaded</Badge>
+              </label>
+              
+              <div className="grid grid-cols-2 gap-3">
+                {['Aadhar Card', 'Transfer Certificate', 'Birth Certificate', 'Previous Report'].map(docType => {
+                  const uploaded = formData.documents?.find(d => d.name === docType);
+                  const inputId = `doc-upload-${docType.replace(/\s+/g, '-').toLowerCase()}`;
+                  
+                  return (
+                    <div key={docType} className="relative group">
+                      <input 
+                        type="file" 
+                        id={inputId} 
+                        className="hidden" 
+                        onChange={(e) => handleFileChange(e, docType)} 
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                      {uploaded ? (
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+                          <div 
+                            className="flex items-center gap-2 flex-1 cursor-pointer truncate mr-2"
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = uploaded.data;
+                              link.download = uploaded.name;
+                              link.click();
+                            }}
+                          >
+                            <FileCheck className="w-4 h-4 text-primary shrink-0" />
+                            <span className="truncate font-medium text-primary">{docType}</span>
+                          </div>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => removeDocument(docType)}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <label 
+                          htmlFor={inputId}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 border-dashed hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all text-xs"
+                        >
+                          <Upload className="w-4 h-4 text-slate-400 group-hover:text-primary shrink-0" />
+                          <span className="text-slate-500 group-hover:text-primary truncate">{docType}</span>
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <DialogFooter>

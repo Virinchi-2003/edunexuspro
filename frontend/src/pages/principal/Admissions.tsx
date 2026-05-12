@@ -86,6 +86,19 @@ const PrincipalAdmissions: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isIDCardOpen, setIsIDCardOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [verifiedItems, setVerifiedItems] = useState<string[]>([]);
+
+  const toggleChecklist = (item: string) => {
+    setVerifiedItems(prev => 
+      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
+    );
+  };
+
+  useEffect(() => {
+    if (isPreviewOpen) {
+      setVerifiedItems([]);
+    }
+  }, [isPreviewOpen, selectedApp]);
 
   useEffect(() => {
     fetchApplications();
@@ -508,12 +521,19 @@ const PrincipalAdmissions: React.FC = () => {
                   {(() => {
                     let docs: {name: string, data: string, type: string}[] = [];
                     try {
-                      docs = selectedApp.documents ? JSON.parse(selectedApp.documents as any) : [];
+                      if (typeof selectedApp.documents === 'string') {
+                        const parsed = JSON.parse(selectedApp.documents);
+                        docs = Array.isArray(parsed) ? parsed : [];
+                      } else if (Array.isArray(selectedApp.documents)) {
+                        docs = selectedApp.documents;
+                      } else {
+                        docs = [];
+                      }
                     } catch (e) {
                       docs = [];
                     }
                     
-                    if (docs.length === 0) return <p className="text-xs text-slate-400 italic col-span-full">No documents uploaded</p>;
+                    if (!Array.isArray(docs) || docs.length === 0) return <p className="text-xs text-slate-400 italic col-span-full">No documents uploaded</p>;
                     
                     return docs.map((doc) => (
                       <div 
@@ -532,9 +552,14 @@ const PrincipalAdmissions: React.FC = () => {
                              <img src={doc.data} alt={doc.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
                           </div>
                         ) : (
-                          <FileText className="w-8 h-8 text-slate-300 group-hover:text-primary transition-all" />
+                          <div className="w-full h-16 rounded-lg bg-slate-200 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                            <Download className="w-6 h-6 text-slate-400 group-hover:text-primary transition-all" />
+                          </div>
                         )}
-                        <span className="text-[10px] font-bold text-slate-500 truncate w-full text-center">{doc.name}</span>
+                        <span className="text-[10px] font-bold text-slate-700 truncate w-full text-center px-1">{doc.name}</span>
+                        {doc.fileName && (
+                          <span className="text-[8px] text-slate-400 truncate w-full text-center px-1 italic">{doc.fileName}</span>
+                        )}
                         <div className="absolute inset-0 bg-primary/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                            <Download className="w-5 h-5 text-white" />
                         </div>
@@ -553,14 +578,27 @@ const PrincipalAdmissions: React.FC = () => {
                     'Previous Academic Records',
                     'Parent Contact Verification',
                     'Address Proof Validation'
-                  ].map((item) => (
-                    <div key={item} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
-                      <div className="w-5 h-5 rounded border border-slate-300 flex items-center justify-center cursor-pointer hover:border-primary group transition-all">
-                        <CheckCircle2 className="w-3 h-3 text-primary opacity-0 group-hover:opacity-30 transition-all" />
+                  ].map((item) => {
+                    const isChecked = verifiedItems.includes(item);
+                    return (
+                      <div 
+                        key={item} 
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                          isChecked ? 'border-primary bg-primary/5' : 'border-slate-100 bg-slate-50/50 hover:border-slate-200'
+                        }`}
+                        onClick={() => toggleChecklist(item)}
+                      >
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                          isChecked ? 'bg-primary border-primary' : 'bg-white border-slate-300'
+                        }`}>
+                          {isChecked && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                        </div>
+                        <span className={`text-xs font-medium transition-colors ${
+                          isChecked ? 'text-primary' : 'text-slate-600'
+                        }`}>{item}</span>
                       </div>
-                      <span className="text-xs font-medium text-slate-600">{item}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -573,7 +611,17 @@ const PrincipalAdmissions: React.FC = () => {
                 <Button variant="destructive" className="gap-2" onClick={() => handleStatusChange(selectedApp.id, 'rejected')} disabled={isProcessing}>
                   {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />} Reject
                 </Button>
-                <Button className="gap-2 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleStatusChange(selectedApp.id, 'approved')} disabled={isProcessing}>
+                <Button 
+                  className="gap-2 bg-green-600 hover:bg-green-700 text-white" 
+                  onClick={() => {
+                    if (verifiedItems.length < 5) {
+                      toast.warning('Please complete the verification checklist before approving');
+                      return;
+                    }
+                    handleStatusChange(selectedApp.id, 'approved');
+                  }} 
+                  disabled={isProcessing}
+                >
                   {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Approve
                 </Button>
               </>

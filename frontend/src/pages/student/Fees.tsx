@@ -42,6 +42,11 @@ const StudentFees = () => {
   const [isPaymentModeDialogOpen, setIsPaymentModeDialogOpen] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
   const [paymentMode, setPaymentMode] = useState<'cash' | 'online'>('online');
+  const [isMockPaymentOpen, setIsMockPaymentOpen] = useState(false);
+  const [mockPaymentData, setMockPaymentData] = useState<any>(null);
+  const [mockStep, setMockStep] = useState(1);
+  const [mockMethod, setMockMethod] = useState<string | null>(null);
+  const [cardDetails, setCardDetails] = useState({ number: '', expiry: '', cvv: '' });
 
   useEffect(() => {
     fetchData();
@@ -133,6 +138,17 @@ const StudentFees = () => {
         receipt: `receipt_${Date.now()}`
       });
       const order = response.data.data;
+      
+      if (order.isMock || response.data.isMock) {
+        setMockPaymentData({
+          order,
+          feeRecords: records,
+          installmentId,
+          totalAmount
+        });
+        setIsMockPaymentOpen(true);
+        return;
+      }
 
       const options = {
         key: order.key,
@@ -142,30 +158,7 @@ const StudentFees = () => {
         description: Array.isArray(feeRecords) ? "Consolidated Fee Payment" : `${feeRecords.feeType} Payment`,
         order_id: order.id,
         handler: async (response: any) => {
-          try {
-            if (installmentId) {
-              await api.post('/fees/pay-installment', {
-                installmentId,
-                paymentMode: 'online',
-                transactionId: response.razorpay_payment_id
-              });
-            } else {
-              await api.post('/fees/razorpay/verify', {
-                ...response,
-                studentId: studentProfile.id,
-                schoolId: studentProfile.schoolId,
-                feeIds: records.map(r => r.id),
-                amount: totalAmount,
-                breakdown: records.length === 1 && records[0].breakdown ? records[0].breakdown : JSON.stringify(
-                  records.reduce((acc, r) => ({...acc, [r.feeType]: r.amount}), {})
-                )
-              });
-            }
-            toast.success('Payment Successful!');
-            fetchData();
-          } catch (error) {
-            toast.error('Payment verification failed');
-          }
+          await completePayment(response, records, totalAmount, installmentId);
         },
         prefill: {
           name: user.name,
@@ -184,6 +177,33 @@ const StudentFees = () => {
     } finally {
       setPaying(false);
       setIsPaymentModeDialogOpen(false);
+    }
+  };
+
+  const completePayment = async (response: any, records: any[], totalAmount: number, installmentId?: string) => {
+    try {
+      if (installmentId) {
+        await api.post('/fees/pay-installment', {
+          installmentId,
+          paymentMode: 'online',
+          transactionId: response.razorpay_payment_id
+        });
+      } else {
+        await api.post('/fees/razorpay/verify', {
+          ...response,
+          studentId: studentProfile.id,
+          schoolId: studentProfile.schoolId,
+          feeIds: records.map(r => r.id),
+          amount: totalAmount,
+          breakdown: records.length === 1 && records[0].breakdown ? records[0].breakdown : JSON.stringify(
+            records.reduce((acc, r) => ({...acc, [r.feeType]: r.amount}), {})
+          )
+        });
+      }
+      toast.success('Payment Successful!');
+      fetchData();
+    } catch (error) {
+      toast.error('Payment verification failed');
     }
   };
 
@@ -883,6 +903,136 @@ const StudentFees = () => {
                >
                   {paying ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ShieldCheck className="w-5 h-5 mr-2" />}
                   {paymentMode === 'online' ? 'Proceed to Gateway' : 'Submit for Verification'}
+               </Button>
+             </div>
+          </DialogContent>
+        </Dialog>
+
+       <Dialog open={isMockPaymentOpen} onOpenChange={(open) => {
+         setIsMockPaymentOpen(open);
+         if (!open) {
+           setMockStep(1);
+           setMockMethod(null);
+           setCardDetails({ number: '', expiry: '', cvv: '' });
+         }
+       }}>
+         <DialogContent className="sm:max-w-[450px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden">
+            <div className="h-32 bg-amber-500 p-8 flex flex-col justify-center">
+               <DialogTitle className="text-2xl font-display font-bold text-white flex items-center gap-3">
+                  <ShieldCheck className="w-6 h-6" /> 
+                  {mockStep === 1 ? 'Mock Payment' : `Pay with ${mockMethod === 'card' ? 'Card' : mockMethod?.toUpperCase()}`}
+               </DialogTitle>
+               <DialogDescription className="text-amber-100 font-medium mt-1">Simulating Payment Gateway (Development Mode)</DialogDescription>
+            </div>
+            <div className="p-8 space-y-6">
+               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                  <div>
+                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Payable Amount</div>
+                     <div className="text-2xl font-display font-bold text-slate-900">₹{(mockPaymentData?.totalAmount || 0).toLocaleString()}</div>
+                  </div>
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                     <CreditCard className="w-5 h-5 text-amber-500" />
+                  </div>
+               </div>
+               
+               {mockStep === 1 ? (
+                 <div className="grid grid-cols-1 gap-3">
+                    {[
+                      { id: 'card', name: 'Credit / Debit Card', icon: '💳' },
+                      { id: 'upi', name: 'UPI (GPay, PhonePe)', icon: '📱' },
+                      { id: 'netbanking', name: 'NetBanking', icon: '🏦' }
+                    ].map(method => (
+                      <div 
+                        key={method.id}
+                        className="p-4 rounded-2xl border-2 border-slate-100 hover:border-amber-600 hover:bg-amber-50/50 cursor-pointer transition-all flex items-center justify-between group"
+                        onClick={() => {
+                          setMockMethod(method.id);
+                          setMockStep(2);
+                        }}
+                      >
+                         <div className="flex items-center gap-3">
+                            <span className="text-2xl">{method.icon}</span>
+                            <span className="font-bold text-slate-700 group-hover:text-amber-600">{method.name}</span>
+                         </div>
+                         <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+                      </div>
+                    ))}
+                 </div>
+               ) : (
+                 <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                    {mockMethod === 'card' ? (
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                           <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Card Number</label>
+                           <Input 
+                             placeholder="4444 4444 4444 4444" 
+                             className="h-12 rounded-xl border-slate-200"
+                             value={cardDetails.number}
+                             onChange={e => setCardDetails({...cardDetails, number: e.target.value})}
+                           />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Expiry</label>
+                              <Input 
+                                placeholder="MM/YY" 
+                                className="h-12 rounded-xl border-slate-200"
+                                value={cardDetails.expiry}
+                                onChange={e => setCardDetails({...cardDetails, expiry: e.target.value})}
+                              />
+                           </div>
+                           <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">CVV</label>
+                              <Input 
+                                type="password" 
+                                placeholder="•••" 
+                                className="h-12 rounded-xl border-slate-200"
+                                value={cardDetails.cvv}
+                                onChange={e => setCardDetails({...cardDetails, cvv: e.target.value})}
+                              />
+                           </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
+                         <div className="text-sm font-medium text-slate-500">
+                            Please wait while we redirect you to your {mockMethod === 'upi' ? 'UPI App' : 'Bank Page'}...
+                         </div>
+                      </div>
+                    )}
+                    
+                    <Button 
+                      className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg mt-4"
+                      onClick={() => {
+                        completePayment({
+                          razorpay_order_id: mockPaymentData.order.id,
+                          razorpay_payment_id: `pay_mock_${Math.random().toString(36).substr(2, 9)}`,
+                          razorpay_signature: 'mock_signature'
+                        }, mockPaymentData.feeRecords, mockPaymentData.totalAmount, mockPaymentData.installmentId);
+                        setIsMockPaymentOpen(false);
+                      }}
+                    >
+                      {mockMethod === 'card' ? 'Pay Now' : 'Simulate Success'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="w-full h-10 text-slate-400 font-bold hover:text-slate-600"
+                      onClick={() => setMockStep(1)}
+                    >
+                      Back to methods
+                    </Button>
+                 </div>
+               )}
+               
+               <Button 
+                 variant="ghost"
+                 className="w-full text-rose-500 font-bold hover:text-rose-600 hover:bg-rose-50"
+                 onClick={() => {
+                   toast.error('Payment Simulation Cancelled');
+                   setIsMockPaymentOpen(false);
+                 }}
+               >
+                 Cancel Simulation
                </Button>
             </div>
          </DialogContent>

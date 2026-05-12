@@ -16,7 +16,7 @@ export const getStudentsBySchool = asyncHandler(async (req: Request, res: Respon
 });
 
 export const createStudent = asyncHandler(async (req: Request, res: Response) => {
-  const { schoolId, studentId, name, parentName, email, phone, password, grade, section, classId } = req.body;
+  const { schoolId, studentId, name, parentName, email, phone, password, grade, section, classId, documents } = req.body;
   
   // 1. Check Plan Capacity
   const school = await db.query.schools.findFirst({ where: eq(schools.id, schoolId) });
@@ -57,6 +57,7 @@ export const createStudent = asyncHandler(async (req: Request, res: Response) =>
     grade,
     section,
     classId,
+    documents: documents ? (typeof documents === 'string' ? documents : JSON.stringify(documents)) : null,
     userId,
     status: 'active' as const,
   };
@@ -189,7 +190,10 @@ export const bulkCreateStudents = asyncHandler(async (req: Request, res: Respons
 
 export const updateStudent = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
-  const data = req.body;
+  const data = { ...req.body };
+  if (data.documents && typeof data.documents !== 'string') {
+    data.documents = JSON.stringify(data.documents);
+  }
 
   await db.update(students)
     .set({ ...data, updatedAt: new Date().toISOString() })

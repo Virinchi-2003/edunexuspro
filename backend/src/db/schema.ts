@@ -74,6 +74,7 @@ export const students = sqliteTable('students', {
   motherName: text('motherName'),
   motherOccupation: text('motherOccupation'),
   annualIncome: text('annualIncome'),
+  documents: text('documents'), // JSON string of document objects
   grade: text('grade').notNull(), // Kept for legacy/direct access
   section: text('section'), // Kept for legacy/direct access
   status: text('status').default('active'),

@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
   Select, 
   SelectContent, 
@@ -39,7 +40,9 @@ import {
   ArrowLeft,
   Loader2,
   Fingerprint,
-  Building
+  Building,
+  Trash2,
+  FileCheck
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -71,7 +74,8 @@ const formSchema = z.object({
   documents: z.array(z.object({
     name: z.string(),
     data: z.string(),
-    type: z.string()
+    type: z.string(),
+    fileName: z.string().optional()
   })).optional(),
 });
 
@@ -122,6 +126,8 @@ const AdmissionForm: React.FC = () => {
     },
   });
 
+  const watchedDocuments = form.watch('documents') || [];
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, docName: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -142,18 +148,67 @@ const AdmissionForm: React.FC = () => {
         { 
           name: docName, 
           data: base64String, 
-          type: file.type 
+          type: file.type,
+          fileName: file.name
         }
-      ]);
+      ], { shouldValidate: true, shouldDirty: true });
       toast.success(`${docName} uploaded!`);
     };
+    reader.onerror = () => {
+      toast.error('Failed to read file. Please try again.');
+    };
     reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const removeDocument = (docName: string) => {
+    const currentDocs = form.getValues('documents') || [];
+    form.setValue('documents', currentDocs.filter(d => d.name !== docName), { shouldValidate: true, shouldDirty: true });
+    toast.info(`${docName} removed`);
+  };
+
+  const nextStep = async () => {
+    const fieldsToValidate: any = {
+      1: ['schoolId', 'studentName', 'dateOfBirth', 'gender', 'grade'],
+      2: ['parentName', 'motherName', 'phone', 'email', 'address']
+    };
+    
+    const isValid = await form.trigger(fieldsToValidate[step as keyof typeof fieldsToValidate]);
+    if (isValid) {
+      setStep(step + 1);
+      window.scrollTo(0, 0);
+    } else {
+      toast.error('Please complete all required fields');
+    }
+  };
+
+  const prevStep = () => {
+    setStep(step - 1);
+    window.scrollTo(0, 0);
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Strictly prevent submission unless on the final step
+    if (step !== 3) {
+      return;
+    }
+
+    // Enforce mandatory documents
+    const aadhar = watchedDocuments.find(d => d.name === 'Aadhar Card');
+    const tc = watchedDocuments.find(d => d.name === 'Transfer Certificate (TC)');
+    
+    if (!aadhar || !tc) {
+      toast.error('Please upload at least Aadhar Card and Transfer Certificate');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      const response = await api.post('/admissions', values);
+      console.log('Submitting documents:', values.documents);
+      const response = await api.post('/admissions', { 
+        ...values, 
+        documents: values.documents || [] 
+      });
       if (response.data.status === 'success') {
         setApplicationId(response.data.data.id);
         setSubmitted(true);
@@ -229,7 +284,25 @@ const AdmissionForm: React.FC = () => {
 
           <CardContent className="p-8">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form 
+                onSubmit={(e) => {
+                  if (step < 3) {
+                    e.preventDefault();
+                    nextStep();
+                    return;
+                  }
+                  form.handleSubmit(onSubmit)(e);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
+                    if (step < 3) {
+                      e.preventDefault();
+                      nextStep();
+                    }
+                  }
+                }}
+                className="space-y-6"
+              >
                 {step === 1 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -239,7 +312,7 @@ const AdmissionForm: React.FC = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="flex items-center gap-2"><Building className="w-4 h-4" /> Select School</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-slate-50 border-slate-100">
                                   <SelectValue placeholder="Select School" />
@@ -263,7 +336,7 @@ const AdmissionForm: React.FC = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Applying for Grade</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-slate-50 border-slate-100">
                                   <SelectValue placeholder="Select Grade" />
@@ -315,7 +388,7 @@ const AdmissionForm: React.FC = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Gender</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-slate-50 border-slate-100">
                                   <SelectValue placeholder="Select Gender" />
@@ -340,7 +413,7 @@ const AdmissionForm: React.FC = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Blood Group</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-slate-50 border-slate-100">
                                   <SelectValue placeholder="Select" />
@@ -362,7 +435,7 @@ const AdmissionForm: React.FC = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Category</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-slate-50 border-slate-100">
                                   <SelectValue placeholder="Select" />
@@ -401,7 +474,7 @@ const AdmissionForm: React.FC = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Religion</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-slate-50 border-slate-100">
                                   <SelectValue placeholder="Select" />
@@ -488,7 +561,7 @@ const AdmissionForm: React.FC = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Annual Family Income</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="bg-slate-50 border-slate-100">
                                   <SelectValue placeholder="Select Income Range" />
@@ -559,7 +632,14 @@ const AdmissionForm: React.FC = () => {
                         <FormItem>
                           <FormLabel className="flex items-center gap-2"><Fingerprint className="w-4 h-4" /> Aadhaar Number (Optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="12-digit Aadhaar number" {...field} className="bg-slate-50 border-slate-100" />
+                            <Input 
+                              placeholder="12-digit Aadhaar number" 
+                              {...field} 
+                              className="bg-slate-50 border-slate-100" 
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') e.preventDefault();
+                              }}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -569,38 +649,63 @@ const AdmissionForm: React.FC = () => {
                     <div className="space-y-4 pt-4">
                       <h3 className="text-sm font-semibold text-slate-700">Document Upload</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {['Aadhar Card', 'Transfer Certificate (TC)', 'Bonafide Certificate', 'Birth Certificate', 'Previous Report Card'].map(doc => {
-                          const uploadedDoc = form.watch('documents')?.find(d => d.name === doc);
+                        {Array.isArray(watchedDocuments) && ['Aadhar Card', 'Transfer Certificate (TC)', 'Bonafide Certificate', 'Birth Certificate', 'Previous Report Card'].map(doc => {
+                          const uploadedDoc = watchedDocuments.find(d => d && d.name === doc);
                           const isUploaded = !!uploadedDoc;
-                          const fileInputId = `file-upload-${doc.replace(/\s+/g, '-').toLowerCase()}`;
+                          const fileInputId = `file-upload-${doc.replace(/[^\w]/g, '-').toLowerCase()}`;
 
                           return (
-                            <div key={doc} className="relative">
+                            <div key={doc} className="relative h-full">
                               <input 
                                 type="file" 
                                 id={fileInputId}
-                                className="hidden" 
+                                className="sr-only" 
                                 accept=".pdf,.jpg,.jpeg,.png"
                                 onChange={(e) => handleFileChange(e, doc)}
+                                disabled={isSubmitting}
                               />
-                              <div 
-                                onClick={() => document.getElementById(fileInputId)?.click()}
-                                className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer group h-full ${
-                                  isUploaded ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/50'
-                                }`}
-                              >
-                                {isUploaded ? (
-                                  <div className="flex flex-col items-center">
-                                    <CheckCircle2 className="w-6 h-6 text-primary mb-2" />
-                                    <p className="text-[10px] font-bold text-primary truncate w-full px-2">{doc}</p>
-                                    <p className="text-[8px] text-primary/60 font-medium">Ready to Submit</p>
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col items-center">
-                                    <Upload className="w-6 h-6 text-slate-400 mb-2 group-hover:text-primary transition-all" />
-                                    <p className="text-[10px] font-bold text-slate-500">{doc}</p>
-                                    <p className="text-[8px] text-slate-400">PDF or JPG (Max 2MB)</p>
-                                  </div>
+                              <div className="flex flex-col h-full">
+                                <label 
+                                  htmlFor={fileInputId}
+                                  className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer group flex-1 flex flex-col items-center justify-center min-h-[110px] ${
+                                    isUploaded ? 'border-primary bg-primary/5 shadow-sm shadow-primary/5' : 'border-slate-200 hover:border-primary/50 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {isUploaded ? (
+                                    <>
+                                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                                        <FileCheck className="w-6 h-6 text-primary" />
+                                      </div>
+                                      <p className="text-[10px] font-bold text-slate-800 line-clamp-1 px-2">{doc}</p>
+                                      <p className="text-[9px] text-primary font-medium mt-1 truncate w-full px-4">{uploadedDoc?.fileName || 'File uploaded'}</p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mb-2 group-hover:bg-primary/10 transition-colors">
+                                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-primary transition-all" />
+                                      </div>
+                                      <p className="text-[10px] font-bold text-slate-600">{doc}</p>
+                                      <p className="text-[8px] text-slate-400 mt-1">PDF, JPG (Max 2MB)</p>
+                                      {['Aadhar Card', 'Transfer Certificate (TC)'].includes(doc) && (
+                                        <Badge variant="outline" className="mt-2 text-[7px] py-0 border-amber-200 text-amber-600 bg-amber-50">Highly Recommended</Badge>
+                                      )}
+                                    </>
+                                  )}
+                                </label>
+                                {isUploaded && (
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      removeDocument(doc);
+                                    }}
+                                    className="mt-1 h-7 text-[9px] text-red-500 hover:text-red-600 hover:bg-red-50 font-semibold relative z-20"
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-1" /> Remove File
+                                  </Button>
                                 )}
                               </div>
                             </div>
@@ -627,7 +732,7 @@ const AdmissionForm: React.FC = () => {
 
                 <div className="flex justify-between pt-8 border-t border-slate-50 mt-8">
                   {step > 1 ? (
-                    <Button type="button" variant="ghost" onClick={() => setStep(step - 1)} className="gap-2">
+                    <Button type="button" variant="ghost" onClick={prevStep} className="gap-2">
                       <ArrowLeft className="w-4 h-4" /> Previous
                     </Button>
                   ) : (
@@ -637,11 +742,15 @@ const AdmissionForm: React.FC = () => {
                   )}
 
                   {step < 3 ? (
-                    <Button type="button" onClick={() => setStep(step + 1)} className="gap-2">
+                    <Button type="button" onClick={nextStep} className="gap-2">
                       Next Step <ArrowRight className="w-4 h-4" />
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={isSubmitting} className="gap-2 min-w-[140px]">
+                    <Button 
+                      type="submit" 
+                      disabled={isSubmitting} 
+                      className="gap-2 min-w-[140px]"
+                    >
                       {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                       Submit Application
                     </Button>

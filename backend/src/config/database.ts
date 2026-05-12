@@ -45,6 +45,13 @@ export const initDb = async () => {
     await addColumn('salary_payments', 'updatedAt', 'TEXT');
     await addColumn('wallet_transactions', 'updatedAt', 'TEXT');
     await addColumn('recharge_logs', 'updatedAt', 'TEXT');
+    
+    // Students table updates
+    await addColumn('students', 'documents', 'TEXT');
+    await addColumn('students', 'fatherOccupation', 'TEXT');
+    await addColumn('students', 'motherName', 'TEXT');
+    await addColumn('students', 'motherOccupation', 'TEXT');
+    await addColumn('students', 'annualIncome', 'TEXT');
 
     // Self-healing: Ensure requisitions table exists
     await client.execute(`

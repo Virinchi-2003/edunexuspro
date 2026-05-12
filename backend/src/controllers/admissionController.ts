@@ -37,7 +37,7 @@ export const createAdmission = asyncHandler(async (req: Request, res: Response) 
     motherName,
     motherOccupation,
     annualIncome,
-    documents: documents ? JSON.stringify(documents) : null,
+    documents: documents ? (typeof documents === 'string' ? documents : JSON.stringify(documents)) : null,
     status: 'pending' as const,
   };
 
@@ -68,8 +68,14 @@ export const updateAdmissionStatus = asyncHandler(async (req: Request, res: Resp
 
       // Generate Student ID: STU-YEAR-RANDOM
       const year = new Date().getFullYear().toString().substr(-2);
-      const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+      const random = Math.random().toString(36).substr(2, 6).toUpperCase(); // Increased to 6 chars for uniqueness
       const studentId = `STU-${year}${random}`;
+
+      // Find matching class for the grade
+      const classesList = await db.query.classes.findMany({
+        where: (c, { eq }) => eq(c.schoolId, application.schoolId)
+      });
+      const matchedClass = classesList.find(c => c.name === application.grade);
 
       const studentUuid = uuidv4();
       const userUuid = uuidv4();
@@ -78,11 +84,14 @@ export const updateAdmissionStatus = asyncHandler(async (req: Request, res: Resp
       await db.insert(students).values({
         id: studentUuid,
         schoolId: application.schoolId,
+        classId: matchedClass?.id || null,
         studentId,
         name: application.studentName,
         parentName: application.parentName,
         email: application.email,
         phone: application.phone,
+        password: 'student123',
+        photoURL: null,
         dob: application.dateOfBirth,
         gender: application.gender,
         aadhaarNumber: application.aadhaarNumber,
@@ -94,7 +103,9 @@ export const updateAdmissionStatus = asyncHandler(async (req: Request, res: Resp
         motherName: application.motherName,
         motherOccupation: application.motherOccupation,
         annualIncome: application.annualIncome,
+        documents: application.documents,
         grade: application.grade,
+        section: matchedClass?.section || 'A',
         userId: userUuid,
         status: 'active',
       });
