@@ -519,7 +519,7 @@ const PrincipalAdmissions: React.FC = () => {
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Uploaded Documents</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {(() => {
-                    let docs: {name: string, data: string, type: string}[] = [];
+                    let docs: {name: string, data: string, type: string, fileName?: string}[] = [];
                     try {
                       if (typeof selectedApp.documents === 'string') {
                         const parsed = JSON.parse(selectedApp.documents);
