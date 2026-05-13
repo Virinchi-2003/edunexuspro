@@ -59,7 +59,18 @@ export const authenticate = async (
 
 export const authorize = (roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
+      return res.status(403).json({ 
+        status: 'error', 
+        message: 'Forbidden: No user information found' 
+      });
+    }
+
+    const userRole = req.user.role?.toLowerCase();
+    const allowedRoles = roles.map(r => r.toLowerCase());
+
+    if (!allowedRoles.includes(userRole)) {
+      console.warn(`[Auth] Role mismatch for ${req.user.email}: user has "${userRole}", needs one of [${allowedRoles.join(', ')}]`);
       return res.status(403).json({ 
         status: 'error', 
         message: 'Forbidden: You do not have permission to perform this action' 

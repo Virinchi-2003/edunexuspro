@@ -12,7 +12,8 @@ import {
   assignTransport,
   getUserTransport,
   getAssignments,
-  deleteAssignment
+  deleteAssignment,
+  bulkAssignTransport
 } from '../controllers/transportController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -37,6 +38,7 @@ router.delete('/stop/:id', authenticate, authorize(['admin', 'principal']), dele
 router.post('/assign', authenticate, authorize(['admin', 'principal']), assignTransport);
 router.get('/assignments/:schoolId', authenticate, authorize(['admin', 'principal']), getAssignments);
 router.delete('/assign/:id', authenticate, authorize(['admin', 'principal']), deleteAssignment);
+router.post('/bulk-assign', authenticate, authorize(['admin', 'principal']), bulkAssignTransport);
 router.get('/user/:id', authenticate, getUserTransport);
 
 export default router;

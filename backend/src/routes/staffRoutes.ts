@@ -25,7 +25,7 @@ import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/school/:schoolId', authenticate, authorize(['admin', 'principal', 'coach', 'accountant']), getStaffBySchool);
+router.get('/school/:schoolId', authenticate, authorize(['admin', 'principal', 'teacher', 'staff', 'coach', 'accountant']), getStaffBySchool);
 router.get('/user/:userId', authenticate, authorize(['admin', 'principal', 'staff', 'teacher', 'coach', 'accountant']), getStaffByUserId);
 router.get('/my-classes/:teacherId', authenticate, authorize(['teacher', 'staff']), getTeacherClasses);
 router.get('/dashboard-stats/:staffId', authenticate, authorize(['teacher', 'staff']), getTeacherDashboardStats);

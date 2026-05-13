@@ -14,8 +14,12 @@ import {
   Phone,
   Navigation,
   Loader2,
-  MoreVertical
+  MoreVertical,
+  FileSpreadsheet,
+  Download,
+  Upload
 } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { 
@@ -77,6 +81,13 @@ const TransportManagement = () => {
     routeId: "",
     stopId: ""
   });
+
+  const [isExcelDialogOpen, setIsExcelDialogOpen] = useState(false);
+  const [excelData, setExcelData] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [assignmentSearch, setAssignmentSearch] = useState("");
+  const [routeFilter, setRouteFilter] = useState("");
+  const [stopFilter, setStopFilter] = useState("");
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -182,6 +193,87 @@ const TransportManagement = () => {
     } catch (error) {
       toast.error("Failed to remove assignment");
     }
+  };
+
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawData = XLSX.utils.sheet_to_json(ws);
+        
+        // Normalize keys for preview and consistent API payload
+        const normalizedData = rawData.map((row: any) => {
+          const newRow: any = {};
+          Object.keys(row).forEach(key => {
+            const k = key.trim().toLowerCase();
+            if (k === 'studentid' || k === 'student id' || k === 'id') newRow.studentId = row[key];
+            else if (k === 'routename' || k === 'route name' || k === 'route') newRow.routeName = row[key];
+            else if (k === 'stopname' || k === 'stop name' || k === 'stop') newRow.stopName = row[key];
+            else newRow[key] = row[key];
+          });
+          return newRow;
+        });
+
+        setExcelData(normalizedData);
+        toast.success(`${normalizedData.length} records parsed from Excel`);
+      } catch (error) {
+        toast.error("Failed to parse Excel file");
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleBulkAssignSubmit = async () => {
+    if (excelData.length === 0) {
+      toast.error("No data to upload");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const res = await api.post(`/transport/bulk-assign`, {
+        assignments: excelData,
+        schoolId
+      });
+      
+      const { success, failed, errors } = res.data.data;
+      
+      if (failed > 0) {
+        toast.error(`Completed: ${success} Success, ${failed} Failed. Error: ${errors[0]}`);
+      } else {
+        toast.success(`Bulk assignment completed! Success: ${success}`);
+      }
+      
+      if (errors.length > 0) {
+        console.warn("Bulk assignment errors:", errors);
+      }
+
+      setIsExcelDialogOpen(false);
+      setExcelData([]);
+      fetchData(schoolId);
+    } catch (error) {
+      toast.error("Failed to perform bulk assignment");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = [
+      { studentId: "STU001", routeName: "Route A", stopName: "Main Gate" },
+      { studentId: "STU002", routeName: "Route B", stopName: "Park Street" }
+    ];
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "Transport_Bulk_Assignment_Template.xlsx");
   };
 
   if (loading) return (
@@ -395,12 +487,52 @@ const TransportManagement = () => {
            <Card className="border-none shadow-xl rounded-[2.5rem] bg-white p-8">
               <div className="flex items-center justify-between mb-8">
                  <h4 className="text-2xl font-display font-bold text-slate-900">User Assignments</h4>
-                 <Button 
-                  onClick={() => setIsAssignDialogOpen(true)}
-                  className="rounded-2xl h-12 px-6 bg-slate-900 text-white font-bold gap-2 shadow-lg shadow-slate-200"
-                >
-                  <Plus className="w-4 h-4" /> Assign New User
-                </Button>
+                 <div className="flex flex-wrap items-center gap-4">
+                    <div className="relative">
+                      <Input 
+                        placeholder="Search student or ID..."
+                        value={assignmentSearch}
+                        onChange={(e) => setAssignmentSearch(e.target.value)}
+                        className="h-12 w-48 rounded-2xl bg-slate-50 border-none pl-10 font-medium"
+                      />
+                      <Users className="w-4 h-4 absolute left-4 top-4 text-slate-400" />
+                    </div>
+
+                    <select 
+                      value={routeFilter}
+                      onChange={(e) => { setRouteFilter(e.target.value); setStopFilter(""); }}
+                      className="h-12 w-40 rounded-2xl bg-slate-50 border-none px-4 font-bold text-xs"
+                    >
+                      <option value="">All Routes</option>
+                      {routes.map(r => <option key={r.id} value={r.id}>{r.routeName}</option>)}
+                    </select>
+
+                    <select 
+                      value={stopFilter}
+                      onChange={(e) => setStopFilter(e.target.value)}
+                      disabled={!routeFilter}
+                      className="h-12 w-40 rounded-2xl bg-slate-50 border-none px-4 font-bold text-xs disabled:opacity-50"
+                    >
+                      <option value="">All Stops</option>
+                      {routes.find(r => r.id === routeFilter)?.stops?.map((s: any) => (
+                        <option key={s.id} value={s.id}>{s.stopName}</option>
+                      ))}
+                    </select>
+
+                    <Button 
+                      onClick={() => setIsExcelDialogOpen(true)}
+                      variant="outline"
+                      className="rounded-2xl h-12 px-6 border-slate-200 font-bold gap-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" /> Bulk Upload Students
+                    </Button>
+                    <Button 
+                      onClick={() => setIsAssignDialogOpen(true)}
+                      className="rounded-2xl h-12 px-6 bg-slate-900 text-white font-bold gap-2 shadow-lg shadow-slate-200"
+                    >
+                      <Plus className="w-4 h-4" /> Assign New User
+                    </Button>
+                 </div>
               </div>
 
               <div className="rounded-3xl border border-slate-100 overflow-hidden">
@@ -415,7 +547,15 @@ const TransportManagement = () => {
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                        {assignments.map((a) => (
+                        {assignments
+                          .filter(a => {
+                            const matchesSearch = a.name.toLowerCase().includes(assignmentSearch.toLowerCase()) || 
+                                                 a.identifier.toLowerCase().includes(assignmentSearch.toLowerCase());
+                            const matchesRoute = !routeFilter || a.routeId === routeFilter;
+                            const matchesStop = !stopFilter || a.stopId === stopFilter;
+                            return matchesSearch && matchesRoute && matchesStop;
+                          })
+                          .map((a) => (
                            <tr key={a.id} className="hover:bg-slate-50/50 transition-all">
                               <td className="p-6">
                                  <div className="flex items-center gap-3">
@@ -672,6 +812,81 @@ const TransportManagement = () => {
           <DialogFooter>
              <Button onClick={handleAssignSubmit} className="w-full h-14 rounded-2xl bg-indigo-600 font-bold">Confirm Assignment</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isExcelDialogOpen} onOpenChange={setIsExcelDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-8">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-display font-bold text-center">Bulk Student Assignment</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 space-y-6">
+            <div className="p-6 border-2 border-dashed border-slate-200 rounded-[2rem] bg-slate-50 flex flex-col items-center justify-center gap-4 group hover:border-emerald-200 hover:bg-emerald-50 transition-all relative">
+              <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-all">
+                <Upload className="w-8 h-8" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-bold text-slate-900">Upload Excel File</p>
+                <p className="text-xs text-slate-400 font-medium">Select transport assignment sheet</p>
+              </div>
+              <input 
+                type="file" 
+                accept=".xlsx, .xls" 
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={handleExcelUpload}
+              />
+            </div>
+
+            <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-amber-900 uppercase">Requirements</p>
+                <p className="text-xs text-amber-700 font-medium leading-relaxed">
+                  Excel should contain: <span className="font-bold">studentId</span>, <span className="font-bold">routeName</span>, and <span className="font-bold">stopName</span> columns.
+                </p>
+              </div>
+            </div>
+
+            {excelData.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selected Records ({excelData.length})</p>
+                  <Button variant="ghost" className="h-6 text-[10px] font-bold text-rose-600 hover:bg-rose-50" onClick={() => setExcelData([])}>Clear</Button>
+                </div>
+                <div className="max-h-[150px] overflow-y-auto rounded-xl border border-slate-100 divide-y divide-slate-50">
+                   {excelData.slice(0, 5).map((row, i) => (
+                     <div key={i} className="p-3 text-[10px] font-medium text-slate-600 flex justify-between">
+                        <span>{row.studentId || 'N/A'}</span>
+                        <span className="text-slate-400">{row.routeName} → {row.stopName}</span>
+                     </div>
+                   ))}
+                   {excelData.length > 5 && (
+                     <div className="p-3 text-[10px] font-bold text-slate-400 text-center bg-slate-50/50">
+                       + {excelData.length - 5} more records
+                     </div>
+                   )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+               <Button 
+                variant="outline" 
+                className="flex-1 h-12 rounded-2xl font-bold gap-2 border-slate-200"
+                onClick={downloadTemplate}
+              >
+                <Download className="w-4 h-4" /> Template
+              </Button>
+              <Button 
+                className="flex-[2] h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 shadow-lg shadow-emerald-100 disabled:opacity-50"
+                disabled={excelData.length === 0 || uploading}
+                onClick={handleBulkAssignSubmit}
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {uploading ? 'Processing...' : 'Start Assignment'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
