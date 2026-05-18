@@ -30,7 +30,7 @@ const SchoolInsights: React.FC<{ stats: any }> = ({ stats }) => {
   ];
 
   return (
-    <Card className="border-none shadow-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white overflow-hidden relative rounded-3xl h-full">
+    <Card className="border-none shadow-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white overflow-hidden relative rounded-3xl">
       <div className="absolute top-0 right-0 p-4 opacity-10">
         <Sparkles className="w-24 h-24 text-primary animate-pulse" />
       </div>

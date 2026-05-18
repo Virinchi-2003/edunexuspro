@@ -7,6 +7,7 @@ import Schools from './pages/admin/Schools';
 import Enquiries from './pages/admin/Enquiries';
 import Principals from './pages/admin/Principals';
 import Subscriptions from './pages/admin/Subscriptions';
+import Payments from './pages/admin/Payments';
 import Settings from './pages/admin/Settings';
 import PrincipalDashboard from './pages/principal/Dashboard';
 import PrincipalStudents from './pages/principal/Students';
@@ -96,6 +97,7 @@ const App: React.FC = () => {
                   <Route path="/enquiries" element={<Enquiries />} />
                   <Route path="/principals" element={<Principals />} />
                   <Route path="/subscriptions" element={<Subscriptions />} />
+                  <Route path="/payments" element={<Payments />} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
               </AdminLayout>

@@ -34,6 +34,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { icon: MessageSquare, label: 'Enquiries', path: '/admin/enquiries' },
     { icon: Users, label: 'Principals', path: '/admin/principals' },
     { icon: CreditCard, label: 'Subscriptions', path: '/admin/subscriptions' },
+    { icon: DollarSign, label: 'Payments', path: '/admin/payments' },
     { icon: Settings, label: 'Settings', path: '/admin/settings' },
   ];
 

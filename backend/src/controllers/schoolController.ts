@@ -140,7 +140,7 @@ export const updateSchoolStatus = asyncHandler(async (req: Request, res: Respons
 });
 export const updateSchool = asyncHandler(async (req: Request, res: Response) => {
   const id = getSingleValue(req.params.id);
-  const { name, address, contactEmail, subscriptionPlan, currentAcademicYear, school_id } = req.body;
+  const { name, address, contactEmail, subscriptionPlan, currentAcademicYear, school_id, academicYears } = req.body;
 
   await db.update(schools)
     .set({ 
@@ -150,6 +150,7 @@ export const updateSchool = asyncHandler(async (req: Request, res: Response) => 
       subscriptionPlan,
       currentAcademicYear,
       school_id,
+      academicYears,
       updatedAt: new Date().toISOString() 
     })
     .where(eq(schools.id, id));

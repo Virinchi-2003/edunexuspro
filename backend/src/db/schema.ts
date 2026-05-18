@@ -10,6 +10,7 @@ export const schools = sqliteTable('schools', {
   subscriptionPlan: text('subscriptionPlan').notNull(),
   status: text('status', { enum: ['active', 'suspended', 'pending'] }).default('active'),
   currentAcademicYear: text('currentAcademicYear').default('2026-27'),
+  academicYears: text('academicYears').default('2024-25,2025-26,2026-27,2027-28'),
   createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updatedAt').default(sql`CURRENT_TIMESTAMP`),
 });
@@ -693,6 +694,7 @@ export const announcements = sqliteTable('announcements', {
   content: text('content').notNull(),
   type: text('type', { enum: ['event', 'holiday', 'exam', 'notice', 'other'] }).default('notice'),
   priority: text('priority', { enum: ['low', 'medium', 'high'] }).default('medium'),
+  audience: text('audience', { enum: ['all', 'staff', 'student'] }).default('all'),
   attachmentUrl: text('attachmentUrl'),
   attachmentName: text('attachmentName'),
   postedBy: text('postedBy').references(() => users.uid), // Principal or Admin is a user
@@ -1152,4 +1154,35 @@ export const transportAssignmentsRelations = relations(transportAssignments, ({ 
   route: one(transportRoutes, { fields: [transportAssignments.routeId], references: [transportRoutes.id] }),
   stop: one(transportStops, { fields: [transportAssignments.stopId], references: [transportStops.id] }),
 }));
+
+export const schoolPayments = sqliteTable('school_payments', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  schoolName: text('schoolName').notNull(),
+  plan: text('plan').notNull(),
+  amount: real('amount').notNull(),
+  transactionId: text('transactionId').notNull(),
+  paymentDate: text('paymentDate').notNull(),
+  status: text('status').default('success'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const repaymentReminders = sqliteTable('repayment_reminders', {
+  id: text('id').primaryKey(),
+  schoolId: text('schoolId').notNull().references(() => schools.id, { onDelete: 'cascade' }),
+  message: text('message').notNull(),
+  amount: real('amount'),
+  dueDate: text('dueDate'),
+  status: text('status').default('active'),
+  createdAt: text('createdAt').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const schoolPaymentsRelations = relations(schoolPayments, ({ one }) => ({
+  school: one(schools, { fields: [schoolPayments.schoolId], references: [schools.id] }),
+}));
+
+export const repaymentRemindersRelations = relations(repaymentReminders, ({ one }) => ({
+  school: one(schools, { fields: [repaymentReminders.schoolId], references: [schools.id] }),
+}));
+
 

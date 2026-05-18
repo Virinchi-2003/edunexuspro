@@ -45,6 +45,8 @@ export const initDb = async () => {
     await addColumn('salary_payments', 'updatedAt', 'TEXT');
     await addColumn('wallet_transactions', 'updatedAt', 'TEXT');
     await addColumn('recharge_logs', 'updatedAt', 'TEXT');
+    await addColumn('announcements', 'audience', 'TEXT');
+    await addColumn('schools', 'academicYears', 'TEXT');
     
     // Students table updates
     await addColumn('students', 'documents', 'TEXT');
@@ -185,7 +187,33 @@ export const initDb = async () => {
       )
     `);
 
-    console.log('✅ Turso Database Connected & Transport Tables Ready.');
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS school_payments (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        schoolName TEXT NOT NULL,
+        plan TEXT NOT NULL,
+        amount REAL NOT NULL,
+        transactionId TEXT NOT NULL,
+        paymentDate TEXT NOT NULL,
+        status TEXT DEFAULT 'success',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.execute(`
+      CREATE TABLE IF NOT EXISTS repayment_reminders (
+        id TEXT PRIMARY KEY,
+        schoolId TEXT NOT NULL,
+        message TEXT NOT NULL,
+        amount REAL,
+        dueDate TEXT,
+        status TEXT DEFAULT 'active',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('✅ Turso Database Connected & Transport/Payment Tables Ready.');
   } catch (error) {
     console.error('❌ Failed to connect to Turso Database:', error);
   }

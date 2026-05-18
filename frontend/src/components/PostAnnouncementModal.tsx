@@ -45,6 +45,7 @@ const PostAnnouncementModal: React.FC<PostAnnouncementModalProps> = ({ onSuccess
     content: '',
     type: 'notice' as any,
     priority: 'medium' as any,
+    audience: 'all' as any,
     attachmentUrl: '',
     attachmentName: ''
   });
@@ -113,6 +114,7 @@ const PostAnnouncementModal: React.FC<PostAnnouncementModalProps> = ({ onSuccess
         content: '',
         type: 'notice',
         priority: 'medium',
+        audience: 'all',
         attachmentUrl: '',
         attachmentName: ''
       });
@@ -157,7 +159,7 @@ const PostAnnouncementModal: React.FC<PostAnnouncementModalProps> = ({ onSuccess
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Type</label>
               <Select 
@@ -189,6 +191,22 @@ const PostAnnouncementModal: React.FC<PostAnnouncementModalProps> = ({ onSuccess
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High / Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Audience</label>
+              <Select 
+                value={formData.audience} 
+                onValueChange={v => setFormData({ ...formData, audience: v as any })}
+              >
+                <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50/50">
+                  <SelectValue placeholder="Audience" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">Everyone</SelectItem>
+                  <SelectItem value="staff">Staff Only</SelectItem>
+                  <SelectItem value="student">Students Only</SelectItem>
                 </SelectContent>
               </Select>
             </div>

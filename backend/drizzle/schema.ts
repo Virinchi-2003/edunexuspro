@@ -573,6 +573,7 @@ export const announcements = sqliteTable("announcements", {
 	content: text().notNull(),
 	type: text().default("notice"),
 	priority: text().default("medium"),
+	audience: text().default("all"),
 	attachmentUrl: text(),
 	attachmentName: text(),
 	postedBy: text().references(() => users.uid),
@@ -651,4 +652,27 @@ export const rechargeLogs = sqliteTable("recharge_logs", {
 	createdAt: text().default("sql`(CURRENT_TIMESTAMP)`"),
 	updatedAt: text(),
 });
+
+export const schoolPayments = sqliteTable("school_payments", {
+	id: text().primaryKey(),
+	schoolId: text().notNull().references(() => schools.id, { onDelete: "cascade" }),
+	schoolName: text().notNull(),
+	plan: text().notNull(),
+	amount: real().notNull(),
+	transactionId: text().notNull(),
+	paymentDate: text().notNull(),
+	status: text().default("success"),
+	createdAt: text().default("sql`(CURRENT_TIMESTAMP)`"),
+});
+
+export const repaymentReminders = sqliteTable("repayment_reminders", {
+	id: text().primaryKey(),
+	schoolId: text().notNull().references(() => schools.id, { onDelete: "cascade" }),
+	message: text().notNull(),
+	amount: real(),
+	dueDate: text(),
+	status: text().default("active"),
+	createdAt: text().default("sql`(CURRENT_TIMESTAMP)`"),
+});
+
 

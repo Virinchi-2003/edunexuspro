@@ -22,6 +22,7 @@ interface Announcement {
   content: string;
   type: 'event' | 'holiday' | 'exam' | 'notice' | 'other';
   priority: 'low' | 'medium' | 'high';
+  audience?: 'all' | 'staff' | 'student';
   attachmentUrl?: string;
   attachmentName?: string;
   authorName?: string;
@@ -139,6 +140,11 @@ const AnnouncementBoard: React.FC<AnnouncementBoardProps> = ({ limit, showPostBu
                         <Badge variant="outline" className={`text-[10px] px-1.5 py-0 rounded-md border-none ${getPriorityColor(announcement.priority)}`}>
                           {announcement.priority}
                         </Badge>
+                        {announcement.audience && announcement.audience !== 'all' && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded-md border-none bg-indigo-50 text-indigo-700 font-bold uppercase tracking-wider">
+                            {announcement.audience === 'staff' ? 'Staff Only' : 'Students Only'}
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-[11px] font-medium text-slate-400 shrink-0">
                         {format(new Date(announcement.postedAt), 'MMM dd, p')}

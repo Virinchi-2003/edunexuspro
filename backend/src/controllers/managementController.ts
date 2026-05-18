@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/database';
-import { principals, subscriptions, schools, students, leads, users, configs, staff, fees, attendance, requisitions } from '../db/schema';
+import { principals, subscriptions, schools, students, leads, users, configs, staff, fees, attendance, requisitions, schoolPayments, repaymentReminders } from '../db/schema';
 import { principalSchema } from '../models/principalModel';
 import { subscriptionSchema } from '../models/subscriptionModel';
 import { asyncHandler } from '../middleware/errorHandler';
@@ -454,3 +454,127 @@ export const changeAdminPassword = asyncHandler(async (req: Request, res: Respon
 
   res.status(200).json({ status: 'success', message: 'Password updated' });
 });
+
+// Payments & Reminders Controllers
+export const getSchoolPayments = asyncHandler(async (req: Request, res: Response) => {
+  const paymentsList = await db.query.schoolPayments.findMany({
+    orderBy: [desc(schoolPayments.createdAt)]
+  });
+  res.status(200).json({ status: 'success', data: paymentsList });
+});
+
+export const createSchoolPayment = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, schoolName, plan, amount, transactionId, paymentDate } = req.body;
+
+  if (!schoolId || !schoolName || !plan || !amount || !transactionId || !paymentDate) {
+    return res.status(400).json({ status: 'error', message: 'All payment fields are required' });
+  }
+
+  const id = uuidv4();
+  const newPayment = {
+    id,
+    schoolId,
+    schoolName,
+    plan,
+    amount: Number(amount),
+    transactionId,
+    paymentDate,
+    status: 'success'
+  };
+
+  // Insert payment record
+  await db.insert(schoolPayments).values(newPayment);
+
+  // Sync: Update the school's plan in schools table
+  await db.update(schools)
+    .set({ subscriptionPlan: plan, updatedAt: new Date().toISOString() })
+    .where(eq(schools.id, schoolId));
+
+  // Sync: Activate or extend subscription in subscriptions table
+  const existingSub = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.schoolId, schoolId)
+  });
+
+  const startDate = new Date(paymentDate).toISOString();
+  const endDate = new Date(new Date(paymentDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days validity
+
+  if (existingSub) {
+    await db.update(subscriptions)
+      .set({
+        plan,
+        amount: Number(amount),
+        transactionId,
+        startDate,
+        endDate,
+        status: 'active',
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(subscriptions.id, existingSub.id));
+  } else {
+    await db.insert(subscriptions).values({
+      id: uuidv4(),
+      schoolId,
+      plan,
+      amount: Number(amount),
+      transactionId,
+      startDate,
+      endDate,
+      status: 'active'
+    });
+  }
+
+  res.status(201).json({ status: 'success', message: 'Payment recorded and subscription updated successfully', data: newPayment });
+});
+
+export const deleteSchoolPayment = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  await db.delete(schoolPayments).where(eq(schoolPayments.id, id));
+  res.status(200).json({ status: 'success', message: 'Payment record deleted successfully' });
+});
+
+export const sendRepaymentReminder = asyncHandler(async (req: Request, res: Response) => {
+  const { schoolId, message, amount, dueDate } = req.body;
+
+  if (!schoolId || !message) {
+    return res.status(400).json({ status: 'error', message: 'School and message are required' });
+  }
+
+  const id = uuidv4();
+  await db.insert(repaymentReminders).values({
+    id,
+    schoolId,
+    message,
+    amount: amount ? Number(amount) : null,
+    dueDate: dueDate || null,
+    status: 'active'
+  });
+
+  res.status(201).json({ status: 'success', message: 'Repayment reminder sent successfully to Principal dashboard!' });
+});
+
+export const getRepaymentReminders = asyncHandler(async (req: Request, res: Response) => {
+  const schoolId = getSingleValue(req.params.schoolId);
+  if (!schoolId) {
+    return res.status(400).json({ status: 'error', message: 'School ID is required' });
+  }
+
+  const reminders = await db.query.repaymentReminders.findMany({
+    where: and(
+      eq(repaymentReminders.schoolId, schoolId),
+      eq(repaymentReminders.status, 'active')
+    ),
+    orderBy: [desc(repaymentReminders.createdAt)]
+  });
+
+  res.status(200).json({ status: 'success', data: reminders });
+});
+
+export const resolveRepaymentReminder = asyncHandler(async (req: Request, res: Response) => {
+  const id = getSingleValue(req.params.id);
+  await db.update(repaymentReminders)
+    .set({ status: 'resolved' })
+    .where(eq(repaymentReminders.id, id));
+
+  res.status(200).json({ status: 'success', message: 'Reminder marked as resolved / dismissed.' });
+});
+
