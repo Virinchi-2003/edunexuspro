@@ -12,17 +12,14 @@ import { Button } from '@/components/ui/button';
 import { 
   DollarSign, 
   Search, 
-  Calendar,
   Building,
   Trash2,
   Loader2,
   Plus,
-  ArrowUpRight,
   Bell,
   CheckCircle,
   FileText,
-  Clock,
-  ExternalLink
+  Clock
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -148,7 +145,6 @@ const PaymentsPage: React.FC = () => {
   };
 
   const handleReminderClick = (schoolId: string, plan: string, amount: number) => {
-    const selectedSchool = schools.find(s => s.id === schoolId);
     setReminderData({
       schoolId,
       message: `Dear Principal, this is a reminder for your EduNexus Pro Plan Repayment. Your current ${plan.toUpperCase()} plan is due for renewal. Please make the payment of ₹${amount.toLocaleString()} to avoid service disruption.`,

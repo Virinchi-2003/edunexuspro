@@ -86,7 +86,7 @@ const PrincipalDashboard: React.FC = () => {
         academicYears: updatedYears
       });
       toast.success(`Academic Year ${trimmed} successfully added!`);
-      setSchool(prev => ({
+      setSchool((prev: any) => ({
         ...prev,
         academicYears: updatedYears
       }));
@@ -180,7 +180,7 @@ const PrincipalDashboard: React.FC = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[185px] rounded-xl p-1 shadow-md border border-slate-100 bg-white">
-              {availableYears.map((year) => (
+              {availableYears.map((year: string) => (
                 <DropdownMenuItem 
                   key={year}
                   onClick={() => handleYearChange(year)}

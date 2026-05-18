@@ -6,11 +6,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon, 
-  Sparkles, 
   Clock, 
   Users,
-  AlertCircle,
-  Megaphone,
   Bell
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
