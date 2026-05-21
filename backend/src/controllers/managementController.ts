@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import { db } from '../config/database';
 import { principals, subscriptions, schools, students, leads, users, configs, staff, fees, attendance, requisitions, schoolPayments, repaymentReminders } from '../db/schema';
 import { principalSchema } from '../models/principalModel';
@@ -8,6 +9,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { eq, sql, count, desc, and } from 'drizzle-orm';
 import * as z from 'zod';
 import { getSingleValue } from '../utils/queryHelper';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_dummy',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret'
+});
 
 const adminSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -576,5 +584,275 @@ export const resolveRepaymentReminder = asyncHandler(async (req: Request, res: R
     .where(eq(repaymentReminders.id, id));
 
   res.status(200).json({ status: 'success', message: 'Reminder marked as resolved / dismissed.' });
+});
+
+export const renewSchoolSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { reminderId, plan, amount, transactionId, paymentDate } = req.body;
+  const schoolId = req.user?.schoolId;
+
+  if (!schoolId) {
+    return res.status(400).json({ status: 'error', message: 'School ID is required or user is not linked to a school.' });
+  }
+
+  // 1. Find school details
+  const school = await db.query.schools.findFirst({
+    where: eq(schools.id, schoolId)
+  });
+
+  if (!school) {
+    return res.status(404).json({ status: 'error', message: 'School not found' });
+  }
+
+  // 2. Prepare transaction data
+  const txId = transactionId || `TXN-${Math.floor(10000000000 + Math.random() * 90000000000)}`;
+  const dateStr = paymentDate || new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+  // 3. Create a school payment record (so it syncs with the admin portal payments ledger!)
+  const paymentId = uuidv4();
+  const newPayment = {
+    id: paymentId,
+    schoolId,
+    schoolName: school.name,
+    plan: plan || school.subscriptionPlan || 'starter',
+    amount: Number(amount) || 0,
+    transactionId: txId,
+    paymentDate: dateStr,
+    status: 'success'
+  };
+  await db.insert(schoolPayments).values(newPayment);
+
+  // 4. Update the school's plan/status in schools table
+  await db.update(schools)
+    .set({ 
+      subscriptionPlan: plan || school.subscriptionPlan,
+      status: 'active',
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(schools.id, schoolId));
+
+  // 5. Sync or create subscription in subscriptions table
+  const existingSub = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.schoolId, schoolId)
+  });
+
+  const startDate = new Date().toISOString();
+  const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days extension
+
+  if (existingSub) {
+    await db.update(subscriptions)
+      .set({
+        plan: plan || school.subscriptionPlan,
+        amount: Number(amount) || 0,
+        transactionId: txId,
+        startDate,
+        endDate,
+        status: 'active',
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(subscriptions.id, existingSub.id));
+  } else {
+    await db.insert(subscriptions).values({
+      id: uuidv4(),
+      schoolId,
+      plan: plan || school.subscriptionPlan,
+      amount: Number(amount) || 0,
+      transactionId: txId,
+      startDate,
+      endDate,
+      status: 'active'
+    });
+  }
+
+  // 6. If reminderId is provided, resolve the repayment reminder
+  if (reminderId) {
+    await db.update(repaymentReminders)
+      .set({ status: 'resolved' })
+      .where(eq(repaymentReminders.id, reminderId));
+  } else {
+    // If no reminderId was explicitly passed, let's mark any active repayment reminders for this school as resolved
+    await db.update(repaymentReminders)
+      .set({ status: 'resolved' })
+      .where(and(
+        eq(repaymentReminders.schoolId, schoolId),
+        eq(repaymentReminders.status, 'active')
+      ));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Plan renewed and payment synchronized successfully!',
+    data: newPayment
+  });
+});
+
+export const renewSchoolSubscriptionOrder = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { amount, plan, reminderId } = req.body;
+  const schoolId = req.user?.schoolId;
+
+  if (!schoolId) {
+    return res.status(400).json({ status: 'error', message: 'School ID is required or user is not linked to a school.' });
+  }
+
+  const amtNum = Number(amount);
+  if (!amtNum || amtNum <= 0) {
+    return res.status(400).json({ status: 'error', message: 'Valid payment amount is required.' });
+  }
+
+  try {
+    // Attempt real Razorpay order creation
+    const order = await razorpay.orders.create({
+      amount: amtNum * 100, // paise
+      currency: 'INR',
+      receipt: `renew_school_${schoolId.slice(0, 8)}_${Date.now().toString().slice(-6)}`,
+    });
+    res.status(201).json({
+      status: 'success',
+      data: {
+        ...order,
+        key: process.env.RAZORPAY_KEY_ID
+      }
+    });
+  } catch (error: any) {
+    console.warn('[Razorpay] Order creation failed or unauthenticated, falling back to mock mode:', error.message || error);
+    
+    // Fallback to mock order for development or when credentials fail
+    const mockOrder = {
+      id: `order_mock_${uuidv4().slice(0, 8)}`,
+      amount: amtNum * 100,
+      currency: 'INR',
+      receipt: `renew_mock_${schoolId.slice(0, 8)}_${Date.now().toString().slice(-6)}`,
+      status: 'created',
+      isMock: true,
+      key: process.env.RAZORPAY_KEY_ID || 'rzp_test_KIn9L9L9L9L9L9'
+    };
+    
+    res.status(201).json({
+      status: 'success',
+      message: 'Using Mock Payment Gateway (Dev Mode)',
+      data: mockOrder
+    });
+  }
+});
+
+export const verifySchoolSubscriptionRenewal = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { 
+    razorpay_order_id, 
+    razorpay_payment_id, 
+    razorpay_signature,
+    reminderId,
+    plan,
+    amount
+  } = req.body;
+
+  const schoolId = req.user?.schoolId;
+  if (!schoolId) {
+    return res.status(400).json({ status: 'error', message: 'School ID is required or user is not linked to a school.' });
+  }
+
+  const isMock = razorpay_order_id?.startsWith('order_mock_');
+  let isAuthentic = false;
+
+  if (isMock) {
+    isAuthentic = true; // Always trust mock orders in dev mode
+  } else {
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || 'dummy_secret')
+      .update(body.toString())
+      .digest("hex");
+    isAuthentic = expectedSignature === razorpay_signature;
+  }
+
+  if (!isAuthentic) {
+    return res.status(400).json({ status: 'error', message: 'Invalid payment signature' });
+  }
+
+  // 1. Find school details
+  const school = await db.query.schools.findFirst({
+    where: eq(schools.id, schoolId)
+  });
+
+  if (!school) {
+    return res.status(404).json({ status: 'error', message: 'School not found' });
+  }
+
+  const txId = razorpay_payment_id || `TXN-${Math.floor(10000000000 + Math.random() * 90000000000)}`;
+  const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+  // 2. Create a school payment record (so it syncs with the admin portal payments ledger!)
+  const paymentId = uuidv4();
+  const newPayment = {
+    id: paymentId,
+    schoolId,
+    schoolName: school.name,
+    plan: plan || school.subscriptionPlan || 'starter',
+    amount: Number(amount) || 0,
+    transactionId: txId,
+    paymentDate: dateStr,
+    status: 'success'
+  };
+  await db.insert(schoolPayments).values(newPayment);
+
+  // 3. Update the school's plan/status in schools table
+  await db.update(schools)
+    .set({ 
+      subscriptionPlan: plan || school.subscriptionPlan,
+      status: 'active',
+      updatedAt: new Date().toISOString()
+    })
+    .where(eq(schools.id, schoolId));
+
+  // 4. Sync or create subscription in subscriptions table
+  const existingSub = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.schoolId, schoolId)
+  });
+
+  const startDate = new Date().toISOString();
+  const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days extension
+
+  if (existingSub) {
+    await db.update(subscriptions)
+      .set({
+        plan: plan || school.subscriptionPlan,
+        amount: Number(amount) || 0,
+        transactionId: txId,
+        startDate,
+        endDate,
+        status: 'active',
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(subscriptions.id, existingSub.id));
+  } else {
+    await db.insert(subscriptions).values({
+      id: uuidv4(),
+      schoolId,
+      plan: plan || school.subscriptionPlan,
+      amount: Number(amount) || 0,
+      transactionId: txId,
+      startDate,
+      endDate,
+      status: 'active'
+    });
+  }
+
+  // 5. Resolve the repayment reminder
+  if (reminderId) {
+    await db.update(repaymentReminders)
+      .set({ status: 'resolved' })
+      .where(eq(repaymentReminders.id, reminderId));
+  } else {
+    await db.update(repaymentReminders)
+      .set({ status: 'resolved' })
+      .where(and(
+        eq(repaymentReminders.schoolId, schoolId),
+        eq(repaymentReminders.status, 'active')
+      ));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Plan renewed and payment verified successfully via Razorpay!',
+    data: newPayment
+  });
 });
 

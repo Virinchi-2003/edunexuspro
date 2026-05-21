@@ -6,7 +6,8 @@ import {
   changeAdminPassword,
   getSystemStats, getSchoolStats, getSystemConfig, updateSystemConfig,
   getSchoolPayments, createSchoolPayment, deleteSchoolPayment,
-  sendRepaymentReminder, getRepaymentReminders, resolveRepaymentReminder
+  sendRepaymentReminder, getRepaymentReminders, resolveRepaymentReminder,
+  renewSchoolSubscription, renewSchoolSubscriptionOrder, verifySchoolSubscriptionRenewal
 } from '../controllers/managementController';
 import { authenticate, authorize } from '../middleware/auth';
 
@@ -37,6 +38,9 @@ router.delete('/payments/:id', authenticate, authorize(['admin']), deleteSchoolP
 router.post('/payments/remind', authenticate, authorize(['admin']), sendRepaymentReminder);
 router.get('/payments/reminders/:schoolId', authenticate, getRepaymentReminders);
 router.post('/payments/reminders/:id/resolve', authenticate, resolveRepaymentReminder);
+router.post('/payments/renew', authenticate, authorize(['admin', 'principal']), renewSchoolSubscription);
+router.post('/payments/renew/order', authenticate, authorize(['admin', 'principal']), renewSchoolSubscriptionOrder);
+router.post('/payments/renew/verify', authenticate, authorize(['admin', 'principal']), verifySchoolSubscriptionRenewal);
 
 // System Admins
 router.get('/admins', authenticate, authorize(['admin']), getAdminUsers);
